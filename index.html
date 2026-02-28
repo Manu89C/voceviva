@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Voce Viva</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#f55036">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="VoceViva">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --bg:#0a0a0f; --surface:#111118; --border:#1e1e2e; --accent:#f55036; --text:#e8e8f0; --muted:#5a5a7a; --live:#4ade80; }
+  body { min-height:100vh; background:var(--bg); color:var(--text); font-family:'DM Mono',monospace; display:flex; flex-direction:column; align-items:center; padding:1.5rem 1rem 2rem; -webkit-tap-highlight-color:transparent; }
+  body::before { content:''; position:fixed; inset:0; background:radial-gradient(ellipse 70% 50% at 10% 90%,rgba(245,80,54,.07) 0%,transparent 65%),radial-gradient(ellipse 55% 40% at 90% 10%,rgba(245,80,54,.04) 0%,transparent 65%); pointer-events:none; z-index:0; }
+  .container { position:relative; z-index:1; width:100%; max-width:640px; display:flex; flex-direction:column; gap:1.25rem; }
+  h1 { font-family:'DM Serif Display',serif; font-size:clamp(1.8rem,6vw,2.8rem); letter-spacing:-.02em; line-height:1; }
+  h1 em { font-style:italic; color:var(--accent); }
+  .subtitle { font-size:.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:.15em; margin-top:.35rem; display:flex; align-items:center; gap:.5rem; }
+  .badge { background:rgba(245,80,54,.15); border:1px solid rgba(245,80,54,.3); color:var(--accent); padding:.1rem .5rem; border-radius:.3rem; font-size:.58rem; }
+  .api-card { background:var(--surface); border:1px solid var(--border); border-radius:1rem; padding:1.25rem; display:flex; flex-direction:column; gap:.75rem; }
+  .api-label { font-size:.65rem; text-transform:uppercase; letter-spacing:.12em; color:var(--muted); display:flex; align-items:center; gap:.5rem; }
+  .dot { width:6px; height:6px; border-radius:50%; background:#f06a6a; flex-shrink:0; transition:background .3s; }
+  .dot.ok { background:var(--live); }
+  .api-row { display:flex; gap:.5rem; }
+  .api-input { flex:1; background:var(--bg); border:1px solid var(--border); border-radius:.6rem; color:var(--text); font-family:'DM Mono',monospace; font-size:.7rem; padding:.6rem .75rem; outline:none; min-width:0; }
+  .api-input:focus { border-color:var(--accent); }
+  .api-input::placeholder { color:var(--muted); }
+  .btn-save { background:var(--accent); color:#fff; border:none; padding:.6rem 1rem; border-radius:.6rem; font-family:'DM Mono',monospace; font-size:.7rem; cursor:pointer; white-space:nowrap; }
+  .api-hint { font-size:.62rem; color:var(--muted); line-height:1.6; }
+  .api-hint a { color:var(--accent); text-decoration:none; }
+  .box-label { font-size:.6rem; text-transform:uppercase; letter-spacing:.15em; color:var(--muted); margin-bottom:.5rem; display:flex; align-items:center; gap:.5rem; }
+  .live-dot { width:5px; height:5px; border-radius:50%; background:var(--muted); flex-shrink:0; }
+  .live-dot.on { background:#f06a6a; animation:blink .8s ease-in-out infinite; }
+  .live-dot.processing { background:var(--accent); animation:blink .5s ease-in-out infinite; }
+  .live-dot.done { background:var(--live); animation:none; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+  .transcript-box { background:var(--surface); border:1px solid var(--border); border-radius:1rem; padding:1.25rem; min-height:200px; max-height:45vh; overflow-y:auto; transition:border-color .3s; position:relative; }
+  .transcript-box.recording { border-color:#f06a6a; }
+  .transcript-box.done { border-color:var(--live); }
+  .transcript-box::-webkit-scrollbar { width:3px; }
+  .transcript-box::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+  .placeholder { color:var(--muted); font-size:.75rem; text-align:center; padding:2rem 0; line-height:1.9; }
+  .placeholder-icon { font-size:2rem; opacity:.35; display:block; margin-bottom:.5rem; }
+  #liveText { font-size:.9rem; line-height:1.85; color:var(--text); word-break:break-word; white-space:pre-wrap; }
+  .cursor { display:inline-block; width:2px; height:1em; background:var(--accent); margin-left:2px; vertical-align:text-bottom; animation:cursorBlink 1s ease-in-out infinite; }
+  @keyframes cursorBlink { 0%,100%{opacity:1} 50%{opacity:0} }
+  .processing-pill { display:none; position:absolute; bottom:.9rem; right:.9rem; background:rgba(245,80,54,.15); border:1px solid rgba(245,80,54,.3); border-radius:2rem; padding:.3rem .7rem; font-size:.6rem; color:var(--accent); text-transform:uppercase; letter-spacing:.1em; align-items:center; gap:.4rem; }
+  .processing-pill.show { display:flex; }
+  .pill-dot { width:5px; height:5px; border-radius:50%; background:var(--accent); animation:blink .6s ease-in-out infinite; }
+  .summary-box { background:var(--surface); border:1px solid var(--border); border-radius:1rem; padding:1.25rem; min-height:100px; position:relative; transition:border-color .3s; display:none; }
+  .summary-box.show { display:block; }
+  .summary-box.loading { border-color:var(--accent); }
+  .summary-box.done { border-color:var(--live); }
+  .summary-overlay { display:none; position:absolute; inset:0; background:rgba(10,10,15,.75); border-radius:1rem; align-items:center; justify-content:center; gap:.75rem; font-size:.72rem; color:var(--accent); backdrop-filter:blur(2px); }
+  .summary-overlay.show { display:flex; }
+  .spinner { width:16px; height:16px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+  #summaryText { font-size:.88rem; line-height:1.85; color:var(--text); word-break:break-word; }
+  #summaryText p { margin-bottom:.75rem; }
+  #summaryText ul { padding-left:1.2rem; margin-bottom:.75rem; }
+  #summaryText li { margin-bottom:.4rem; }
+  .error-msg { background:rgba(240,106,106,.1); border:1px solid rgba(240,106,106,.3); border-radius:.6rem; padding:.7rem .9rem; font-size:.72rem; color:#f06a6a; line-height:1.6; display:none; }
+  .error-msg.show { display:block; }
+  .controls { display:flex; flex-direction:column; align-items:center; gap:.9rem; }
+  .timer { font-size:2rem; font-weight:300; letter-spacing:.06em; font-variant-numeric:tabular-nums; }
+  .waveform { display:flex; align-items:center; gap:3px; height:28px; }
+  .bar { width:3px; background:#f06a6a; border-radius:2px; height:3px; }
+  .bar.active { animation:wave .7s ease-in-out infinite; }
+  .bar:nth-child(1){animation-delay:.00s}.bar:nth-child(2){animation-delay:.10s}.bar:nth-child(3){animation-delay:.20s}
+  .bar:nth-child(4){animation-delay:.30s}.bar:nth-child(5){animation-delay:.15s}.bar:nth-child(6){animation-delay:.05s}
+  .bar:nth-child(7){animation-delay:.25s}.bar:nth-child(8){animation-delay:.35s}.bar:nth-child(9){animation-delay:.10s}
+  @keyframes wave { 0%,100%{height:3px} 50%{height:24px} }
+  .mic-btn { width:88px; height:88px; border-radius:50%; border:none; background:var(--accent); color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:transform .12s,box-shadow .25s; box-shadow:0 6px 28px rgba(245,80,54,.45); touch-action:manipulation; }
+  .mic-btn:active { transform:scale(.92); }
+  .mic-btn.recording { background:#c0392b; box-shadow:0 6px 36px rgba(192,57,43,.6); animation:pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{box-shadow:0 6px 36px rgba(192,57,43,.6)} 50%{box-shadow:0 6px 50px rgba(192,57,43,.9),0 0 0 10px rgba(192,57,43,.12)} }
+  .mic-btn svg { width:36px; height:36px; }
+  .status-row { display:flex; align-items:center; gap:.5rem; font-size:.68rem; color:var(--muted); text-transform:uppercase; letter-spacing:.12em; }
+  .status-dot { width:6px; height:6px; border-radius:50%; background:var(--muted); transition:background .3s; }
+  .status-dot.live { background:#f06a6a; animation:blink .8s ease-in-out infinite; }
+  .status-dot.processing { background:var(--accent); animation:blink .5s ease-in-out infinite; }
+  .status-dot.done { background:var(--live); animation:none; }
+  .bottom-row { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.5rem; }
+  .word-count { font-size:.65rem; color:var(--muted); }
+  .action-btns { display:flex; gap:.6rem; flex-wrap:wrap; }
+  .btn-ghost { background:none; border:1px solid var(--border); color:var(--muted); padding:.4rem .85rem; border-radius:.5rem; font-family:'DM Mono',monospace; font-size:.65rem; cursor:pointer; text-transform:uppercase; letter-spacing:.1em; touch-action:manipulation; }
+  .btn-ghost:disabled { opacity:.3; cursor:not-allowed; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Voce <em>Viva</em></h1>
+    <p class="subtitle">Groq Whisper · <span class="badge">ANDROID</span></p>
+  </header>
+
+  <div class="api-card" id="apiCard">
+    <div class="api-label"><span class="dot" id="apiDot"></span><span id="apiLabel">Chiave Groq richiesta</span></div>
+    <div class="api-row">
+      <input class="api-input" type="password" id="apiKeyInput" placeholder="gsk_..." autocomplete="off" spellcheck="false">
+      <button class="btn-save" id="saveKeyBtn">Salva</button>
+    </div>
+    <p class="api-hint">Gratis su <a href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a></p>
+  </div>
+
+  <div>
+    <div class="box-label"><span class="live-dot" id="liveDot"></span>Trascrizione</div>
+    <div class="transcript-box" id="transcriptBox">
+      <div class="placeholder" id="placeholder">
+        <span class="placeholder-icon">🎙️</span>
+        Premi il microfono per iniziare.<br>Il testo appare ogni 5 secondi.
+      </div>
+      <div id="liveText"></div>
+      <div class="processing-pill" id="processingPill"><span class="pill-dot"></span> trascrivo…</div>
+    </div>
+  </div>
+
+  <div>
+    <div class="box-label" id="summaryLabel" style="display:none"><span class="live-dot" id="summaryDot"></span>Riassunto automatico</div>
+    <div class="summary-box" id="summaryBox">
+      <div class="summary-overlay" id="summaryOverlay"><div class="spinner"></div> Groq sta riassumendo…</div>
+      <div id="summaryText"></div>
+    </div>
+  </div>
+
+  <div class="error-msg" id="errorMsg"></div>
+
+  <div class="controls">
+    <div class="timer" id="timer">00:00</div>
+    <div class="waveform">
+      <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+      <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+      <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+    </div>
+    <button class="mic-btn" id="micBtn">
+      <svg id="micIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+        <line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
+      </svg>
+      <svg id="stopIcon" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+    </button>
+    <div class="status-row"><span class="status-dot" id="statusDot"></span><span id="statusText">Pronto</span></div>
+  </div>
+
+  <div class="bottom-row">
+    <span class="word-count" id="wordCount">0 parole</span>
+    <div class="action-btns">
+      <button class="btn-ghost" id="copyBtn" disabled>Copia testo</button>
+      <button class="btn-ghost" id="copySummaryBtn" disabled>Copia riassunto</button>
+      <button class="btn-ghost" id="clearBtn" disabled>Cancella</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Config ────────────────────────────────────────────────────────────────────
+let GROQ_KEY = localStorage.getItem('vv_groq') || '';
+const CHUNK_MS = 5000;
+const SILENCE_THRESHOLD = 0.012;
+const SPEECH_RATIO = 0.20;
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let mediaRecorder = null, isRecording = false, wakeLock = null, startSegment = null, activeStream = null;
+let chunkTimer = null, timerInterval = null, seconds = 0;
+let allText = '', pendingChunks = [], isTranscribing = false, currentMime = '';
+let audioCtx = null, analyser = null;
+const silenceBuffer = new Float32Array(2048);
+
+// ── DOM ───────────────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const micBtn=$('micBtn'), micIcon=$('micIcon'), stopIcon=$('stopIcon');
+const timerEl=$('timer'), statusDot=$('statusDot'), statusText=$('statusText');
+const transcriptBox=$('transcriptBox'), placeholder=$('placeholder'), liveText=$('liveText');
+const processingPill=$('processingPill'), liveDot=$('liveDot');
+const summaryBox=$('summaryBox'), summaryOverlay=$('summaryOverlay'), summaryTextEl=$('summaryText');
+const summaryLabel=$('summaryLabel'), summaryDot=$('summaryDot');
+const errorMsg=$('errorMsg'), wordCount=$('wordCount');
+const copyBtn=$('copyBtn'), copySummaryBtn=$('copySummaryBtn'), clearBtn=$('clearBtn');
+
+// ── Silence detection ─────────────────────────────────────────────────────────
+function setupAnalyser(stream) {
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  analyser = audioCtx.createAnalyser(); analyser.fftSize = 2048;
+  audioCtx.createMediaStreamSource(stream).connect(analyser);
+}
+function getRMS() {
+  if (!analyser) return 1;
+  analyser.getFloatTimeDomainData(silenceBuffer);
+  let sum = 0;
+  for (let i = 0; i < silenceBuffer.length; i++) sum += silenceBuffer[i] * silenceBuffer[i];
+  return Math.sqrt(sum / silenceBuffer.length);
+}
+function hasSpeech(vals) {
+  return vals.length > 0 && vals.filter(v => v > SILENCE_THRESHOLD).length / vals.length > SPEECH_RATIO;
+}
+
+// ── Recording ─────────────────────────────────────────────────────────────────
+async function startRec() {
+  hideErr();
+  if (!GROQ_KEY) { showErr('Inserisci prima la chiave Groq API.'); return; }
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({audio: true}); }
+  catch(e) { showErr('❌ Microfono non accessibile: ' + e.message); return; }
+
+  setupAnalyser(stream);
+  currentMime = ['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/mp4']
+    .find(m => MediaRecorder.isTypeSupported(m)) || '';
+
+  activeStream = stream;
+  allText = '';
+  liveText.innerHTML = ''; summaryTextEl.innerHTML = '';
+  placeholder.style.display = '';
+  summaryBox.className = 'summary-box'; summaryLabel.style.display = 'none';
+  pendingChunks = []; isRecording = true;
+
+  // Wake Lock potenziato con autoreconnect
+  async function acquireWakeLock() {
+    if (!('wakeLock' in navigator)) return;
+    try {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => {
+        // Se la registrazione è ancora attiva, riacquisisce subito
+        if (isRecording) {
+          setTimeout(acquireWakeLock, 300);
+        }
+      });
+    } catch(e) {}
+  }
+  // Riacquisisce anche quando la pagina torna visibile (es. utente sblocca schermo)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && isRecording) {
+      acquireWakeLock();
+      // Se il MediaRecorder si è fermato, lo riavvia
+      if (mediaRecorder && mediaRecorder.state === 'inactive') {
+        try { startSegment(); } catch(e) {}
+      }
+    }
+  });
+  await acquireWakeLock();
+
+  // Audio silenzioso via AudioContext — impedisce sospensione browser su Android
+  try {
+    const silentCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = silentCtx.createOscillator();
+    const gainNode = silentCtx.createGain();
+    gainNode.gain.value = 0.00001; // quasi zero, inaudibile
+    oscillator.connect(gainNode);
+    gainNode.connect(silentCtx.destination);
+    oscillator.start();
+    // Salva per poterlo fermare dopo
+    window._silentOscillator = oscillator;
+    window._silentCtx = silentCtx;
+  } catch(e) {}
+
+
+
+  startSegment = function() {
+    if (!isRecording) return;
+    let chunks = [], rmsValues = [], rmsInterval = null;
+    const mr = new MediaRecorder(stream, currentMime ? {mimeType: currentMime} : {});
+    mediaRecorder = mr;
+    mr.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+    mr.onstart = () => { rmsInterval = setInterval(() => rmsValues.push(getRMS()), 150); };
+    mr.onstop = () => {
+      clearInterval(rmsInterval);
+      const blob = new Blob(chunks, {type: mr.mimeType || 'audio/webm'});
+      // Max 4MB per blob, evita file corrotti o troppo grandi
+      if (blob.size > 3000 && blob.size < 4 * 1024 * 1024 && hasSpeech(rmsValues)) { pendingChunks.push(blob); processQueue(); }
+      if (isRecording) startSegment();
+    };
+    mr.start();
+    chunkTimer = setTimeout(() => { try { mr.stop(); } catch(e){} }, CHUNK_MS);
+  }
+  startSegment();
+
+  micBtn.classList.add('recording'); micIcon.style.display='none'; stopIcon.style.display='block';
+  transcriptBox.classList.add('recording'); liveDot.classList.add('on');
+  setWave(true); setStatus('live','In ascolto…'); startTimer();
+  placeholder.style.display='none'; renderText(true); notifyStart();
+}
+
+async function stopRec() {
+  if (!isRecording) return;
+  isRecording = false; clearTimeout(chunkTimer);
+  try { if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop(); } catch(e){}
+  if (wakeLock) { try { await wakeLock.release(); } catch(e){} wakeLock = null; }
+  // Ferma audio silenzioso
+  try { if (window._silentOscillator) { window._silentOscillator.stop(); window._silentCtx.close(); window._silentOscillator = null; window._silentCtx = null; } } catch(e) {}
+
+  micBtn.classList.remove('recording'); micIcon.style.display='block'; stopIcon.style.display='none';
+  transcriptBox.classList.remove('recording'); liveDot.className='live-dot done';
+  setWave(false); stopTimer(); renderText(false);
+  notifyStop(); setStatus('processing','Elaborazione…');
+}
+
+micBtn.onclick = () => isRecording ? stopRec() : startRec();
+
+// ── Queue ─────────────────────────────────────────────────────────────────────
+async function processQueue() {
+  if (isTranscribing || pendingChunks.length === 0) return;
+  isTranscribing = true; processingPill.classList.add('show');
+  while (pendingChunks.length > 0) await transcribeBlob(pendingChunks.shift());
+  isTranscribing = false; processingPill.classList.remove('show');
+  if (!isRecording && allText.trim()) {
+    setStatus('processing','Groq sta riassumendo…');
+    await generateSummary();
+    setStatus('done','Completato ✓');
+    transcriptBox.classList.add('done');
+    copyBtn.disabled=false; clearBtn.disabled=false;
+  } else if (!isRecording) {
+    setStatus('idle','Pronto');
+  }
+}
+
+// ── Transcribe ────────────────────────────────────────────────────────────────
+async function transcribeBlob(blob) {
+  const ext = blob.type.includes('ogg') ? 'ogg' : blob.type.includes('mp4') ? 'mp4' : 'webm';
+  const form = new FormData();
+  form.append('file', blob, 'audio.' + ext);
+  form.append('model', 'whisper-large-v3-turbo');
+  form.append('language', 'it');
+  form.append('response_format', 'text');
+  const lastWords = allText.trim().split(/\s+/).slice(-60).join(' ');
+  form.append('prompt', lastWords
+    ? 'Trascrizione fedele in italiano. Non aggiungere punteggiatura finale se la frase è incompleta. Non aggiungere parole non dette. Contesto: ' + lastWords
+    : 'Trascrizione fedele in italiano. Non aggiungere punteggiatura finale se la frase è incompleta. Non aggiungere parole non dette.');
+  try {
+    const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+      method: 'POST', headers: {'Authorization': 'Bearer ' + GROQ_KEY}, body: form
+    });
+    if (!res.ok) { const e = await res.json().catch(()=>{}); throw new Error(e?.error?.message || 'Errore ' + res.status); }
+    const raw = (await res.text()).trim();
+    const txt = raw.replace(/\.{2,}/g,'').replace(/…/g,'').replace(/\s{2,}/g,' ').trim();
+    if (txt && txt !== '[BLANK_AUDIO]' && txt.length > 1) {
+      allText += (allText ? ' ' : '') + txt;
+      updateWords(); copyBtn.disabled=false; clearBtn.disabled=false;
+      renderText(isRecording); transcriptBox.scrollTop = transcriptBox.scrollHeight;
+    }
+  } catch(e) { showErr('Errore trascrizione: ' + e.message); }
+}
+
+// ── Summary ───────────────────────────────────────────────────────────────────
+async function generateSummary() {
+  summaryLabel.style.display='flex'; summaryBox.classList.add('show','loading');
+  summaryOverlay.classList.add('show'); summaryDot.className='live-dot processing';
+  try {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {'Authorization': 'Bearer ' + GROQ_KEY, 'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        model: 'llama-3.1-8b-instant', max_tokens: 1024, temperature: 0.3,
+        messages: [
+          {role:'system', content:'Riassumi trascrizioni audio in italiano con HTML semplice: un paragrafo introduttivo sul tema principale, un elenco <ul><li> con i punti chiave, eventuali azioni o decisioni emerse. Italiano naturale e conciso, ignora errori di trascrizione, NON inventare informazioni. Rispondi SOLO con HTML, nessun commento.'},
+          {role:'user', content:'Trascrizione:\n"' + allText + '"'}
+        ]
+      })
+    });
+    if (!res.ok) throw new Error('Errore ' + res.status);
+    const data = await res.json();
+    summaryTextEl.innerHTML = data?.choices?.[0]?.message?.content?.trim() || '<p>Nessun riassunto disponibile.</p>';
+    summaryBox.classList.remove('loading'); summaryBox.classList.add('done');
+    summaryDot.className='live-dot done'; copySummaryBtn.disabled=false;
+  } catch(e) {
+    summaryTextEl.innerHTML='<p>Errore: ' + e.message + '</p>';
+    showErr('Errore riassunto: ' + e.message);
+    summaryBox.classList.remove('loading');
+  } finally { summaryOverlay.classList.remove('show'); }
+}
+
+// ── Utils ─────────────────────────────────────────────────────────────────────
+function renderText(cur) { liveText.innerHTML = esc(allText) + (cur ? '<span class="cursor"></span>' : ''); }
+function startTimer() { seconds=0; clearInterval(timerInterval); timerEl.textContent='00:00'; timerInterval=setInterval(()=>{ seconds++; timerEl.textContent=fmt(seconds); },1000); }
+function stopTimer() { clearInterval(timerInterval); }
+function fmt(s) { return pad(Math.floor(s/60))+':'+pad(s%60); }
+function pad(n) { return String(n).padStart(2,'0'); }
+function setWave(on) { document.querySelectorAll('.bar').forEach(b=>on?b.classList.add('active'):b.classList.remove('active')); }
+function setStatus(state,text) {
+  statusDot.className='status-dot';
+  if(state==='live') statusDot.classList.add('live');
+  else if(state==='processing') statusDot.classList.add('processing');
+  else if(state==='done') statusDot.classList.add('done');
+  statusText.textContent=text;
+}
+function showErr(m) { errorMsg.textContent=m; errorMsg.classList.add('show'); }
+function hideErr() { errorMsg.classList.remove('show'); }
+function updateWords() { const w=allText.trim().split(/\s+/).filter(Boolean); wordCount.textContent=w.length+(w.length===1?' parola':' parole'); }
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function doCopy(txt,btn,lbl) {
+  const done=()=>{btn.textContent='Copiato!';setTimeout(()=>btn.textContent=lbl,1800);};
+  if(navigator.clipboard) navigator.clipboard.writeText(txt).then(done).catch(()=>{fb(txt);done();});
+  else{fb(txt);done();}
+}
+function fb(t){const el=document.createElement('textarea');el.value=t;document.body.appendChild(el);el.select();document.execCommand('copy');document.body.removeChild(el);}
+
+// ── API Key ───────────────────────────────────────────────────────────────────
+const apiKeyInput = document.getElementById('apiKeyInput');
+const saveKeyBtn = document.getElementById('saveKeyBtn');
+const apiDot = document.getElementById('apiDot');
+const apiLabel = document.getElementById('apiLabel');
+const apiCard = document.getElementById('apiCard');
+
+function applyKey(k) {
+  GROQ_KEY = k.trim();
+  if (GROQ_KEY) {
+    apiDot.className='dot ok'; apiLabel.textContent='Chiave Groq salvata ✓';
+    apiCard.style.borderColor='var(--live)';
+  } else {
+    apiDot.className='dot'; apiLabel.textContent='Chiave Groq richiesta';
+  }
+}
+if (GROQ_KEY) { apiKeyInput.value=GROQ_KEY; applyKey(GROQ_KEY); }
+saveKeyBtn.addEventListener('click', () => {
+  const k = apiKeyInput.value.trim();
+  if (!k) { showErr('Incolla la chiave Groq.'); return; }
+  localStorage.setItem('vv_groq', k);
+  applyKey(k); hideErr();
+});
+
+// ── PWA Service Worker + Notifica persistente ────────────────────────────────
+let swReg = null;
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').then(reg => {
+    swReg = reg;
+  }).catch(e => console.log('SW error:', e));
+
+  // Ascolta messaggio "stop" dalla notifica
+  navigator.serviceWorker.addEventListener('message', e => {
+    if (e.data === 'stopFromNotification') stopRec();
+  });
+}
+
+function notifyStart() {
+  if (!swReg) return;
+  Notification.requestPermission().then(perm => {
+    if (perm === 'granted') {
+      navigator.serviceWorker.ready.then(reg => {
+        reg.active.postMessage('startRecording');
+      });
+    }
+  });
+}
+
+function notifyStop() {
+  if (!swReg) return;
+  navigator.serviceWorker.ready.then(reg => {
+    reg.active.postMessage('stopRecording');
+  });
+}
+
+copyBtn.onclick=()=>doCopy(allText,copyBtn,'Copia testo');
+copySummaryBtn.onclick=()=>doCopy(summaryTextEl.innerText,copySummaryBtn,'Copia riassunto');
+clearBtn.onclick=()=>{
+  if(isRecording) stopRec();
+  allText=''; liveText.innerHTML=''; summaryTextEl.innerHTML='';
+  placeholder.style.display=''; transcriptBox.className='transcript-box'; liveDot.className='live-dot';
+  summaryBox.className='summary-box'; summaryLabel.style.display='none'; summaryDot.className='live-dot';
+  timerEl.textContent='00:00'; updateWords();
+  copyBtn.disabled=true; copySummaryBtn.disabled=true; clearBtn.disabled=true;
+  setStatus('idle','Pronto'); hideErr();
+};
+</script>
+</body>
+</html>

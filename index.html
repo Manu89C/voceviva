@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Voce Viva</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0a0a0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="VoceViva">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root { --bg:#0a0a0f; --surface:#111118; --border:#1e1e2e; --accent:#f55036; --text:#e8e8f0; --muted:#5a5a7a; --live:#4ade80; --warn:#f59e0b; }
+body { min-height:100vh; background:var(--bg); color:var(--text); font-family:'DM Mono',monospace; display:flex; flex-direction:column; align-items:center; padding:1.5rem 1rem 3rem; -webkit-tap-highlight-color:transparent; }
+body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:none; background:radial-gradient(ellipse 80% 50% at 5% 95%,rgba(245,80,54,.08) 0%,transparent 60%),radial-gradient(ellipse 50% 40% at 95% 5%,rgba(245,80,54,.05) 0%,transparent 60%); }
+.container { position:relative; z-index:1; width:100%; max-width:640px; display:flex; flex-direction:column; gap:1.1rem; }
+h1 { font-family:'DM Serif Display',serif; font-size:clamp(2rem,7vw,3rem); letter-spacing:-.03em; line-height:1; }
+h1 em { font-style:italic; color:var(--accent); }
+.subtitle { font-size:.6rem; color:var(--muted); text-transform:uppercase; letter-spacing:.18em; margin-top:.4rem; display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; }
+.badge { background:rgba(245,80,54,.12); border:1px solid rgba(245,80,54,.25); color:var(--accent); padding:.1rem .5rem; border-radius:.3rem; font-size:.55rem; }
+.api-card { background:var(--surface); border:1px solid var(--border); border-radius:1rem; padding:1.1rem; display:flex; flex-direction:column; gap:.65rem; transition:border-color .3s; }
+.api-card.ok { border-color:rgba(74,222,128,.3); }
+.api-label { font-size:.6rem; text-transform:uppercase; letter-spacing:.12em; color:var(--muted); display:flex; align-items:center; gap:.5rem; }
+.dot { width:6px; height:6px; border-radius:50%; background:#f06a6a; flex-shrink:0; transition:background .3s; }
+.dot.ok { background:var(--live); }
+.api-row { display:flex; gap:.5rem; }
+.api-input { flex:1; background:var(--bg); border:1px solid var(--border); border-radius:.6rem; color:var(--text); font-family:'DM Mono',monospace; font-size:.68rem; padding:.55rem .7rem; outline:none; min-width:0; transition:border-color .2s; }
+.api-input:focus { border-color:var(--accent); }
+.api-input::placeholder { color:var(--muted); }
+.btn-save { background:var(--accent); color:#fff; border:none; padding:.55rem .9rem; border-radius:.6rem; font-family:'DM Mono',monospace; font-size:.68rem; cursor:pointer; white-space:nowrap; touch-action:manipulation; }
+.api-hint { font-size:.58rem; color:var(--muted); line-height:1.6; }
+.api-hint a { color:var(--accent); text-decoration:none; }
+.meter-row { display:flex; align-items:center; gap:.6rem; }
+.meter-label { font-size:.55rem; text-transform:uppercase; letter-spacing:.12em; color:var(--muted); white-space:nowrap; }
+.meter-bar { flex:1; height:4px; background:var(--border); border-radius:2px; overflow:hidden; }
+.meter-fill { height:100%; width:0%; background:var(--live); border-radius:2px; transition:width .08s linear,background .2s; }
+.meter-fill.warn { background:var(--warn); }
+.meter-fill.loud { background:var(--accent); }
+.quality-badge { font-size:.55rem; text-transform:uppercase; letter-spacing:.1em; padding:.15rem .5rem; border-radius:.3rem; border:1px solid var(--border); color:var(--muted); white-space:nowrap; transition:all .3s; min-width:52px; text-align:center; }
+.quality-badge.good { border-color:rgba(74,222,128,.4); color:var(--live); }
+.quality-badge.ok { border-color:rgba(245,158,11,.4); color:var(--warn); }
+.quality-badge.low { border-color:rgba(245,80,54,.4); color:var(--accent); }
+.box-label { font-size:.58rem; text-transform:uppercase; letter-spacing:.15em; color:var(--muted); margin-bottom:.4rem; display:flex; align-items:center; gap:.5rem; }
+.live-dot { width:5px; height:5px; border-radius:50%; background:var(--muted); flex-shrink:0; transition:background .3s; }
+.live-dot.on { background:#f06a6a; animation:blink .8s ease-in-out infinite; }
+.live-dot.processing { background:var(--accent); animation:blink .5s ease-in-out infinite; }
+.live-dot.done { background:var(--live); animation:none; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+.transcript-box { background:var(--surface); border:1px solid var(--border); border-radius:1rem; padding:1.1rem; min-height:180px; max-height:40vh; overflow-y:auto; transition:border-color .3s; position:relative; }
+.transcript-box.recording { border-color:rgba(240,106,106,.5); }
+.transcript-box.done { border-color:rgba(74,222,128,.4); }
+.transcript-box::-webkit-scrollbar { width:3px; }
+.transcript-box::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+.placeholder { color:var(--muted); font-size:.72rem; text-align:center; padding:1.5rem 0; line-height:2; }
+.placeholder-icon { font-size:1.8rem; opacity:.3; display:block; margin-bottom:.4rem; }
+#liveText { font-size:.88rem; line-height:1.9; color:var(--text); word-break:break-word; white-space:pre-wrap; }
+.cursor { display:inline-block; width:2px; height:.95em; background:var(--accent); margin-left:2px; vertical-align:text-bottom; animation:cb 1s ease-in-out infinite; }
+@keyframes cb { 0%,100%{opacity:1} 50%{opacity:0} }
+.processing-pill { display:none; position:absolute; bottom:.8rem; right:.8rem; background:rgba(245,80,54,.12); border:1px solid rgba(245,80,54,.25); border-radius:2rem; padding:.25rem .65rem; font-size:.58rem; color:var(--accent); text-transform:uppercase; letter-spacing:.1em; align-items:center; gap:.35rem; }
+.processing-pill.show { display:flex; }
+.pill-dot { width:4px; height:4px; border-radius:50%; background:var(--accent); animation:blink .6s ease-in-out infinite; }
+.summary-box { background:var(--surface); border:1px solid var(--border); border-radius:1rem; padding:1.1rem; min-height:80px; position:relative; transition:border-color .3s; display:none; }
+.summary-box.show { display:block; }
+.summary-box.loading { border-color:rgba(245,80,54,.4); }
+.summary-box.done { border-color:rgba(74,222,128,.4); }
+.summary-overlay { display:none; position:absolute; inset:0; background:rgba(10,10,15,.8); border-radius:1rem; align-items:center; justify-content:center; gap:.65rem; font-size:.7rem; color:var(--accent); backdrop-filter:blur(3px); }
+.summary-overlay.show { display:flex; }
+.spinner { width:15px; height:15px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite; }
+@keyframes spin { to{transform:rotate(360deg)} }
+#summaryText { font-size:.85rem; line-height:1.85; color:var(--text); word-break:break-word; }
+#summaryText p { margin-bottom:.65rem; }
+#summaryText ul { padding-left:1.1rem; margin-bottom:.65rem; }
+#summaryText li { margin-bottom:.35rem; }
+.error-msg { background:rgba(240,106,106,.08); border:1px solid rgba(240,106,106,.25); border-radius:.6rem; padding:.65rem .85rem; font-size:.68rem; color:#f06a6a; line-height:1.6; display:none; }
+.error-msg.show { display:block; }
+.controls { display:flex; flex-direction:column; align-items:center; gap:.75rem; padding:.5rem 0; }
+.timer { font-size:2.2rem; font-weight:300; letter-spacing:.08em; font-variant-numeric:tabular-nums; }
+.waveform { display:flex; align-items:center; gap:3px; height:24px; }
+.bar { width:3px; background:#f06a6a; border-radius:2px; height:3px; }
+.bar.active { animation:wave .7s ease-in-out infinite; }
+.bar:nth-child(1){animation-delay:.00s}.bar:nth-child(2){animation-delay:.10s}.bar:nth-child(3){animation-delay:.20s}
+.bar:nth-child(4){animation-delay:.30s}.bar:nth-child(5){animation-delay:.15s}.bar:nth-child(6){animation-delay:.05s}
+.bar:nth-child(7){animation-delay:.25s}.bar:nth-child(8){animation-delay:.35s}.bar:nth-child(9){animation-delay:.10s}
+@keyframes wave { 0%,100%{height:3px} 50%{height:20px} }
+.mic-btn { width:84px; height:84px; border-radius:50%; border:none; background:var(--accent); color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:transform .12s,box-shadow .25s; box-shadow:0 6px 28px rgba(245,80,54,.4); touch-action:manipulation; }
+.mic-btn:active { transform:scale(.92); }
+.mic-btn.recording { background:#c0392b; animation:pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{box-shadow:0 6px 36px rgba(192,57,43,.55)} 50%{box-shadow:0 6px 50px rgba(192,57,43,.85),0 0 0 10px rgba(192,57,43,.1)} }
+.mic-btn svg { width:34px; height:34px; }
+.status-row { display:flex; align-items:center; gap:.45rem; font-size:.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:.12em; }
+.status-dot { width:6px; height:6px; border-radius:50%; background:var(--muted); transition:background .3s; }
+.status-dot.live { background:#f06a6a; animation:blink .8s ease-in-out infinite; }
+.status-dot.processing { background:var(--accent); animation:blink .5s ease-in-out infinite; }
+.status-dot.done { background:var(--live); animation:none; }
+.bottom-row { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.5rem; }
+.word-count { font-size:.62rem; color:var(--muted); }
+.action-btns { display:flex; gap:.5rem; flex-wrap:wrap; }
+.btn-ghost { background:none; border:1px solid var(--border); color:var(--muted); padding:.38rem .8rem; border-radius:.5rem; font-family:'DM Mono',monospace; font-size:.62rem; cursor:pointer; text-transform:uppercase; letter-spacing:.1em; touch-action:manipulation; }
+.btn-ghost:disabled { opacity:.3; cursor:not-allowed; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Voce <em>Viva</em></h1>
+    <p class="subtitle">Whisper · LLaMA · <span class="badge">ANDROID</span></p>
+  </header>
+
+  <div class="api-card" id="apiCard">
+    <div class="api-label"><span class="dot" id="apiDot"></span><span id="apiLabel">Chiave Groq richiesta</span></div>
+    <div class="api-row">
+      <input class="api-input" type="password" id="apiKeyInput" placeholder="gsk_..." autocomplete="off" spellcheck="false">
+      <button class="btn-save" id="saveKeyBtn">Salva</button>
+    </div>
+    <p class="api-hint">Gratis su <a href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a></p>
+  </div>
+
+  <div id="meterSection" style="display:none">
+    <div class="meter-row">
+      <span class="meter-label">Livello</span>
+      <div class="meter-bar"><div class="meter-fill" id="meterFill"></div></div>
+      <span class="quality-badge" id="qualityBadge">—</span>
+    </div>
+  </div>
+
+  <div>
+    <div class="box-label"><span class="live-dot" id="liveDot"></span>Trascrizione</div>
+    <div class="transcript-box" id="transcriptBox">
+      <div class="placeholder" id="placeholder">
+        <span class="placeholder-icon">🎙️</span>
+        Premi il microfono per iniziare.
+      </div>
+      <div id="liveText"></div>
+      <div class="processing-pill" id="processingPill"><span class="pill-dot"></span> trascrivo…</div>
+    </div>
+  </div>
+
+  <div>
+    <div class="box-label" id="summaryLabel" style="display:none"><span class="live-dot" id="summaryDot"></span>Riassunto automatico</div>
+    <div class="summary-box" id="summaryBox">
+      <div class="summary-overlay" id="summaryOverlay"><div class="spinner"></div> Groq sta riassumendo…</div>
+      <div id="summaryText"></div>
+    </div>
+  </div>
+
+  <div class="error-msg" id="errorMsg"></div>
+
+  <div class="controls">
+    <div class="timer" id="timer">00:00</div>
+    <div class="waveform">
+      <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+      <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+      <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+    </div>
+    <button class="mic-btn" id="micBtn">
+      <svg id="micIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+        <line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
+      </svg>
+      <svg id="stopIcon" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+    </button>
+    <div class="status-row"><span class="status-dot" id="statusDot"></span><span id="statusText">Inserisci la chiave API</span></div>
+  </div>
+
+  <div class="bottom-row">
+    <span class="word-count" id="wordCount">0 parole</span>
+    <div class="action-btns">
+      <button class="btn-ghost" id="copyBtn" disabled>Copia testo</button>
+      <button class="btn-ghost" id="copySummaryBtn" disabled>Copia riassunto</button>
+      <button class="btn-ghost" id="clearBtn" disabled>Cancella</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════
+let GROQ_KEY = localStorage.getItem('vv_groq') || '';
+
+// Chunk da 10s — abbastanza lungo per dare contesto a Whisper,
+// abbastanza corto da non perdere troppo in caso di silenzio
+const CHUNK_MS       = 10000;
+const MIN_BLOB_BYTES = 8000;   // ~0.5s audio reale — scarta solo i blob vuoti
+const MAX_BLOB_BYTES = 8 * 1024 * 1024;
+const SILENCE_THR    = 0.007;
+const SPEECH_RATIO   = 0.12;   // 12% — molto permissivo
+const METER_MS       = 80;
+
+// ═══════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════
+let isRecording = false, wakeLock = null;
+let mediaRecorder = null, activeStream = null;
+let chunkTimer = null, timerInterval = null, meterInterval = null;
+let seconds = 0, allText = '';
+let pendingChunks = [], isTranscribing = false;
+let audioCtx = null, analyser = null;
+const analyserBuf = new Float32Array(2048);
+
+// ═══════════════════════════════════════════════════
+// DOM
+// ═══════════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+const apiKeyInput=$('apiKeyInput'), saveKeyBtn=$('saveKeyBtn'), apiDot=$('apiDot'), apiLabel=$('apiLabel'), apiCard=$('apiCard');
+const micBtn=$('micBtn'), micIcon=$('micIcon'), stopIcon=$('stopIcon');
+const timerEl=$('timer'), statusDot=$('statusDot'), statusText=$('statusText');
+const transcriptBox=$('transcriptBox'), placeholder=$('placeholder'), liveText=$('liveText');
+const processingPill=$('processingPill'), liveDot=$('liveDot');
+const summaryBox=$('summaryBox'), summaryOverlay=$('summaryOverlay'), summaryTextEl=$('summaryText');
+const summaryLabel=$('summaryLabel'), summaryDot=$('summaryDot');
+const errorMsg=$('errorMsg'), wordCount=$('wordCount');
+const copyBtn=$('copyBtn'), copySummaryBtn=$('copySummaryBtn'), clearBtn=$('clearBtn');
+const meterFill=$('meterFill'), qualityBadge=$('qualityBadge'), meterSection=$('meterSection');
+
+// ═══════════════════════════════════════════════════
+// API KEY
+// ═══════════════════════════════════════════════════
+function applyKey(k) {
+  GROQ_KEY = k.trim();
+  if (GROQ_KEY) {
+    apiDot.className='dot ok'; apiLabel.textContent='Chiave Groq salvata ✓';
+    apiCard.classList.add('ok'); setStatus('idle','Pronto');
+  } else {
+    apiDot.className='dot'; apiLabel.textContent='Chiave Groq richiesta';
+    apiCard.classList.remove('ok'); setStatus('idle','Inserisci la chiave API');
+  }
+}
+if (GROQ_KEY) { apiKeyInput.value=GROQ_KEY; applyKey(GROQ_KEY); }
+saveKeyBtn.onclick = () => {
+  const k = apiKeyInput.value.trim();
+  if (!k) { showErr('Incolla la chiave Groq.'); return; }
+  localStorage.setItem('vv_groq', k); applyKey(k); hideErr();
+};
+
+// ═══════════════════════════════════════════════════
+// AUDIO ENGINE
+// ═══════════════════════════════════════════════════
+function buildAudioChain(stream) {
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000 });
+  const src = audioCtx.createMediaStreamSource(stream);
+
+  const hpf = audioCtx.createBiquadFilter();
+  hpf.type = 'highpass'; hpf.frequency.value = 80;
+
+  const comp = audioCtx.createDynamicsCompressor();
+  comp.threshold.value=-24; comp.knee.value=10; comp.ratio.value=6;
+  comp.attack.value=0.003; comp.release.value=0.25;
+
+  const gain = audioCtx.createGain(); gain.gain.value=1.4;
+
+  analyser = audioCtx.createAnalyser();
+  analyser.fftSize=2048; analyser.smoothingTimeConstant=0.6;
+
+  src.connect(hpf); hpf.connect(comp); comp.connect(gain); gain.connect(analyser);
+
+  // Oscillatore silenzioso — tiene vivo il browser Android
+  const silOsc = audioCtx.createOscillator();
+  const silGain = audioCtx.createGain(); silGain.gain.value=0.00001;
+  silOsc.connect(silGain); silGain.connect(audioCtx.destination); silOsc.start();
+}
+
+function getRMS() {
+  if (!analyser) return 0;
+  analyser.getFloatTimeDomainData(analyserBuf);
+  let s=0; for (let i=0;i<analyserBuf.length;i++) s+=analyserBuf[i]*analyserBuf[i];
+  return Math.sqrt(s/analyserBuf.length);
+}
+
+function hasSpeech(arr) {
+  return arr.length > 0 && arr.filter(v=>v>SILENCE_THR).length/arr.length > SPEECH_RATIO;
+}
+
+function startMeter() {
+  meterSection.style.display='block';
+  meterInterval = setInterval(() => {
+    const pct = Math.min(100, getRMS()*600);
+    meterFill.style.width = pct+'%';
+    if (pct<15)      { meterFill.className='meter-fill'; qualityBadge.textContent='Basso'; qualityBadge.className='quality-badge low'; }
+    else if (pct<55) { meterFill.className='meter-fill'; qualityBadge.textContent='Buono'; qualityBadge.className='quality-badge good'; }
+    else if (pct<80) { meterFill.className='meter-fill warn'; qualityBadge.textContent='Alto'; qualityBadge.className='quality-badge ok'; }
+    else             { meterFill.className='meter-fill loud'; qualityBadge.textContent='Saturo'; qualityBadge.className='quality-badge low'; }
+  }, METER_MS);
+}
+function stopMeter() {
+  clearInterval(meterInterval);
+  meterFill.style.width='0%'; qualityBadge.textContent='—';
+  qualityBadge.className='quality-badge'; meterSection.style.display='none';
+}
+
+// ═══════════════════════════════════════════════════
+// WAKE LOCK
+// ═══════════════════════════════════════════════════
+async function acquireWakeLock() {
+  if (!('wakeLock' in navigator)) return;
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release', () => { if (isRecording) setTimeout(acquireWakeLock,300); });
+  } catch(e) {}
+}
+
+// ═══════════════════════════════════════════════════
+// RECORDING — chunk singoli completi da CHUNK_MS
+// ═══════════════════════════════════════════════════
+async function startRec() {
+  hideErr();
+  if (!GROQ_KEY) { showErr('Inserisci prima la chiave Groq API.'); return; }
+
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true, noiseSuppression: true,
+        autoGainControl: true, sampleRate: 48000, channelCount: 1
+      }
+    });
+  } catch(e) { showErr('❌ Microfono: ' + e.message); return; }
+
+  activeStream = stream;
+  buildAudioChain(stream);
+
+  // Scegli il miglior formato supportato
+  const mimes = ['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/mp4',''];
+  const bestMime = mimes.find(m => !m || MediaRecorder.isTypeSupported(m));
+
+  allText=''; pendingChunks=[];
+  liveText.innerHTML=''; summaryTextEl.innerHTML='';
+  placeholder.style.display='';
+  summaryBox.className='summary-box'; summaryLabel.style.display='none';
+  isRecording=true;
+
+  await acquireWakeLock();
+  startMeter();
+  document.addEventListener('visibilitychange', onVisibilityChange);
+
+  doSegment(stream, bestMime);
+
+  micBtn.classList.add('recording'); micIcon.style.display='none'; stopIcon.style.display='block';
+  transcriptBox.classList.add('recording'); liveDot.classList.add('on');
+  setWave(true); setStatus('live','In ascolto…'); startTimer();
+  placeholder.style.display='none'; renderText(true);
+  notifyStart();
+}
+
+function doSegment(stream, mime) {
+  if (!isRecording) return;
+
+  const chunks = [], rmsVals = [];
+  let rmsInt = null;
+
+  // Costruisce MediaRecorder con le opzioni migliori disponibili
+  let mr;
+  try {
+    const opts = { audioBitsPerSecond: 128000 };
+    if (mime) opts.mimeType = mime;
+    mr = new MediaRecorder(stream, opts);
+  } catch(e) {
+    try { mr = new MediaRecorder(stream, { audioBitsPerSecond: 128000 }); }
+    catch(e2) { mr = new MediaRecorder(stream); }
+  }
+  mediaRecorder = mr;
+
+  mr.ondataavailable = e => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+  mr.onstart = () => { rmsInt = setInterval(() => rmsVals.push(getRMS()), 200); };
+
+  mr.onstop = () => {
+    clearInterval(rmsInt);
+    if (!chunks.length) { if (isRecording) doSegment(stream, mime); return; }
+
+    const mimeType = mr.mimeType || mime || 'audio/webm';
+    const blob = new Blob(chunks, { type: mimeType });
+
+    // Invia solo blob abbastanza grandi e con parlato rilevato
+    if (blob.size >= MIN_BLOB_BYTES && blob.size <= MAX_BLOB_BYTES) {
+      if (hasSpeech(rmsVals)) {
+        pendingChunks.push(blob);
+        processQueue();
+      }
+      // Se non c'è parlato, scarta silenziosamente e continua
+    }
+
+    if (isRecording) doSegment(stream, mime);
+  };
+
+  mr.onerror = () => {
+    clearInterval(rmsInt);
+    if (isRecording) setTimeout(() => doSegment(stream, mime), 500);
+  };
+
+  try { mr.start(); } catch(e) {
+    if (isRecording) setTimeout(() => doSegment(stream, mime), 500);
+    return;
+  }
+
+  chunkTimer = setTimeout(() => {
+    try { if (mr.state === 'recording') mr.stop(); } catch(e) {}
+  }, CHUNK_MS);
+}
+
+async function stopRec() {
+  if (!isRecording) return;
+  isRecording = false;
+  clearTimeout(chunkTimer);
+  document.removeEventListener('visibilitychange', onVisibilityChange);
+
+  try { if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop(); } catch(e) {}
+  if (activeStream) { activeStream.getTracks().forEach(t=>t.stop()); activeStream=null; }
+  if (audioCtx) { try { audioCtx.close(); } catch(e) {} audioCtx=null; analyser=null; }
+  if (wakeLock) { try { await wakeLock.release(); } catch(e) {} wakeLock=null; }
+
+  stopMeter();
+  micBtn.classList.remove('recording'); micIcon.style.display='block'; stopIcon.style.display='none';
+  transcriptBox.classList.remove('recording'); liveDot.className='live-dot done';
+  setWave(false); stopTimer(); renderText(false);
+  setStatus('processing','Elaborazione…');
+  notifyStop();
+}
+
+function onVisibilityChange() {
+  if (document.visibilityState === 'visible' && isRecording) {
+    acquireWakeLock();
+    if (mediaRecorder && mediaRecorder.state === 'inactive') {
+      doSegment(activeStream, '');
+    }
+  }
+}
+
+micBtn.onclick = () => isRecording ? stopRec() : startRec();
+
+// ═══════════════════════════════════════════════════
+// COUNTDOWN — mostra attesa rate limit
+// ═══════════════════════════════════════════════════
+async function waitWithCountdown(seconds, label) {
+  for (let i = seconds; i > 0; i--) {
+    showErr(`⏳ ${label} ${i}s…`);
+    await sleep(1000);
+    if (!isRecording && i > 10) { i = 10; } // se non sta registrando aspetta meno
+  }
+  hideErr();
+}
+
+// ═══════════════════════════════════════════════════
+// QUEUE
+// ═══════════════════════════════════════════════════
+async function processQueue() {
+  if (isTranscribing || !pendingChunks.length) return;
+  isTranscribing=true; processingPill.classList.add('show');
+  while (pendingChunks.length) await transcribeBlob(pendingChunks.shift());
+  isTranscribing=false; processingPill.classList.remove('show');
+  // Attendi che non ci siano altri chunk in arrivo (max 3s dopo stop)
+  if (!isRecording) {
+    await sleep(800); // piccola pausa per ricevere l'ultimo chunk dallo stop
+    // Processa eventuali chunk arrivati nel frattempo
+    while (pendingChunks.length > 0) {
+      isTranscribing = true;
+      while (pendingChunks.length) await transcribeBlob(pendingChunks.shift());
+      isTranscribing = false;
+      await sleep(300);
+    }
+    if (allText.trim()) {
+      setStatus('processing','Groq sta riassumendo…');
+      await generateSummary();
+      setStatus('done','Completato ✓');
+      transcriptBox.classList.add('done');
+      copyBtn.disabled=false; clearBtn.disabled=false;
+    } else {
+      setStatus('idle','Pronto');
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// TRANSCRIPTION
+// ═══════════════════════════════════════════════════
+async function transcribeBlob(blob) {
+  // Determina estensione dal tipo MIME reale del blob
+  const mt = blob.type || '';
+  const ext = mt.includes('ogg') ? 'ogg' : mt.includes('mp4') ? 'mp4' : 'webm';
+
+  const form = new FormData();
+  form.append('file', blob, 'audio.' + ext);
+  form.append('model', 'whisper-large-v3-turbo');
+  form.append('language', 'it');
+  form.append('response_format', 'text');
+
+  // Prompt con contesto delle ultime parole per ridurre allucinazioni
+  const ctx = allText.trim().split(/\s+/).slice(-80).join(' ');
+  form.append('prompt', ctx
+    ? 'Trascrizione fedele in italiano. Non aggiungere parole non dette. Non chiudere frasi incomplete con punteggiatura. Contesto: ' + ctx
+    : 'Trascrizione fedele in italiano. Non aggiungere parole non dette. Non chiudere frasi incomplete.');
+
+  for (let attempt=1; attempt<=4; attempt++) {
+    try {
+      if (attempt>1) await sleep(1500*attempt);
+      const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+        method:'POST', headers:{'Authorization':'Bearer '+GROQ_KEY}, body:form
+      });
+
+      // Rate limit — legge retry-after e aspetta con countdown visibile
+      if (res.status === 429) {
+        const retryAfter = parseInt(res.headers.get('retry-after') || '60', 10);
+        const errData = await res.json().catch(()=>({}));
+        const msg = errData?.error?.message || '';
+        // Estrai secondi dal messaggio se retry-after non presente
+        const match = msg.match(/try again in (\d+)m(\d+)s/) || msg.match(/try again in (\d+)s/);
+        let waitSec = retryAfter;
+        if (match && match.length === 3) waitSec = parseInt(match[1])*60 + parseInt(match[2]);
+        else if (match && match.length === 2) waitSec = parseInt(match[1]);
+        waitSec = Math.min(waitSec, 300); // max 5 minuti
+        await waitWithCountdown(waitSec, 'Rate limit — riprovo tra');
+        attempt--; // non consumare il tentativo
+        continue;
+      }
+
+      if (!res.ok) {
+        const e = await res.json().catch(()=>({}));
+        throw new Error(e?.error?.message || 'HTTP '+res.status);
+      }
+      hideErr();
+      const raw = (await res.text()).trim();
+      const txt = raw.replace(/\.{2,}/g,'').replace(/…/g,'').replace(/\s{2,}/g,' ').trim();
+      if (txt && txt !== '[BLANK_AUDIO]' && txt.length > 1) {
+        allText += (allText?' ':'')+txt;
+        updateWords(); copyBtn.disabled=false; clearBtn.disabled=false;
+        renderText(isRecording); transcriptBox.scrollTop=transcriptBox.scrollHeight;
+      }
+      return;
+    } catch(e) {
+      if (attempt===4) showErr('Errore trascrizione: '+e.message);
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// SUMMARY
+// ═══════════════════════════════════════════════════
+async function generateSummary() {
+  summaryLabel.style.display='flex'; summaryBox.classList.add('show','loading');
+  summaryOverlay.classList.add('show'); summaryDot.className='live-dot processing';
+  for (let attempt=1; attempt<=3; attempt++) {
+    try {
+      if (attempt>1) await sleep(2000*attempt);
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions',{
+        method:'POST',
+        headers:{'Authorization':'Bearer '+GROQ_KEY,'Content-Type':'application/json'},
+        body:JSON.stringify({
+          model:'llama-3.1-8b-instant', max_tokens:1024, temperature:0.3,
+          messages:[
+            {role:'system',content:'Riassumi trascrizioni audio in italiano con HTML semplice: un paragrafo introduttivo, un elenco <ul><li> con i punti chiave, eventuali azioni emerse. Italiano naturale e conciso. NON inventare. Rispondi SOLO con HTML.'},
+            {role:'user',content:'Trascrizione:\n"'+allText+'"'}
+          ]
+        })
+      });
+      if (res.status === 429) {
+        const retryAfter = parseInt(res.headers.get('retry-after') || '30', 10);
+        await waitWithCountdown(retryAfter, 'Rate limit riassunto — riprovo tra');
+        attempt--; continue;
+      }
+      if (!res.ok) { const e=await res.json().catch(()=>{}); throw new Error(e?.error?.message||'HTTP '+res.status); }
+      const data=await res.json();
+      summaryTextEl.innerHTML=data?.choices?.[0]?.message?.content?.trim()||'<p>Nessun riassunto.</p>';
+      summaryBox.classList.remove('loading'); summaryBox.classList.add('done');
+      summaryDot.className='live-dot done'; copySummaryBtn.disabled=false;
+      summaryOverlay.classList.remove('show'); return;
+    } catch(e) {
+      if (attempt===3) {
+        summaryTextEl.innerHTML='<p>Riassunto non disponibile. Copia il testo.</p>';
+        showErr('Errore riassunto: '+e.message);
+        summaryBox.classList.remove('loading'); summaryOverlay.classList.remove('show');
+      }
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// PWA
+// ═══════════════════════════════════════════════════
+let swReg=null;
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').then(r=>{swReg=r;}).catch(()=>{});
+  navigator.serviceWorker.addEventListener('message',e=>{if(e.data==='stopFromNotification')stopRec();});
+}
+function notifyStart(){
+  if(!swReg)return;
+  Notification.requestPermission().then(p=>{
+    if(p==='granted') navigator.serviceWorker.ready.then(r=>r.active.postMessage('startRecording'));
+  });
+}
+function notifyStop(){
+  if(!swReg)return;
+  navigator.serviceWorker.ready.then(r=>r.active.postMessage('stopRecording'));
+}
+
+// ═══════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function renderText(cur){liveText.innerHTML=esc(allText)+(cur?'<span class="cursor"></span>':'');}
+function startTimer(){seconds=0;clearInterval(timerInterval);timerEl.textContent='00:00';timerInterval=setInterval(()=>{seconds++;timerEl.textContent=fmt(seconds);},1000);}
+function stopTimer(){clearInterval(timerInterval);}
+function fmt(s){return pad(Math.floor(s/60))+':'+pad(s%60);}
+function pad(n){return String(n).padStart(2,'0');}
+function setWave(on){document.querySelectorAll('.bar').forEach(b=>on?b.classList.add('active'):b.classList.remove('active'));}
+function setStatus(state,text){
+  statusDot.className='status-dot';
+  if(state==='live')statusDot.classList.add('live');
+  else if(state==='processing')statusDot.classList.add('processing');
+  else if(state==='done')statusDot.classList.add('done');
+  statusText.textContent=text;
+}
+function showErr(m){errorMsg.textContent=m;errorMsg.classList.add('show');}
+function hideErr(){errorMsg.classList.remove('show');}
+function updateWords(){const w=allText.trim().split(/\s+/).filter(Boolean);wordCount.textContent=w.length+(w.length===1?' parola':' parole');}
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function doCopy(txt,btn,lbl){
+  const done=()=>{btn.textContent='Copiato!';setTimeout(()=>btn.textContent=lbl,1800);};
+  if(navigator.clipboard)navigator.clipboard.writeText(txt).then(done).catch(()=>{fb(txt);done();});
+  else{fb(txt);done();}
+}
+function fb(t){const el=document.createElement('textarea');el.value=t;document.body.appendChild(el);el.select();document.execCommand('copy');document.body.removeChild(el);}
+copyBtn.onclick=()=>doCopy(allText,copyBtn,'Copia testo');
+copySummaryBtn.onclick=()=>doCopy(summaryTextEl.innerText,copySummaryBtn,'Copia riassunto');
+clearBtn.onclick=()=>{
+  if(isRecording)stopRec();
+  allText='';pendingChunks=[];liveText.innerHTML='';summaryTextEl.innerHTML='';
+  placeholder.style.display='';transcriptBox.className='transcript-box';liveDot.className='live-dot';
+  summaryBox.className='summary-box';summaryLabel.style.display='none';summaryDot.className='live-dot';
+  timerEl.textContent='00:00';updateWords();
+  copyBtn.disabled=true;copySummaryBtn.disabled=true;clearBtn.disabled=true;
+  setStatus('idle','Pronto');hideErr();
+};
+</script>
+</body>
+</html>

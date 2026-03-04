@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Voce Viva - Diario</title>
+<meta name="theme-color" content="#0a0a0f">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root { --bg:#0a0a0f; --surface:#111118; --border:#1e1e2e; --accent:#f55036; --text:#e8e8f0; --muted:#5a5a7a; --live:#4ade80; --warn:#f59e0b; }
+body { min-height:100vh; background:var(--bg); color:var(--text); font-family:'DM Mono',monospace; display:flex; flex-direction:column; align-items:center; padding:1.5rem 1rem 3rem; -webkit-tap-highlight-color:transparent; }
+body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:none; background:radial-gradient(ellipse 80% 50% at 5% 95%,rgba(245,80,54,.08) 0%,transparent 60%),radial-gradient(ellipse 50% 40% at 95% 5%,rgba(245,80,54,.05) 0%,transparent 60%); }
+.container { position:relative; z-index:1; width:100%; max-width:640px; display:flex; flex-direction:column; gap:1.1rem; }
+
+/* Header */
+.header-row { display:flex; justify-content:space-between; align-items:flex-start; }
+h1 { font-family:'DM Serif Display',serif; font-size:clamp(1.6rem,5vw,2.2rem); letter-spacing:-.03em; line-height:1; }
+h1 em { font-style:italic; color:var(--accent); }
+.subtitle { font-size:.6rem; color:var(--muted); text-transform:uppercase; letter-spacing:.18em; margin-top:.4rem; }
+.back-link { display:inline-flex; align-items:center; gap:.4rem; background:var(--surface); border:1px solid var(--border); color:var(--muted); padding:.4rem .8rem; border-radius:.5rem; font-family:'DM Mono',monospace; font-size:.6rem; text-decoration:none; text-transform:uppercase; letter-spacing:.1em; transition:border-color .2s, color .2s; white-space:nowrap; }
+.back-link:hover { border-color:var(--accent); color:var(--accent); }
+.back-link svg { width:14px; height:14px; }
+
+/* View Switcher */
+.view-switcher { display:flex; gap:.4rem; background:var(--surface); border:1px solid var(--border); border-radius:.8rem; padding:.35rem; }
+.view-btn { flex:1; background:none; border:none; color:var(--muted); font-family:'DM Mono',monospace; font-size:.65rem; text-transform:uppercase; letter-spacing:.12em; padding:.5rem; border-radius:.5rem; cursor:pointer; touch-action:manipulation; transition:background .2s,color .2s; }
+.view-btn.active { background:var(--accent); color:#fff; }
+
+/* Calendar */
+.cal-nav { display:flex; justify-content:space-between; align-items:center; padding:.5rem 0; }
+.cal-nav-btn { background:none; border:1px solid var(--border); color:var(--muted); width:32px; height:32px; border-radius:.5rem; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:.8rem; transition:border-color .2s, color .2s; }
+.cal-nav-btn:hover { border-color:var(--accent); color:var(--accent); }
+.cal-month { font-family:'DM Serif Display',serif; font-size:1.1rem; }
+.cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
+.cal-header { font-size:.55rem; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); text-align:center; padding:.4rem 0; }
+.cal-day { position:relative; aspect-ratio:1; display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius:.5rem; font-size:.72rem; cursor:default; transition:background .15s; }
+.cal-day.other { color:var(--border); }
+.cal-day.today { background:rgba(245,80,54,.1); color:var(--accent); font-weight:500; }
+.cal-day.has-notes { cursor:pointer; }
+.cal-day.has-notes:hover { background:rgba(245,80,54,.15); }
+.cal-day.selected { background:rgba(245,80,54,.25); }
+.cal-dot { width:5px; height:5px; border-radius:50%; background:var(--accent); position:absolute; bottom:4px; }
+.cal-day-notes { margin-top:.8rem; }
+
+/* Notes List */
+.notes-section { display:flex; flex-direction:column; gap:.6rem; }
+.week-header { font-size:.58rem; text-transform:uppercase; letter-spacing:.12em; color:var(--muted); padding:.5rem 0 .2rem; border-bottom:1px solid var(--border); }
+.note-card { background:var(--surface); border:1px solid var(--border); border-radius:.8rem; padding:.85rem; cursor:pointer; transition:border-color .2s; display:flex; flex-direction:column; gap:.35rem; }
+.note-card:hover { border-color:rgba(245,80,54,.4); }
+.note-card-header { display:flex; justify-content:space-between; align-items:center; gap:.5rem; }
+.note-title { font-family:'DM Serif Display',serif; font-size:.88rem; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1; }
+.note-mode { font-size:.5rem; text-transform:uppercase; letter-spacing:.1em; padding:.12rem .4rem; border-radius:.25rem; background:rgba(245,80,54,.12); color:var(--accent); border:1px solid rgba(245,80,54,.25); white-space:nowrap; }
+.note-date { font-size:.58rem; color:var(--muted); }
+.note-preview { font-size:.68rem; color:var(--muted); line-height:1.6; max-height:2.4em; overflow:hidden; text-overflow:ellipsis; }
+
+/* Empty state */
+.empty-state { text-align:center; padding:3rem 1rem; color:var(--muted); font-size:.72rem; line-height:2; }
+.empty-icon { font-size:2rem; opacity:.25; display:block; margin-bottom:.6rem; }
+
+/* Loading */
+.loading-state { text-align:center; padding:2rem; }
+.spinner { display:inline-block; width:18px; height:18px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite; }
+@keyframes spin { to{transform:rotate(360deg)} }
+
+/* Edit Modal */
+.modal-overlay { display:none; position:fixed; inset:0; z-index:100; background:rgba(0,0,0,.75); backdrop-filter:blur(6px); align-items:center; justify-content:center; padding:1rem; }
+.modal-overlay.show { display:flex; }
+.modal-card { background:var(--surface); border:1px solid var(--border); border-radius:1.2rem; padding:1.5rem; width:100%; max-width:520px; display:flex; flex-direction:column; gap:1rem; animation:modalIn .2s ease-out; max-height:90vh; overflow-y:auto; }
+@keyframes modalIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+.modal-card::-webkit-scrollbar { width:3px; }
+.modal-card::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+.modal-title { font-family:'DM Serif Display',serif; font-size:1.2rem; color:var(--text); display:flex; justify-content:space-between; align-items:center; }
+.modal-field { display:flex; flex-direction:column; gap:.3rem; }
+.modal-label { font-size:.58rem; text-transform:uppercase; letter-spacing:.12em; color:var(--muted); }
+.modal-input { background:var(--bg); border:1px solid var(--border); border-radius:.6rem; color:var(--text); font-family:'DM Mono',monospace; font-size:.78rem; padding:.55rem .7rem; outline:none; transition:border-color .2s; }
+.modal-input:focus { border-color:var(--accent); }
+.modal-textarea { background:var(--bg); border:1px solid var(--border); border-radius:.6rem; color:var(--text); font-family:'DM Mono',monospace; font-size:.78rem; line-height:1.8; padding:.65rem .7rem; outline:none; resize:vertical; min-height:200px; max-height:50vh; width:100%; transition:border-color .2s; }
+.modal-textarea:focus { border-color:var(--accent); }
+.modal-actions { display:flex; gap:.5rem; justify-content:flex-end; flex-wrap:wrap; }
+.modal-btn { padding:.5rem 1rem; border-radius:.6rem; font-family:'DM Mono',monospace; font-size:.68rem; cursor:pointer; touch-action:manipulation; border:none; }
+.modal-btn-cancel { background:none; border:1px solid var(--border); color:var(--muted); }
+.modal-btn-delete { background:none; border:1px solid rgba(240,106,106,.4); color:#f06a6a; margin-right:auto; }
+.modal-btn-delete:hover { background:rgba(240,106,106,.1); }
+.modal-btn-confirm { background:var(--live); color:#0a0a0f; font-weight:500; }
+.modal-btn-confirm:disabled { opacity:.4; cursor:not-allowed; }
+.modal-spinner { display:inline-block; width:12px; height:12px; border:2px solid rgba(10,10,15,.2); border-top-color:#0a0a0f; border-radius:50%; animation:spin .6s linear infinite; margin-right:.3rem; vertical-align:middle; }
+
+/* Error */
+.error-msg { background:rgba(240,106,106,.08); border:1px solid rgba(240,106,106,.25); border-radius:.6rem; padding:.65rem .85rem; font-size:.68rem; color:#f06a6a; line-height:1.6; display:none; }
+.error-msg.show { display:block; }
+
+/* Day notes panel */
+.day-notes-panel { display:flex; flex-direction:column; gap:.5rem; }
+.day-notes-header { font-size:.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:.1em; padding:.3rem 0; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header-row">
+    <header>
+      <h1>Diario <em>Viva</em></h1>
+      <p class="subtitle">Le tue note e pensieri</p>
+    </header>
+    <a href="index.html" class="back-link" data-testid="back-to-app-link">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+      Registra
+    </a>
+  </div>
+
+  <div class="view-switcher">
+    <button class="view-btn active" id="viewCalBtn" data-testid="view-calendar-btn">Calendario</button>
+    <button class="view-btn" id="viewChronoBtn" data-testid="view-chrono-btn">Cronologico</button>
+  </div>
+
+  <!-- CALENDAR VIEW -->
+  <div id="calendarView">
+    <div class="cal-nav">
+      <button class="cal-nav-btn" id="prevMonth" data-testid="prev-month-btn">&larr;</button>
+      <span class="cal-month" id="calMonthLabel" data-testid="cal-month-label"></span>
+      <button class="cal-nav-btn" id="nextMonth" data-testid="next-month-btn">&rarr;</button>
+    </div>
+    <div class="cal-grid" id="calGrid" data-testid="cal-grid"></div>
+    <div class="day-notes-panel" id="dayNotesPanel"></div>
+  </div>
+
+  <!-- CHRONO VIEW -->
+  <div id="chronoView" style="display:none">
+    <div class="notes-section" id="chronoList" data-testid="chrono-list"></div>
+  </div>
+
+  <div class="loading-state" id="loadingState"><div class="spinner"></div></div>
+  <div class="error-msg" id="errorMsg"></div>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="modal-overlay" id="editModal" data-testid="edit-modal">
+  <div class="modal-card">
+    <div class="modal-title">Modifica nota</div>
+    <div class="modal-field">
+      <label class="modal-label">Titolo</label>
+      <input class="modal-input" id="editTitle" type="text" data-testid="edit-title-input">
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Data</label>
+      <input class="modal-input" id="editDate" type="date" data-testid="edit-date-input">
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Contenuto</label>
+      <textarea class="modal-textarea" id="editContent" data-testid="edit-content-textarea"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn modal-btn-delete" id="editDelete" data-testid="edit-delete-btn">Elimina</button>
+      <button class="modal-btn modal-btn-cancel" id="editCancel" data-testid="edit-cancel-btn">Annulla</button>
+      <button class="modal-btn modal-btn-confirm" id="editSave" data-testid="edit-save-btn">Salva</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// =============================================
+// SUPABASE
+// =============================================
+const SUPABASE_URL = 'https://ezycobgovadcgvnyqcew.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_ASHxxToKJyMy4CpBAqseqA_mepXAAJ-';
+let sb = null;
+try {
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+} catch(e) {
+  console.error('Supabase init error:', e);
+}
+
+// =============================================
+// STATE
+// =============================================
+let allNotes = [];
+let currentYear, currentMonth; // 0-indexed month
+let selectedDay = null;
+let currentView = 'calendar';
+let editingNote = null;
+
+const $ = id => document.getElementById(id);
+const errorMsg = $('errorMsg');
+const loadingState = $('loadingState');
+const calGrid = $('calGrid');
+const calMonthLabel = $('calMonthLabel');
+const dayNotesPanel = $('dayNotesPanel');
+const chronoList = $('chronoList');
+const calendarView = $('calendarView');
+const chronoView = $('chronoView');
+const editModal = $('editModal');
+const editTitle = $('editTitle');
+const editDate = $('editDate');
+const editContent = $('editContent');
+const editDelete = $('editDelete');
+const editCancel = $('editCancel');
+const editSave = $('editSave');
+
+// =============================================
+// INIT
+// =============================================
+const now = new Date();
+currentYear = now.getFullYear();
+currentMonth = now.getMonth();
+
+$('viewCalBtn').onclick = () => switchView('calendar');
+$('viewChronoBtn').onclick = () => switchView('chrono');
+$('prevMonth').onclick = () => { currentMonth--; if(currentMonth<0){currentMonth=11;currentYear--;} selectedDay=null; renderCalendar(); };
+$('nextMonth').onclick = () => { currentMonth++; if(currentMonth>11){currentMonth=0;currentYear++;} selectedDay=null; renderCalendar(); };
+
+editCancel.onclick = () => { editModal.classList.remove('show'); editingNote=null; };
+editModal.onclick = (e) => { if(e.target===editModal){editModal.classList.remove('show');editingNote=null;} };
+
+editSave.onclick = async () => {
+  if(!editingNote) return;
+  const title = editTitle.value.trim();
+  const date = editDate.value;
+  const content = editContent.value.trim();
+  if(!title || !content) return;
+
+  editSave.disabled = true;
+  editSave.innerHTML = '<span class="modal-spinner"></span>Salvataggio...';
+
+  try {
+    const { error } = await sb.from('notes').update({
+      title: title,
+      content: content,
+      note_date: date,
+      updated_at: new Date().toISOString()
+    }).eq('id', editingNote.id);
+
+    if(error) throw error;
+
+    editModal.classList.remove('show');
+    editingNote = null;
+    await loadNotes();
+  } catch(e) {
+    showErr('Errore aggiornamento: ' + (e.message || e));
+  } finally {
+    editSave.innerHTML = 'Salva';
+    editSave.disabled = false;
+  }
+};
+
+editDelete.onclick = async () => {
+  if(!editingNote) return;
+  if(!confirm('Eliminare questa nota?')) return;
+
+  editDelete.disabled = true;
+  try {
+    const { error } = await sb.from('notes').delete().eq('id', editingNote.id);
+    if(error) throw error;
+    editModal.classList.remove('show');
+    editingNote = null;
+    await loadNotes();
+  } catch(e) {
+    showErr('Errore eliminazione: ' + (e.message || e));
+  } finally {
+    editDelete.disabled = false;
+  }
+};
+
+// =============================================
+// DATA
+// =============================================
+async function loadNotes() {
+  loadingState.style.display = 'block';
+  hideErr();
+
+  if(!sb) {
+    showErr('Supabase non inizializzato. Verifica la configurazione.');
+    loadingState.style.display = 'none';
+    return;
+  }
+
+  try {
+    const { data, error } = await sb
+      .from('notes')
+      .select('*')
+      .order('note_date', { ascending: false });
+
+    if(error) throw error;
+
+    allNotes = data || [];
+    loadingState.style.display = 'none';
+
+    if(currentView === 'calendar') renderCalendar();
+    else renderChrono();
+  } catch(e) {
+    loadingState.style.display = 'none';
+    showErr('Errore caricamento note: ' + (e.message || e) + '. Verifica la chiave API Supabase nelle impostazioni del progetto (Settings > API > anon public key).');
+  }
+}
+
+// =============================================
+// VIEW SWITCH
+// =============================================
+function switchView(view) {
+  currentView = view;
+  if(view === 'calendar') {
+    $('viewCalBtn').classList.add('active'); $('viewChronoBtn').classList.remove('active');
+    calendarView.style.display = ''; chronoView.style.display = 'none';
+    renderCalendar();
+  } else {
+    $('viewChronoBtn').classList.add('active'); $('viewCalBtn').classList.remove('active');
+    calendarView.style.display = 'none'; chronoView.style.display = '';
+    renderChrono();
+  }
+}
+
+// =============================================
+// CALENDAR
+// =============================================
+const MONTHS_IT = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+const DAYS_IT = ['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
+
+function renderCalendar() {
+  calMonthLabel.textContent = MONTHS_IT[currentMonth] + ' ' + currentYear;
+
+  // Build set of dates with notes for this month
+  const noteDates = new Set();
+  const monthStr = currentYear + '-' + String(currentMonth + 1).padStart(2, '0');
+  allNotes.forEach(n => {
+    if(n.note_date && n.note_date.startsWith(monthStr)) {
+      noteDates.add(n.note_date);
+    }
+  });
+
+  // Calculate calendar grid
+  const firstDay = new Date(currentYear, currentMonth, 1);
+  let startDow = firstDay.getDay(); // 0=Sun
+  startDow = startDow === 0 ? 6 : startDow - 1; // Convert to Mon=0
+  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  const prevMonthDays = new Date(currentYear, currentMonth, 0).getDate();
+
+  const today = new Date();
+  const todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+
+  let html = '';
+  // Day headers
+  DAYS_IT.forEach(d => { html += '<div class="cal-header">' + d + '</div>'; });
+
+  // Previous month days
+  for(let i = startDow - 1; i >= 0; i--) {
+    html += '<div class="cal-day other">' + (prevMonthDays - i) + '</div>';
+  }
+
+  // Current month days
+  for(let d = 1; d <= daysInMonth; d++) {
+    const dateStr = currentYear + '-' + String(currentMonth + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+    const isToday = dateStr === todayStr;
+    const hasNotes = noteDates.has(dateStr);
+    const isSelected = selectedDay === d;
+    let cls = 'cal-day';
+    if(isToday) cls += ' today';
+    if(hasNotes) cls += ' has-notes';
+    if(isSelected) cls += ' selected';
+    html += '<div class="' + cls + '" data-day="' + d + '" data-date="' + dateStr + '">';
+    html += d;
+    if(hasNotes) html += '<span class="cal-dot"></span>';
+    html += '</div>';
+  }
+
+  // Next month days to fill grid
+  const totalCells = startDow + daysInMonth;
+  const remaining = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+  for(let i = 1; i <= remaining; i++) {
+    html += '<div class="cal-day other">' + i + '</div>';
+  }
+
+  calGrid.innerHTML = html;
+
+  // Bind click events for days with notes
+  calGrid.querySelectorAll('.cal-day.has-notes').forEach(el => {
+    el.onclick = () => {
+      const day = parseInt(el.dataset.day);
+      const dateStr = el.dataset.date;
+      selectedDay = day;
+      // Highlight selected
+      calGrid.querySelectorAll('.cal-day').forEach(c => c.classList.remove('selected'));
+      el.classList.add('selected');
+      showDayNotes(dateStr);
+    };
+  });
+
+  // Show selected day notes if any
+  if(selectedDay) {
+    const dateStr = currentYear + '-' + String(currentMonth + 1).padStart(2, '0') + '-' + String(selectedDay).padStart(2, '0');
+    showDayNotes(dateStr);
+  } else {
+    dayNotesPanel.innerHTML = '';
+  }
+}
+
+function showDayNotes(dateStr) {
+  const notes = allNotes.filter(n => n.note_date === dateStr);
+  if(!notes.length) { dayNotesPanel.innerHTML = ''; return; }
+
+  const dateObj = new Date(dateStr + 'T12:00:00');
+  let html = '<div class="day-notes-header">' + dateObj.toLocaleDateString('it-IT', { weekday:'long', day:'numeric', month:'long' }) + '</div>';
+  notes.forEach(n => {
+    html += buildNoteCard(n);
+  });
+  dayNotesPanel.innerHTML = html;
+  bindNoteCards(dayNotesPanel);
+}
+
+// =============================================
+// CHRONOLOGICAL VIEW
+// =============================================
+function renderChrono() {
+  if(!allNotes.length) {
+    chronoList.innerHTML = '<div class="empty-state"><span class="empty-icon">&#128214;</span>Nessuna nota nel diario.<br>Registra o scrivi qualcosa e salvalo!</div>';
+    return;
+  }
+
+  // Group by week
+  const weeks = {};
+  allNotes.forEach(n => {
+    const d = new Date(n.note_date + 'T12:00:00');
+    const weekStart = getWeekStart(d);
+    const key = weekStart.toISOString().split('T')[0];
+    if(!weeks[key]) weeks[key] = [];
+    weeks[key].push(n);
+  });
+
+  // Sort weeks descending
+  const sortedWeeks = Object.keys(weeks).sort((a, b) => b.localeCompare(a));
+
+  let html = '';
+  sortedWeeks.forEach(weekKey => {
+    const ws = new Date(weekKey + 'T12:00:00');
+    const we = new Date(ws); we.setDate(we.getDate() + 6);
+    const label = ws.toLocaleDateString('it-IT', { day:'numeric', month:'short' }) + ' - ' + we.toLocaleDateString('it-IT', { day:'numeric', month:'short', year:'numeric' });
+    html += '<div class="week-header">' + label + '</div>';
+    weeks[weekKey].forEach(n => { html += buildNoteCard(n); });
+  });
+
+  chronoList.innerHTML = html;
+  bindNoteCards(chronoList);
+}
+
+function getWeekStart(d) {
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  return new Date(d.getFullYear(), d.getMonth(), diff);
+}
+
+// =============================================
+// NOTE CARD
+// =============================================
+function buildNoteCard(n) {
+  const dateObj = new Date(n.note_date + 'T12:00:00');
+  const dateStr = dateObj.toLocaleDateString('it-IT', { weekday:'short', day:'numeric', month:'short' });
+  const plainContent = stripHtml(n.content).slice(0, 120);
+  return '<div class="note-card" data-id="' + n.id + '" data-testid="note-card-' + n.id + '">' +
+    '<div class="note-card-header">' +
+      '<span class="note-title">' + esc(n.title) + '</span>' +
+      '<span class="note-mode">' + (n.mode === 'rec' ? 'REC' : 'WRITE') + '</span>' +
+    '</div>' +
+    '<span class="note-date">' + dateStr + '</span>' +
+    '<div class="note-preview">' + esc(plainContent) + '</div>' +
+  '</div>';
+}
+
+function bindNoteCards(container) {
+  container.querySelectorAll('.note-card').forEach(card => {
+    card.onclick = () => {
+      const id = card.dataset.id;
+      const note = allNotes.find(n => n.id === id);
+      if(note) openEditModal(note);
+    };
+  });
+}
+
+// =============================================
+// EDIT MODAL
+// =============================================
+function openEditModal(note) {
+  editingNote = note;
+  editTitle.value = note.title;
+  editDate.value = note.note_date;
+  editContent.value = stripHtml(note.content);
+  editModal.classList.add('show');
+}
+
+// =============================================
+// UTILS
+// =============================================
+function showErr(m) { errorMsg.textContent = m; errorMsg.classList.add('show'); }
+function hideErr() { errorMsg.classList.remove('show'); }
+function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function stripHtml(html) {
+  const d = document.createElement('div');
+  d.innerHTML = html;
+  return d.textContent || d.innerText || '';
+}
+
+// =============================================
+// INIT LOAD
+// =============================================
+loadNotes();
+</script>
+</body>
+</html>

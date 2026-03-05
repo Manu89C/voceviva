@@ -458,7 +458,7 @@ async function transcribeBlob(blob) {
 
   const form = new FormData();
   form.append('file', blob, 'audio.' + ext);
-  form.append('model', 'whisper-large-v3-turbo');
+  form.append('model', 'whisper-large-v3');
   form.append('language', 'it');
   form.append('response_format', 'text');
 

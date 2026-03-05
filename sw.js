@@ -1,4 +1,4 @@
-const CACHE = 'voceviva-v1';
+const CACHE = 'voceviva-v3';
 
 self.addEventListener('install', e => {
   self.skipWaiting();

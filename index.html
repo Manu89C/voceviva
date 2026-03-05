@@ -529,7 +529,7 @@ async function warmupAPI() {
     try{
       const form=new FormData();
       form.append('file',makeWav(),'warmup.wav');
-      form.append('model','whisper-large-v3-turbo');
+      form.append('model','whisper-large-v3');
       form.append('language','it');
       form.append('response_format','text');
       const res=await fetch('https://api.groq.com/openai/v1/audio/transcriptions',{
@@ -708,7 +708,7 @@ async function transcribeBlob(blob){
   const ext=mt.includes('wav')?'wav':mt.includes('ogg')?'ogg':mt.includes('mp4')?'mp4':'webm';
   const form=new FormData();
   form.append('file',blob,'audio.'+ext);
-  form.append('model','whisper-large-v3-turbo');
+  form.append('model','whisper-large-v3');
   form.append('language','it');
   form.append('response_format','text');
   const ctx=allText.trim().split(/\s+/).slice(-80).join(' ');

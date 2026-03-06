@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Voce Viva</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0a0a0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="VoceViva">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="rnnoise-sync.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root { --bg:#0a0a0f; --surface:#111118; --border:#1e1e2e; --accent:#f55036; --text:#e8e8f0; --muted:#5a5a7a; --live:#4ade80; --warn:#f59e0b; }
+body { min-height:100vh; background:var(--bg); color:var(--text); font-family:'DM Mono',monospace; display:flex; flex-direction:column; align-items:center; padding:1.5rem 1rem 3rem; -webkit-tap-highlight-color:transparent; }
+body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:none; background:radial-gradient(ellipse 80% 50% at 5% 95%,rgba(245,80,54,.08) 0%,transparent 60%),radial-gradient(ellipse 50% 40% at 95% 5%,rgba(245,80,54,.05) 0%,transparent 60%); }
+.container { position:relative; z-index:1; width:100%; max-width:640px; display:flex; flex-direction:column; gap:1.1rem; }
+h1 { font-family:'DM Serif Display',serif; font-size:clamp(2rem,7vw,3rem); letter-spacing:-.03em; line-height:1; }
+h1 em { font-style:italic; color:var(--accent); }
+.subtitle { font-size:.6rem; color:var(--muted); text-transform:uppercase; letter-spacing:.18em; margin-top:.4rem; display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; }
+.badge { background:rgba(245,80,54,.12); border:1px solid rgba(245,80,54,.25); color:var(--accent); padding:.1rem .5rem; border-radius:.3rem; font-size:.55rem; }
+.header-row { display:flex; justify-content:space-between; align-items:flex-start; }
+.diary-link { display:inline-flex; align-items:center; gap:.4rem; background:var(--surface); border:1px solid var(--border); color:var(--muted); padding:.4rem .8rem; border-radius:.5rem; font-family:'DM Mono',monospace; font-size:.6rem; text-decoration:none; text-transform:uppercase; letter-spacing:.1em; transition:border-color .2s,color .2s; white-space:nowrap; }
+.diary-link:hover { border-color:var(--accent); color:var(--accent); }
+.diary-link svg { width:14px; height:14px; }
+/* API card */
+.api-card { background:var(--surface); border:1px solid var(--border); border-radius:1rem; padding:1.1rem; display:flex; flex-direction:column; gap:.65rem; transition:border-color .3s; }
+.api-card.ok { border-color:rgba(74,222,128,.3); }
+.api-label { font-size:.6rem; text-transform:uppercase; letter-spacing:.12em; color:var(--muted); display:flex; align-items:center; gap:.5rem; }
+.dot { width:6px; height:6px; border-radius:50%; background:#f06a6a; flex-shrink:0; transition:background .3s; }
+.dot.ok { background:var(--live); }
+.api-row { display:flex; gap:.5rem; }
+.api-input { flex:1; background:var(--bg); border:1px solid var(--border); border-radius:.6rem; color:var(--text); font-family:'DM Mono',monospace; font-size:.68rem; padding:.55rem .7rem; outline:none; min-width:0; transition:border-color .2s; }
+.api-input:focus { border-color:var(--accent); }
+.api-input::placeholder { color:var(--muted); }
+.btn-save { background:var(--accent); color:#fff; border:none; padding:.55rem .9rem; border-radius:.6rem; font-family:'DM Mono',monospace; font-size:.68rem; cursor:pointer; white-space:nowrap; touch-action:manipulation; }
+.api-hint { font-size:.58rem; color:var(--muted); line-height:1.6; }
+.api-hint a { color:var(--accent); text-decoration:none; }
+/* Mode switcher */
+.mode-switcher { display:flex; gap:.4rem; background:var(--surface); border:1px solid var(--border); border-radius:.8rem; padding:.35rem; }
+.mode-btn { flex:1; background:none; border:none; color:var(--muted); font-family:'DM Mono',monospace; font-size:.65rem; text-transform:uppercase; letter-spacing:.12em; padding:.5rem; border-radius:.5rem; cursor:pointer; touch-action:manipulation; transition:background .2s,color .2s; text-decoration:none; display:flex; align-items:center; justify-content:center; }
+.mode-btn.active { background:var(--accent); color:#fff; }
+/* Meter */
+.meter-row { display:flex; align-items:center; gap:.6rem; }
+.meter-label { font-size:.55rem; text-transform:uppercase; letter-spacing:.12em; color:var(--muted); white-space:nowrap; }
+.meter-bar { flex:1; height:4px; background:var(--border); border-radius:2px; overflow:hidden; }
+.meter-fill { height:100%; width:0%; background:var(--live); border-radius:2px; transition:width .08s linear,background .2s; }
+.meter-fill.warn { background:var(--warn); }
+.meter-fill.loud { background:var(--accent); }
+.quality-badge { font-size:.55rem; text-transform:uppercase; letter-spacing:.1em; padding:.15rem .5rem; border-radius:.3rem; border:1px solid var(--border); color:var(--muted); white-space:nowrap; transition:all .3s; min-width:52px; text-align:center; }
+.quality-badge.good { border-color:rgba(74,222,128,.4); color:var(--live); }
+.quality-badge.ok { border-color:rgba(245,158,11,.4); color:var(--warn); }
+.quality-badge.low { border-color:rgba(245,80,54,.4); color:var(--accent); }
+/* Box label / dots */
+.box-label { font-size:.58rem; text-transform:uppercase; letter-spacing:.15em; color:var(--muted); margin-bottom:.4rem; display:flex; align-items:center; gap:.5rem; }
+.live-dot { width:5px; height:5px; border-radius:50%; background:var(--muted); flex-shrink:0; transition:background .3s; }
+.live-dot.on { background:#f06a6a; animation:blink .8s ease-in-out infinite; }
+.live-dot.processing { background:var(--accent); animation:blink .5s ease-in-out infinite; }
+.live-dot.done { background:var(--live); animation:none; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+/* Annotazione box — textarea editabile */
+.annot-wrap { background:var(--surface); border:1px solid var(--border); border-radius:1rem; padding:1.1rem; display:flex; flex-direction:column; gap:.75rem; transition:border-color .3s; }
+.annot-wrap.recording { border-color:rgba(240,106,106,.5); }
+.annot-wrap.done { border-color:rgba(74,222,128,.4); }
+.annot-textarea { background:transparent; border:none; color:var(--text); font-family:'DM Mono',monospace; font-size:.88rem; line-height:1.9; padding:0; outline:none; resize:none; min-height:180px; max-height:40vh; width:100%; }
+.annot-textarea::placeholder { color:var(--muted); }
+.annot-footer { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.5rem; }
+.word-count { font-size:.62rem; color:var(--muted); }
+.action-btns { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }
+/* Processing pill */
+.processing-pill { display:none; background:rgba(245,80,54,.12); border:1px solid rgba(245,80,54,.25); border-radius:2rem; padding:.25rem .65rem; font-size:.58rem; color:var(--accent); text-transform:uppercase; letter-spacing:.1em; align-items:center; gap:.35rem; }
+.processing-pill.show { display:flex; }
+.pill-dot { width:4px; height:4px; border-radius:50%; background:var(--accent); animation:blink .6s ease-in-out infinite; }
+/* Controls */
+.controls { display:flex; flex-direction:column; align-items:center; gap:.75rem; padding:.5rem 0; }
+.timer { font-size:2.2rem; font-weight:300; letter-spacing:.08em; font-variant-numeric:tabular-nums; }
+.waveform { display:flex; align-items:center; gap:3px; height:24px; }
+.bar { width:3px; background:#f06a6a; border-radius:2px; height:3px; }
+.bar.active { animation:wave .7s ease-in-out infinite; }
+.bar:nth-child(1){animation-delay:.00s}.bar:nth-child(2){animation-delay:.10s}.bar:nth-child(3){animation-delay:.20s}
+.bar:nth-child(4){animation-delay:.30s}.bar:nth-child(5){animation-delay:.15s}.bar:nth-child(6){animation-delay:.05s}
+.bar:nth-child(7){animation-delay:.25s}.bar:nth-child(8){animation-delay:.35s}.bar:nth-child(9){animation-delay:.10s}
+@keyframes wave { 0%,100%{height:3px} 50%{height:20px} }
+.mic-btn { width:84px; height:84px; border-radius:50%; border:none; background:var(--accent); color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:transform .12s,box-shadow .25s; box-shadow:0 6px 28px rgba(245,80,54,.4); touch-action:manipulation; }
+.mic-btn:active { transform:scale(.92); }
+.mic-btn.recording { background:#c0392b; animation:pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{box-shadow:0 6px 36px rgba(192,57,43,.55)} 50%{box-shadow:0 6px 50px rgba(192,57,43,.85),0 0 0 10px rgba(192,57,43,.1)} }
+.mic-btn svg { width:34px; height:34px; }
+.status-row { display:flex; align-items:center; gap:.45rem; font-size:.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:.12em; }
+.status-dot { width:6px; height:6px; border-radius:50%; background:var(--muted); transition:background .3s; }
+.status-dot.live { background:#f06a6a; animation:blink .8s ease-in-out infinite; }
+.status-dot.processing { background:var(--accent); animation:blink .5s ease-in-out infinite; }
+.status-dot.done { background:var(--live); animation:none; }
+/* Buttons */
+.btn-ghost { background:none; border:1px solid var(--border); color:var(--muted); padding:.38rem .8rem; border-radius:.5rem; font-family:'DM Mono',monospace; font-size:.62rem; cursor:pointer; text-transform:uppercase; letter-spacing:.1em; touch-action:manipulation; }
+.btn-ghost:disabled { opacity:.3; cursor:not-allowed; }
+.btn-ai { background:var(--accent); color:#fff; border:none; padding:.55rem 1.1rem; border-radius:.6rem; font-family:'DM Mono',monospace; font-size:.68rem; cursor:pointer; touch-action:manipulation; display:none; }
+.btn-ai:disabled { opacity:.5; cursor:not-allowed; }
+/* Output */
+.output-box { background:var(--surface); border:1px solid var(--border); border-radius:1rem; padding:1.1rem; min-height:80px; position:relative; transition:border-color .3s; display:none; }
+.output-box.show { display:block; }
+.output-box.loading { border-color:rgba(245,80,54,.4); }
+.output-box.done { border-color:rgba(74,222,128,.4); }
+.output-overlay { display:none; position:absolute; inset:0; background:rgba(10,10,15,.8); border-radius:1rem; align-items:center; justify-content:center; gap:.65rem; font-size:.7rem; color:var(--accent); backdrop-filter:blur(3px); }
+.output-overlay.show { display:flex; }
+.spinner { width:15px; height:15px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite; }
+@keyframes spin { to{transform:rotate(360deg)} }
+#outputText { font-size:.85rem; line-height:1.85; color:var(--text); word-break:break-word; outline:none; }
+#outputText:focus { background:rgba(255,255,255,.02); border-radius:.4rem; padding:.2rem; }
+#outputText p { margin-bottom:.65rem; }
+#outputText ul { padding-left:1.1rem; margin-bottom:.65rem; }
+#outputText li { margin-bottom:.35rem; }
+#outputText h2 { font-family:'DM Serif Display',serif; font-size:1.3rem; margin:.9rem 0 .4rem; color:var(--text); }
+#outputText h3 { font-family:'DM Serif Display',serif; font-size:1.1rem; margin:.75rem 0 .35rem; color:var(--text); }
+#outputText h4 { font-family:'DM Serif Display',serif; font-size:.9rem; font-style:italic; margin:.5rem 0 .25rem; color:var(--text); }
+/* Mood */
+.mood-box { background:rgba(245,80,54,.05); border:1px solid rgba(245,80,54,.2); border-radius:.8rem; padding:.8rem 1rem; margin-top:.75rem; }
+.mood-label { font-size:.55rem; text-transform:uppercase; letter-spacing:.15em; color:var(--accent); margin-bottom:.35rem; }
+.mood-text { font-size:.8rem; line-height:1.7; color:var(--text); font-style:italic; }
+/* Error */
+.error-msg { background:rgba(240,106,106,.08); border:1px solid rgba(240,106,106,.25); border-radius:.6rem; padding:.65rem .85rem; font-size:.68rem; color:#f06a6a; line-height:1.6; display:none; }
+.error-msg.show { display:block; }
+/* Bottom row */
+.bottom-row { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.5rem; }
+.btn-diary-save { background:var(--live); color:#0a0a0f; border:none; padding:.38rem .8rem; border-radius:.5rem; font-family:'DM Mono',monospace; font-size:.62rem; cursor:pointer; text-transform:uppercase; letter-spacing:.1em; touch-action:manipulation; font-weight:500; }
+/* Modal */
+.modal-overlay { display:none; position:fixed; inset:0; z-index:100; background:rgba(0,0,0,.75); backdrop-filter:blur(6px); align-items:center; justify-content:center; padding:1rem; }
+.modal-overlay.show { display:flex; }
+.modal-card { background:var(--surface); border:1px solid var(--border); border-radius:1.2rem; padding:1.5rem; width:100%; max-width:480px; display:flex; flex-direction:column; gap:1rem; animation:modalIn .2s ease-out; }
+@keyframes modalIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+.modal-title { font-family:'DM Serif Display',serif; font-size:1.2rem; color:var(--text); }
+.modal-field { display:flex; flex-direction:column; gap:.3rem; }
+.modal-label { font-size:.58rem; text-transform:uppercase; letter-spacing:.12em; color:var(--muted); }
+.modal-input { background:var(--bg); border:1px solid var(--border); border-radius:.6rem; color:var(--text); font-family:'DM Mono',monospace; font-size:.78rem; padding:.55rem .7rem; outline:none; transition:border-color .2s; width:100%; }
+.modal-input:focus { border-color:var(--accent); }
+.modal-preview { background:var(--bg); border:1px solid var(--border); border-radius:.6rem; padding:.65rem .7rem; max-height:120px; overflow-y:auto; font-size:.72rem; line-height:1.7; color:var(--muted); }
+.modal-preview::-webkit-scrollbar { width:3px; }
+.modal-preview::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+.modal-actions { display:flex; gap:.5rem; justify-content:flex-end; }
+.modal-btn { padding:.5rem 1rem; border-radius:.6rem; font-family:'DM Mono',monospace; font-size:.68rem; cursor:pointer; touch-action:manipulation; border:none; }
+.modal-btn-cancel { background:none; border:1px solid var(--border); color:var(--muted); }
+.modal-btn-confirm { background:var(--live); color:#0a0a0f; font-weight:500; }
+.modal-btn-confirm:disabled { opacity:.4; cursor:not-allowed; }
+.modal-spinner { display:inline-block; width:12px; height:12px; border:2px solid rgba(10,10,15,.2); border-top-color:#0a0a0f; border-radius:50%; animation:spin .6s linear infinite; margin-right:.3rem; vertical-align:middle; }
+.modal-success { text-align:center; padding:1rem 0; }
+.modal-success-icon { font-size:2rem; margin-bottom:.5rem; display:block; color:var(--live); }
+.modal-success-text { font-size:.78rem; color:var(--text); margin-bottom:.3rem; }
+.modal-success-sub { font-size:.62rem; color:var(--muted); }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>Voce <em>Viva</em></h1>
+    <p class="subtitle">Whisper · LLaMA · <span class="badge">ANNOTAZIONI</span></p>
+  </header>
+
+  <div class="api-card" id="apiCard">
+    <div class="api-label"><span class="dot" id="apiDot"></span><span id="apiLabel">Chiave Groq richiesta</span></div>
+    <div class="api-row">
+      <input class="api-input" type="password" id="apiKeyInput" placeholder="gsk_..." autocomplete="off" spellcheck="false">
+      <button class="btn-save" id="saveKeyBtn">Salva</button>
+    </div>
+    <p class="api-hint">Gratis su <a href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a></p>
+  </div>
+
+  <!-- SWITCHER: Annotazioni / Diario -->
+  <div class="mode-switcher">
+    <button class="mode-btn active" id="modeAnnot">Annotazioni</button>
+    <a class="mode-btn" href="diary.html">Diario</a>
+  </div>
+
+  <!-- METER -->
+  <div id="meterSection" style="display:none">
+    <div class="meter-row">
+      <span class="meter-label">Livello</span>
+      <div class="meter-bar"><div class="meter-fill" id="meterFill"></div></div>
+      <span class="quality-badge" id="qualityBadge">&mdash;</span>
+    </div>
+  </div>
+
+  <!-- ANNOTAZIONE: textarea editabile + mic -->
+  <div>
+    <div class="box-label">
+      <span class="live-dot" id="liveDot"></span>
+      <span>Annotazione</span>
+      <div class="processing-pill" id="processingPill"><span class="pill-dot"></span> trascrivo&hellip;</div>
+    </div>
+    <div class="annot-wrap" id="annotWrap">
+      <textarea class="annot-textarea" id="annotTextarea"
+        placeholder="Scrivi qui o usa il microfono per dettare. Puoi mescolare testo scritto e dettato liberamente."
+        spellcheck="true"></textarea>
+      <div class="annot-footer">
+        <span class="word-count" id="wordCount">0 parole</span>
+        <div class="action-btns">
+          <button class="btn-ghost" id="copyBtn" disabled>Copia</button>
+          <button class="btn-ghost" id="clearBtn" disabled>Cancella</button>
+          <button class="btn-ai" id="aiBtn">Elabora con AI</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTROLLI MIC -->
+  <div class="controls">
+    <div class="timer" id="timer">00:00</div>
+    <div class="waveform">
+      <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+      <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+      <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+    </div>
+    <button class="mic-btn" id="micBtn" data-testid="mic-btn">
+      <svg id="micIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+        <line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
+      </svg>
+      <svg id="stopIcon" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+    </button>
+    <div class="status-row"><span class="status-dot" id="statusDot"></span><span id="statusText">Inserisci la chiave API</span></div>
+  </div>
+
+  <!-- OUTPUT AI -->
+  <div>
+    <div class="box-label" id="outputLabel" style="display:none">
+      <span class="live-dot" id="outputDot"></span>
+      <span id="outputLabelText">Elaborazione AI</span>
+    </div>
+    <div class="output-box" id="outputBox">
+      <div class="output-overlay" id="outputOverlay"><div class="spinner"></div> <span id="overlayText">Elaborazione&hellip;</span></div>
+      <div id="outputText" contenteditable="true" spellcheck="true"></div>
+      <div class="mood-box" id="moodBox" style="display:none">
+        <div class="mood-label">Stato d&rsquo;animo</div>
+        <div class="mood-text" id="moodText"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="error-msg" id="errorMsg"></div>
+
+  <div class="bottom-row" id="outputActions" style="display:none">
+    <div class="action-btns">
+      <button class="btn-ghost" id="copyOutputBtn">Copia nota</button>
+    </div>
+    <button class="btn-diary-save" id="saveDiaryBtn">Salva nel Diario</button>
+  </div>
+
+</div>
+
+<!-- SAVE MODAL -->
+<div class="modal-overlay" id="saveModal">
+  <div class="modal-card" id="modalCard">
+    <div class="modal-title" id="modalTitle">Salva nel Diario</div>
+    <div class="modal-field">
+      <label class="modal-label">Titolo</label>
+      <input class="modal-input" id="modalTitleInput" type="text" placeholder="Titolo della nota...">
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Data</label>
+      <input class="modal-input" id="modalDateInput" type="date">
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Anteprima contenuto</label>
+      <div class="modal-preview" id="modalPreview"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn modal-btn-cancel" id="modalCancel">Annulla</button>
+      <button class="modal-btn modal-btn-confirm" id="modalConfirm">Salva</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────────────────────────
+let GROQ_KEY = localStorage.getItem('vv_groq') || '';
+const CHUNK_MS       = 10000;
+const OVERLAP_MS     = 3000;
+const MIN_BLOB_BYTES = 8000;
+const MAX_BLOB_BYTES = 8 * 1024 * 1024;
+const SILENCE_THR    = 0.007;
+const SPEECH_RATIO   = 0.12;
+const METER_MS       = 80;
+const MIN_WORDS_AI   = 10;
+
+// ── SUPABASE ─────────────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://ezycobgovadcgvnyqcew.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_ASHxxToKJyMy4CpBAqseqA_mepXAAJ-';
+let sb = null;
+try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) {}
+
+// ── STATE ────────────────────────────────────────────────────────────────────
+let isRecording = false, wakeLock = null;
+let mediaRecorder = null, activeStream = null;
+let chunkTimer = null, timerInterval = null, meterInterval = null;
+let seconds = 0;
+let pendingChunks = [], isTranscribing = false, isSummarizing = false;
+let audioCtx = null, analyser = null, adaptiveGainNode = null;
+let apiWarmedUp = false;
+let rnnoiseModule = null, rnnoiseState = null;
+const analyserBuf = new Float32Array(2048);
+
+// ── DOM ───────────────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const apiKeyInput=$('apiKeyInput'), saveKeyBtn=$('saveKeyBtn'), apiDot=$('apiDot'), apiLabel=$('apiLabel'), apiCard=$('apiCard');
+const micBtn=$('micBtn'), micIcon=$('micIcon'), stopIcon=$('stopIcon');
+const timerEl=$('timer'), statusDot=$('statusDot'), statusText=$('statusText');
+const annotWrap=$('annotWrap'), annotTextarea=$('annotTextarea');
+const processingPill=$('processingPill'), liveDot=$('liveDot');
+const outputBox=$('outputBox'), outputOverlay=$('outputOverlay'), outputText=$('outputText');
+const outputLabel=$('outputLabel'), outputDot=$('outputDot'), outputLabelText=$('outputLabelText');
+const overlayText=$('overlayText'), outputActions=$('outputActions');
+const moodBox=$('moodBox'), moodText=$('moodText');
+const errorMsg=$('errorMsg'), wordCount=$('wordCount');
+const copyBtn=$('copyBtn'), aiBtn=$('aiBtn'), clearBtn=$('clearBtn'), copyOutputBtn=$('copyOutputBtn');
+const meterFill=$('meterFill'), qualityBadge=$('qualityBadge'), meterSection=$('meterSection');
+const saveDiaryBtn=$('saveDiaryBtn');
+const saveModal=$('saveModal'), modalCard=$('modalCard');
+const modalTitleInput=$('modalTitleInput'), modalDateInput=$('modalDateInput');
+const modalPreview=$('modalPreview'), modalCancel=$('modalCancel'), modalConfirm=$('modalConfirm');
+const modalTitle=$('modalTitle');
+
+// ── API KEY ───────────────────────────────────────────────────────────────────
+function applyKey(k) {
+  GROQ_KEY = k.trim();
+  if (GROQ_KEY) {
+    apiDot.className='dot ok'; apiLabel.textContent='Chiave Groq salvata';
+    apiCard.classList.add('ok'); setStatus('idle','Pronto');
+  } else {
+    apiDot.className='dot'; apiLabel.textContent='Chiave Groq richiesta';
+    apiCard.classList.remove('ok'); setStatus('idle','Inserisci la chiave API');
+  }
+}
+if (GROQ_KEY) { apiKeyInput.value=GROQ_KEY; applyKey(GROQ_KEY); }
+saveKeyBtn.onclick = () => {
+  const k = apiKeyInput.value.trim();
+  if (!k) { showErr('Incolla la chiave Groq.'); return; }
+  localStorage.setItem('vv_groq',k); applyKey(k); hideErr();
+};
+
+// ── TEXTAREA — conteggio parole + btn AI ──────────────────────────────────────
+annotTextarea.addEventListener('input', updateWords);
+function updateWords() {
+  const n = annotTextarea.value.trim() ? annotTextarea.value.trim().split(/\s+/).filter(Boolean).length : 0;
+  wordCount.textContent = n + (n===1?' parola':' parole');
+  copyBtn.disabled = n===0;
+  clearBtn.disabled = n===0;
+  aiBtn.style.display = n >= MIN_WORDS_AI ? 'block' : 'none';
+}
+
+// ── AI BUTTON ─────────────────────────────────────────────────────────────────
+aiBtn.onclick = async () => {
+  const txt = annotTextarea.value.trim();
+  if (!txt || !GROQ_KEY) { showErr('Inserisci la chiave Groq e del testo.'); return; }
+  if (isSummarizing) return;
+  isSummarizing = true; aiBtn.disabled = true;
+  outputLabelText.textContent = 'Elaborazione AI';
+  overlayText.textContent = 'AI sta elaborando la nota...';
+  outputLabel.style.display='flex'; outputDot.className='live-dot processing';
+  outputBox.className='output-box show loading'; outputOverlay.classList.add('show');
+  outputActions.style.display='none'; moodBox.style.display='none';
+
+  for (let a=1; a<=3; a++) {
+    try {
+      if (a>1) await sleep(Math.min(1000*Math.pow(2,a-1),8000));
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions',{
+        method:'POST',
+        headers:{'Authorization':'Bearer '+GROQ_KEY,'Content-Type':'application/json'},
+        body:JSON.stringify({
+          model:'llama-3.3-70b-versatile', max_tokens:2048, temperature:0.4,
+          messages:[
+            {role:'system',content:'Sei un editor e analista italiano. Ricevi una nota che può provenire da trascrizione audio o testo scritto.\n\nIL TUO COMPITO È DUPLICE:\n\n1. ELABORAZIONE: Correggi silenziosamente errori evidenti, inferisci il senso dove ambiguo, organizza gerarchicamente con titoli <h3> e sottotitoli <h4>, raggruppa per tema. Mantieni tutte le informazioni originali senza inventare.\n\n2. STATO D\'ANIMO: Dopo il testo elaborato, aggiungi obbligatoriamente questo blocco:\n<div id="mood-output">Una frase precisa che ipotizza lo stato d\'animo e il tono emotivo dell\'autore, basandoti sul contenuto, sulle parole scelte, sul ritmo del testo e su eventuali sfumature implicite. Sii specifico, non generico.</div>\n\nRispondi SOLO con HTML valido (usa <p>, <h3>, <h4>, <ul>, <li> e il blocco mood). Zero commenti fuori dall\'HTML.'},
+            {role:'user',content:'Nota:\n\n'+txt}
+          ]
+        })
+      });
+      if (res.status===429){const w=parseInt(res.headers.get('retry-after')||'10',10);await waitWithCountdown(Math.min(w,30),'Rate limit — riprovo tra');a--;continue;}
+      if (!res.ok){const e=await res.json().catch(()=>{});throw new Error(e?.error?.message||'HTTP '+res.status);}
+      const data = await res.json();
+      const raw = data?.choices?.[0]?.message?.content?.trim()||'';
+      const moodMatch = raw.match(/<div id="mood-output">([\s\S]*?)<\/div>/i);
+      const moodContent = moodMatch ? moodMatch[1].trim() : '';
+      const mainHtml = raw.replace(/<div id="mood-output">[\s\S]*?<\/div>/i,'').trim();
+      outputText.innerHTML = mainHtml || '<p>Nessun risultato.</p>';
+      if (moodContent) { moodText.textContent=moodContent; moodBox.style.display='block'; }
+      outputBox.classList.remove('loading'); outputBox.classList.add('done');
+      outputDot.className='live-dot done'; outputOverlay.classList.remove('show');
+      outputActions.style.display='flex';
+      copyOutputBtn.onclick=()=>doCopy(htmlToMarkdown(outputText.innerHTML)+(moodContent?'\n\n**Stato d\'animo:** '+moodContent:''),copyOutputBtn,'Copia nota');
+      isSummarizing=false; aiBtn.disabled=false; return;
+    } catch(e) {
+      if (a===3){outputText.innerHTML='<p>Errore. Riprova.</p>';showErr('Errore: '+e.message);outputBox.classList.remove('loading');outputOverlay.classList.remove('show');isSummarizing=false;aiBtn.disabled=false;}
+    }
+  }
+};
+
+// ── AUDIO ENGINE ──────────────────────────────────────────────────────────────
+function getRMS() {
+  if (!analyser) return 0;
+  analyser.getFloatTimeDomainData(analyserBuf);
+  let s=0; for(let i=0;i<analyserBuf.length;i++) s+=analyserBuf[i]*analyserBuf[i];
+  return Math.sqrt(s/analyserBuf.length);
+}
+function hasSpeech(arr) { return arr.length>0 && arr.filter(v=>v>SILENCE_THR).length/arr.length>SPEECH_RATIO; }
+function startMeter() {
+  meterSection.style.display='block';
+  meterInterval = setInterval(()=>{
+    const rms=getRMS(), pct=Math.min(100,rms*600);
+    meterFill.style.width=pct+'%';
+    if(pct<15)      {meterFill.className='meter-fill';qualityBadge.textContent='Basso';qualityBadge.className='quality-badge low';}
+    else if(pct<55) {meterFill.className='meter-fill';qualityBadge.textContent='Buono';qualityBadge.className='quality-badge good';}
+    else if(pct<80) {meterFill.className='meter-fill warn';qualityBadge.textContent='Alto';qualityBadge.className='quality-badge ok';}
+    else            {meterFill.className='meter-fill loud';qualityBadge.textContent='Saturo';qualityBadge.className='quality-badge low';}
+    if(adaptiveGainNode&&audioCtx){
+      const t=rms<0.02?2.5:rms<0.05?1.8:rms<0.12?1.4:1.0;
+      adaptiveGainNode.gain.setTargetAtTime(t,audioCtx.currentTime,0.3);
+    }
+  }, METER_MS);
+}
+function stopMeter() {
+  clearInterval(meterInterval);
+  meterFill.style.width='0%'; qualityBadge.textContent='—'; qualityBadge.className='quality-badge'; meterSection.style.display='none';
+}
+async function initRNNoise() {
+  if (rnnoiseModule) return true;
+  try {
+    if (typeof createRNNWasmModule==='undefined') return false;
+    rnnoiseModule = await createRNNWasmModule();
+    rnnoiseState = rnnoiseModule._rnnoise_create(0);
+    return true;
+  } catch(e) { return false; }
+}
+function buildAudioChain(stream) {
+  audioCtx = new (window.AudioContext||window.webkitAudioContext)({sampleRate:48000});
+  const src=audioCtx.createMediaStreamSource(stream);
+  const hpf=audioCtx.createBiquadFilter(); hpf.type='highpass'; hpf.frequency.value=80; hpf.Q.value=0.7;
+  const lpf=audioCtx.createBiquadFilter(); lpf.type='lowpass'; lpf.frequency.value=4000; lpf.Q.value=0.7;
+  const comp=audioCtx.createDynamicsCompressor();
+  comp.threshold.value=-20; comp.knee.value=8; comp.ratio.value=8; comp.attack.value=0.002; comp.release.value=0.2;
+  const gain=audioCtx.createGain(); gain.gain.value=1.6; adaptiveGainNode=gain;
+  analyser=audioCtx.createAnalyser(); analyser.fftSize=2048; analyser.smoothingTimeConstant=0.6;
+  src.connect(hpf); hpf.connect(lpf); lpf.connect(comp); comp.connect(gain); gain.connect(analyser);
+  const silOsc=audioCtx.createOscillator(); const silGain=audioCtx.createGain(); silGain.gain.value=0.00001;
+  silOsc.connect(silGain); silGain.connect(audioCtx.destination); silOsc.start();
+}
+
+// ── WAKE LOCK ─────────────────────────────────────────────────────────────────
+async function acquireWakeLock() {
+  if (!('wakeLock' in navigator)) return;
+  try { wakeLock=await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release',()=>{if(isRecording)setTimeout(acquireWakeLock,300);}); } catch(e) {}
+}
+
+// ── WARMUP ────────────────────────────────────────────────────────────────────
+async function warmupAPI() {
+  const makeWav=()=>{
+    const sr=16000,n=sr*0.5,buf=new ArrayBuffer(44+n*2),v=new DataView(buf);
+    const ws=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));};
+    ws(0,'RIFF');v.setUint32(4,36+n*2,true);ws(8,'WAVE');ws(12,'fmt ');v.setUint32(16,16,true);
+    v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,sr,true);v.setUint32(28,sr*2,true);
+    v.setUint16(32,2,true);v.setUint16(34,16,true);ws(36,'data');v.setUint32(40,n*2,true);
+    return new Blob([buf],{type:'audio/wav'});
+  };
+  for(let a=1;a<=2;a++){
+    try{
+      const form=new FormData();
+      form.append('file',makeWav(),'warmup.wav');
+      form.append('model','whisper-large-v3');
+      form.append('language','it');
+      form.append('response_format','text');
+      const res=await fetch('https://api.groq.com/openai/v1/audio/transcriptions',{method:'POST',headers:{'Authorization':'Bearer '+GROQ_KEY},body:form,signal:AbortSignal.timeout(10000)});
+      if(res.ok||res.status===400) return;
+      if(res.status===429){const w=parseInt(res.headers.get('retry-after')||'10',10);await sleep(Math.min(w,15)*1000);}
+    }catch(e){if(a===1)await sleep(1000);}
+  }
+}
+
+// ── RECORDING ─────────────────────────────────────────────────────────────────
+async function startRec() {
+  hideErr();
+  if (!GROQ_KEY){showErr('Inserisci prima la chiave Groq API.');return;}
+  let stream;
+  try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,sampleRate:48000,channelCount:1}});}
+  catch(e){showErr('Microfono: '+e.message);return;}
+  activeStream=stream; buildAudioChain(stream); initRNNoise();
+  if(!apiWarmedUp){setStatus('processing','Inizializzazione...');await warmupAPI();apiWarmedUp=true;}
+  const mimes=['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/mp4',''];
+  const bestMime=mimes.find(m=>!m||MediaRecorder.isTypeSupported(m));
+  pendingChunks=[];
+  isRecording=true;
+  micBtn.classList.add('recording'); micIcon.style.display='none'; stopIcon.style.display='block';
+  annotWrap.classList.add('recording'); liveDot.className='live-dot on';
+  startMeter(); startTimer(); acquireWakeLock();
+  setStatus('live','In ascolto…');
+  document.querySelectorAll('.bar').forEach(b=>b.classList.add('active'));
+  doSegment(stream, bestMime);
+}
+
+function doSegment(stream, mime) {
+  if (!isRecording) return;
+  const chunks=[],rmsVals=[];let rmsInt=null,overlapTimer=null;
+  let mr;
+  try{const o={audioBitsPerSecond:128000};if(mime)o.mimeType=mime;mr=new MediaRecorder(stream,o);}
+  catch(e){try{mr=new MediaRecorder(stream,{audioBitsPerSecond:128000});}catch(e2){mr=new MediaRecorder(stream);}}
+  mr.ondataavailable=e=>{if(e.data&&e.data.size>0)chunks.push(e.data);};
+  mr.onstart=()=>{
+    rmsInt=setInterval(()=>rmsVals.push(getRMS()),200);
+    overlapTimer=setTimeout(()=>{if(isRecording)doSegment(stream,mime);},CHUNK_MS-OVERLAP_MS);
+  };
+  mr.onstop=async()=>{
+    clearInterval(rmsInt);clearTimeout(overlapTimer);
+    if(!chunks.length)return;
+    const mt=mr.mimeType||mime||'audio/webm';
+    const blob=new Blob(chunks,{type:mt});
+    if(hasSpeech(rmsVals)&&blob.size>=MIN_BLOB_BYTES&&blob.size<=MAX_BLOB_BYTES) pendingChunks.push(blob);
+    if(!isTranscribing) drainQueue();
+  };
+  mr.onerror=()=>{clearInterval(rmsInt);clearTimeout(overlapTimer);if(isRecording)setTimeout(()=>doSegment(stream,mime),500);};
+  chunkTimer=setTimeout(()=>{try{if(mr.state==='recording')mr.stop();}catch(e){}},CHUNK_MS);
+  try{mr.start(250);}catch(e){showErr('Registrazione: '+e.message);}
+  mediaRecorder=mr;
+}
+
+async function stopRec() {
+  if(!isRecording)return;
+  isRecording=false; clearTimeout(chunkTimer);
+  try{if(mediaRecorder&&mediaRecorder.state==='recording')mediaRecorder.stop();}catch(e){}
+  if(activeStream){activeStream.getTracks().forEach(t=>t.stop());activeStream=null;}
+  if(audioCtx){try{audioCtx.close();}catch(e){}audioCtx=null;analyser=null;adaptiveGainNode=null;}
+  if(wakeLock){try{wakeLock.release();}catch(e){}wakeLock=null;}
+  micBtn.classList.remove('recording'); micIcon.style.display='block'; stopIcon.style.display='none';
+  annotWrap.classList.remove('recording');
+  document.querySelectorAll('.bar').forEach(b=>b.classList.remove('active'));
+  stopMeter(); stopTimer();
+  setStatus('processing','Completamento trascrizione…');
+  processingPill.classList.add('show');
+  await sleep(400);
+  while(pendingChunks.length) await transcribeBlob(pendingChunks.shift());
+  processingPill.classList.remove('show');
+  liveDot.className='live-dot done';
+  setStatus('done','Completato ✓');
+  updateWords();
+}
+
+micBtn.onclick = () => { if(!isRecording) startRec(); else stopRec(); };
+
+// ── TRANSCRIBE ────────────────────────────────────────────────────────────────
+async function drainQueue() {
+  if(isTranscribing||!pendingChunks.length)return;
+  isTranscribing=true; processingPill.classList.add('show');
+  while(pendingChunks.length) await transcribeBlob(pendingChunks.shift());
+  processingPill.classList.remove('show'); isTranscribing=false;
+}
+
+async function transcribeBlob(blob){
+  if(rnnoiseModule&&rnnoiseState) blob=await applyRNNoise(blob);
+  const mt=blob.type||'';
+  const ext=mt.includes('wav')?'wav':mt.includes('ogg')?'ogg':mt.includes('mp4')?'mp4':'webm';
+  const form=new FormData();
+  form.append('file',blob,'audio.'+ext);
+  form.append('model','whisper-large-v3');
+  form.append('language','it');
+  form.append('response_format','text');
+  const ctx=annotTextarea.value.trim().split(/\s+/).slice(-80).join(' ');
+  form.append('prompt',ctx
+    ?'Trascrizione fedele in italiano. Non aggiungere parole non dette. Usa la punteggiatura con criterio: virgola per pause brevi, punto solo per frasi chiaramente concluse, due punti prima di elenchi. Usa i puntini di sospensione SOLO se la frase è interrotta bruscamente, mai alla fine di una frase che potrebbe continuare. Contesto: '+ctx
+    :'Trascrizione fedele in italiano. Non aggiungere parole non dette. Usa la punteggiatura con criterio: virgola per pause brevi, punto solo per frasi chiaramente concluse. Usa i puntini di sospensione SOLO se la frase è interrotta bruscamente.');
+  for(let a=1;a<=4;a++){
+    try{
+      if(a>1) await sleep(Math.min(1000*Math.pow(2,a-1),10000));
+      const res=await fetch('https://api.groq.com/openai/v1/audio/transcriptions',{method:'POST',headers:{'Authorization':'Bearer '+GROQ_KEY},body:form});
+      if(res.status===429){
+        const w=parseInt(res.headers.get('retry-after')||'60',10);
+        const ed=await res.json().catch(()=>({}));
+        const m=ed?.error?.message||'';
+        const match=m.match(/try again in (\d+)m(\d+)s/)||m.match(/try again in (\d+)s/);
+        let ws=w;
+        if(match&&match.length===3) ws=parseInt(match[1])*60+parseInt(match[2]);
+        else if(match&&match.length===2) ws=parseInt(match[1]);
+        await waitWithCountdown(Math.min(ws,300),'Rate limit — riprovo tra');a--;continue;
+      }
+      if(!res.ok){const e=await res.json().catch(()=>{});throw new Error(e?.error?.message||'HTTP '+res.status);}
+      hideErr();
+      const raw=(await res.text()).trim();
+      const txt=raw.replace(/\.{2,}/g,'').replace(/\u2026/g,'').replace(/\s{2,}/g,' ').trim();
+      if(txt&&txt!=='[BLANK_AUDIO]'&&txt.length>1){
+        const cur=annotTextarea.value;
+        const np=deduplicateOverlap(cur,txt);
+        if(np){
+          annotTextarea.value=cur+(cur&&!cur.endsWith(' ')&&!cur.endsWith('\n')?' ':'')+np;
+          updateWords();
+          annotTextarea.scrollTop=annotTextarea.scrollHeight;
+        }
+      }
+      return;
+    }catch(e){
+      if(a===4) showErr('Trascrizione: '+e.message);
+    }
+  }
+}
+
+// ── RNNOISE ───────────────────────────────────────────────────────────────────
+async function applyRNNoise(blob) {
+  try {
+    const arrayBuf=await blob.arrayBuffer();
+    const tmpCtx=new OfflineAudioContext(1,1,48000);
+    const decoded=await tmpCtx.decodeAudioData(arrayBuf);
+    const sr=decoded.sampleRate, raw=decoded.getChannelData(0);
+    const frameSize=480;
+    const resampledLen=Math.round(raw.length*48000/sr);
+    const outCtx=new OfflineAudioContext(1,resampledLen,48000);
+    const srcBuf=outCtx.createBuffer(1,raw.length,sr);
+    srcBuf.copyToChannel(raw,0);
+    const srcNode=outCtx.createBufferSource();
+    srcNode.buffer=srcBuf; srcNode.connect(outCtx.destination); srcNode.start();
+    const resampled=(await outCtx.startRendering()).getChannelData(0);
+    const frames=Math.floor(resampled.length/frameSize);
+    const output=new Float32Array(frames*frameSize);
+    const framePtr=rnnoiseModule._malloc(frameSize*4);
+    for(let i=0;i<frames;i++){
+      const frame=resampled.subarray(i*frameSize,(i+1)*frameSize);
+      rnnoiseModule.HEAPF32.set(frame,framePtr>>2);
+      rnnoiseModule._rnnoise_process_frame(rnnoiseState,framePtr,framePtr);
+      const processed=rnnoiseModule.HEAPF32.subarray(framePtr>>2,(framePtr>>2)+frameSize);
+      output.set(processed,i*frameSize);
+    }
+    rnnoiseModule._free(framePtr);
+    const outBuf=new AudioBuffer({numberOfChannels:1,length:output.length,sampleRate:48000});
+    outBuf.copyToChannel(output,0);
+    return await audioBufferToWav(outBuf);
+  } catch(e) { return blob; }
+}
+async function audioBufferToWav(buffer) {
+  const sr=buffer.sampleRate,n=buffer.length,ch=buffer.numberOfChannels;
+  const data=buffer.getChannelData(0);
+  const int16=new Int16Array(n);
+  for(let i=0;i<n;i++) int16[i]=Math.max(-32768,Math.min(32767,data[i]*32767));
+  const buf=new ArrayBuffer(44+n*2); const v=new DataView(buf);
+  const ws=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));};
+  ws(0,'RIFF');v.setUint32(4,36+n*2,true);ws(8,'WAVE');ws(12,'fmt ');v.setUint32(16,16,true);
+  v.setUint16(20,1,true);v.setUint16(22,ch,true);v.setUint32(24,sr,true);v.setUint32(28,sr*ch*2,true);
+  v.setUint16(32,ch*2,true);v.setUint16(34,16,true);ws(36,'data');v.setUint32(40,n*2,true);
+  new Int16Array(buf,44).set(int16);
+  return new Blob([buf],{type:'audio/wav'});
+}
+
+// ── DEDUPLICATION ─────────────────────────────────────────────────────────────
+function deduplicateOverlap(existing, incoming) {
+  const ew=existing.trim().split(/\s+/),iw=incoming.trim().split(/\s+/);
+  if(!ew.length||!existing.trim()) return incoming.trim();
+  const maxCheck=Math.min(25,ew.length,iw.length);
+  let best=0;
+  for(let len=maxCheck;len>=2;len--){
+    if(ew.slice(-len).join(' ').toLowerCase()===iw.slice(0,len).join(' ').toLowerCase()){best=len;break;}
+  }
+  if(best>0) return iw.slice(best).join(' ').trim();
+  for(let len=Math.min(15,iw.length);len>=3;len--){
+    if(existing.toLowerCase().endsWith(iw.slice(0,len).join(' ').toLowerCase())) return iw.slice(len).join(' ').trim();
+  }
+  return incoming.trim();
+}
+
+// ── SAVE TO DIARY ─────────────────────────────────────────────────────────────
+saveDiaryBtn.onclick = async () => {
+  const content=outputText.innerHTML.trim();
+  if(!content)return;
+  const today=new Date();
+  modalDateInput.value=today.toISOString().split('T')[0];
+  modalTitleInput.value='';
+  modalPreview.innerHTML=content;
+  modalConfirm.disabled=true;
+  modalTitle.textContent='Generazione titolo...';
+  saveModal.classList.add('show');
+  const plainText=outputText.innerText.trim().slice(0,500);
+  let suggestedTitle='Nota del '+today.toLocaleDateString('it-IT');
+  if(GROQ_KEY){
+    try{
+      const res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
+        method:'POST',headers:{'Authorization':'Bearer '+GROQ_KEY,'Content-Type':'application/json'},
+        body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:60,temperature:0.5,
+          messages:[{role:'system',content:'Genera un titolo breve (massimo 8 parole) in italiano. Rispondi SOLO con il titolo, senza virgolette, senza punteggiatura finale.'},{role:'user',content:plainText}]})
+      });
+      if(res.ok){const data=await res.json();const t=data?.choices?.[0]?.message?.content?.trim();if(t&&t.length>2&&t.length<100)suggestedTitle=t;}
+    }catch(e){}
+  }
+  modalTitleInput.value=suggestedTitle;
+  modalTitle.textContent='Salva nel Diario';
+  modalConfirm.disabled=false;
+};
+
+modalCancel.onclick=()=>{saveModal.classList.remove('show');};
+saveModal.onclick=(e)=>{if(e.target===saveModal)saveModal.classList.remove('show');};
+
+modalConfirm.onclick=async()=>{
+  const title=modalTitleInput.value.trim(), noteDate=modalDateInput.value, content=outputText.innerHTML.trim();
+  if(!title){modalTitleInput.style.borderColor='var(--accent)';return;}
+  if(!content)return;
+  modalConfirm.disabled=true;
+  modalConfirm.innerHTML='<span class="modal-spinner"></span>Salvataggio...';
+  if(!sb){showErr('Errore: Supabase non inizializzato.');modalConfirm.innerHTML='Salva';modalConfirm.disabled=false;saveModal.classList.remove('show');return;}
+  try{
+    const{error}=await sb.from('notes').insert([{title,content,mode:'rec',note_date:noteDate}]);
+    if(error)throw error;
+    modalCard.innerHTML='<div class="modal-success"><span class="modal-success-icon">&#10003;</span><div class="modal-success-text">Nota salvata nel diario!</div><div class="modal-success-sub">'+title+'</div></div>';
+    setTimeout(()=>{
+      saveModal.classList.remove('show');
+      // Ripristina modal
+      modalCard.innerHTML='<div class="modal-title" id="modalTitle">Salva nel Diario</div>'+
+        '<div class="modal-field"><label class="modal-label">Titolo</label><input class="modal-input" id="modalTitleInput" type="text" placeholder="Titolo della nota..."></div>'+
+        '<div class="modal-field"><label class="modal-label">Data</label><input class="modal-input" id="modalDateInput" type="date"></div>'+
+        '<div class="modal-field"><label class="modal-label">Anteprima contenuto</label><div class="modal-preview" id="modalPreview"></div></div>'+
+        '<div class="modal-actions"><button class="modal-btn modal-btn-cancel" id="modalCancel">Annulla</button><button class="modal-btn modal-btn-confirm" id="modalConfirm">Salva</button></div>';
+      $('modalCancel').onclick=()=>{saveModal.classList.remove('show');};
+      $('modalConfirm').onclick=modalConfirm.onclick;
+      // RESET completo
+      resetAll();
+    },1800);
+  }catch(e){
+    showErr('Errore salvataggio: '+(e.message||e));
+    modalConfirm.innerHTML='Salva'; modalConfirm.disabled=false; saveModal.classList.remove('show');
+  }
+};
+
+function resetAll(){
+  annotTextarea.value='';
+  outputText.innerHTML='';
+  moodBox.style.display='none'; moodText.textContent='';
+  outputBox.className='output-box';
+  outputLabel.style.display='none';
+  outputActions.style.display='none';
+  liveDot.className='live-dot';
+  timerEl.textContent='00:00';
+  isSummarizing=false; aiBtn.disabled=false;
+  updateWords();
+  setStatus('idle','Pronto');
+  hideErr();
+}
+
+// ── COPY / CLEAR ──────────────────────────────────────────────────────────────
+copyBtn.onclick=()=>doCopy(annotTextarea.value,copyBtn,'Copia');
+clearBtn.onclick=()=>{ if(isRecording)return; resetAll(); };
+
+// ── PWA ───────────────────────────────────────────────────────────────────────
+let swReg=null;
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').then(r=>{swReg=r;}).catch(()=>{});
+  navigator.serviceWorker.addEventListener('message',e=>{if(e.data==='stopFromNotification')stopRec();});
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function waitWithCountdown(sec,label){for(let i=sec;i>0;i--){showErr('⏳ '+label+' '+i+'s...');await sleep(1000);}hideErr();}
+function startTimer(){seconds=0;clearInterval(timerInterval);timerEl.textContent='00:00';timerInterval=setInterval(()=>{seconds++;timerEl.textContent=fmt(seconds);},1000);}
+function stopTimer(){clearInterval(timerInterval);}
+function fmt(s){return pad(Math.floor(s/60))+':'+pad(s%60);}
+function pad(n){return String(n).padStart(2,'0');}
+function setStatus(state,text){
+  statusDot.className='status-dot';
+  if(state==='live')statusDot.classList.add('live');
+  else if(state==='processing')statusDot.classList.add('processing');
+  else if(state==='done')statusDot.classList.add('done');
+  statusText.textContent=text;
+}
+function showErr(m){errorMsg.textContent=m;errorMsg.classList.add('show');}
+function hideErr(){errorMsg.classList.remove('show');}
+function doCopy(txt,btn,lbl){
+  const done=()=>{const o=btn.textContent;btn.textContent='Copiato!';setTimeout(()=>btn.textContent=lbl,1800);};
+  if(navigator.clipboard)navigator.clipboard.writeText(txt).then(done).catch(()=>{fb(txt);done();});
+  else{fb(txt);done();}
+}
+function fb(t){const el=document.createElement('textarea');el.value=t;document.body.appendChild(el);el.select();document.execCommand('copy');document.body.removeChild(el);}
+function htmlToMarkdown(html){
+  const d=document.createElement('div');d.innerHTML=html;
+  function w(n){
+    if(n.nodeType===3)return n.textContent;
+    const t=(n.tagName||'').toLowerCase(),c=Array.from(n.childNodes).map(w).join('');
+    if(t==='h2')return'## '+c.trim()+'\n\n';
+    if(t==='h3')return'### '+c.trim()+'\n\n';
+    if(t==='h4')return'#### '+c.trim()+'\n\n';
+    if(t==='p')return c.trim()+'\n\n';
+    if(t==='ul')return c+'\n';
+    if(t==='li')return'- '+c.trim()+'\n';
+    if(t==='strong'||t==='b')return'**'+c+'**';
+    if(t==='em'||t==='i')return'*'+c+'*';
+    if(t==='br')return'\n';
+    return c;
+  }
+  return w(d).replace(/\n{3,}/g,'\n\n').trim();
+}
+</script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9d821cc34f14b4b8',t:'MTc3MjgwNzk5My4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>

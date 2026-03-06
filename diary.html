@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Voce Viva - Diario</title>
+<meta name="theme-color" content="#0a0a0f">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="rnnoise-sync.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root { --bg:#0a0a0f; --surface:#111118; --border:#1e1e2e; --accent:#f55036; --text:#e8e8f0; --muted:#5a5a7a; --live:#4ade80; }
+body { min-height:100vh; background:var(--bg); color:var(--text); font-family:'DM Mono',monospace; display:flex; flex-direction:column; align-items:center; padding:1.5rem 1rem 3rem; -webkit-tap-highlight-color:transparent; }
+body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:none; background:radial-gradient(ellipse 80% 50% at 5% 95%,rgba(245,80,54,.08) 0%,transparent 60%),radial-gradient(ellipse 50% 40% at 95% 5%,rgba(245,80,54,.05) 0%,transparent 60%); }
+.container { position:relative; z-index:1; width:100%; max-width:640px; display:flex; flex-direction:column; gap:1.1rem; }
+.mode-switcher { display:flex; gap:.4rem; background:var(--surface); border:1px solid var(--border); border-radius:.8rem; padding:.35rem; }
+.mode-btn { flex:1; background:none; border:none; color:var(--muted); font-family:'DM Mono',monospace; font-size:.65rem; text-transform:uppercase; letter-spacing:.12em; padding:.5rem; border-radius:.5rem; cursor:pointer; touch-action:manipulation; transition:background .2s,color .2s; text-decoration:none; display:flex; align-items:center; justify-content:center; }
+.mode-btn.active { background:var(--accent); color:#fff; }
+.header-row { display:flex; justify-content:space-between; align-items:flex-start; }
+h1 { font-family:'DM Serif Display',serif; font-size:clamp(1.6rem,5vw,2.2rem); letter-spacing:-.03em; line-height:1; }
+h1 em { font-style:italic; color:var(--accent); }
+.subtitle { font-size:.6rem; color:var(--muted); text-transform:uppercase; letter-spacing:.18em; margin-top:.4rem; }
+.view-switcher { display:inline-flex; gap:.3rem; background:var(--surface); border:1px solid var(--border); border-radius:.6rem; padding:.25rem; }
+.view-btn { background:none; border:none; color:var(--muted); font-family:'DM Mono',monospace; font-size:.58rem; text-transform:uppercase; letter-spacing:.1em; padding:.35rem .65rem; border-radius:.4rem; cursor:pointer; touch-action:manipulation; transition:background .2s,color .2s; white-space:nowrap; }
+.view-btn.active { background:var(--accent); color:#fff; }
+/* Calendar */
+.cal-nav { display:flex; justify-content:space-between; align-items:center; padding:.5rem 0; }
+.cal-nav-btn { background:none; border:1px solid var(--border); color:var(--muted); width:32px; height:32px; border-radius:.5rem; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:.8rem; transition:border-color .2s,color .2s; }
+.cal-nav-btn:hover { border-color:var(--accent); color:var(--accent); }
+.cal-month { font-family:'DM Serif Display',serif; font-size:1.1rem; }
+.cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
+.cal-header { font-size:.55rem; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); text-align:center; padding:.4rem 0; }
+.cal-day { position:relative; aspect-ratio:1; display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius:.5rem; font-size:.72rem; cursor:default; transition:background .15s; }
+.cal-day.other { color:var(--border); }
+.cal-day.today { background:rgba(245,80,54,.1); color:var(--accent); font-weight:500; }
+.cal-day.has-notes { cursor:pointer; }
+.cal-day.has-notes:hover { background:rgba(245,80,54,.15); }
+.cal-day.selected { background:rgba(245,80,54,.25); }
+.cal-dot { width:5px; height:5px; border-radius:50%; background:var(--accent); position:absolute; bottom:4px; }
+.cal-day .add-btn { display:none; position:absolute; top:2px; right:2px; width:14px; height:14px; background:var(--accent); border:none; border-radius:50%; color:#fff; font-size:.65rem; line-height:1; cursor:pointer; align-items:center; justify-content:center; padding:0; }
+.cal-day:hover .add-btn, .cal-day.today .add-btn { display:flex; }
+.cal-day.other .add-btn { display:none !important; }
+/* Day panel */
+.day-panel { display:flex; flex-direction:column; gap:.6rem; margin-top:.4rem; }
+.day-panel-header { font-size:.62rem; color:var(--muted); text-transform:uppercase; letter-spacing:.12em; padding:.3rem 0; border-bottom:1px solid var(--border); }
+.read-card { background:var(--surface); border:1px solid var(--border); border-radius:.8rem; padding:1rem; }
+.read-card-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:.75rem; gap:.5rem; }
+.read-card-title { font-family:'DM Serif Display',serif; font-size:1rem; color:var(--text); flex:1; }
+.read-card-close { background:none; border:none; color:var(--muted); font-size:1rem; cursor:pointer; padding:.1rem .3rem; line-height:1; flex-shrink:0; }
+.read-card-close:hover { color:var(--accent); }
+.read-card-body { font-size:.82rem; line-height:1.85; color:var(--text); }
+.read-card-body p { margin-bottom:.55rem; }
+.read-card-body h3 { font-family:'DM Serif Display',serif; font-size:1rem; margin:.7rem 0 .3rem; }
+.read-card-footer { margin-top:.85rem; display:flex; justify-content:flex-end; gap:.4rem; }
+.btn-edit { background:none; border:1px solid var(--border); color:var(--muted); padding:.38rem .8rem; border-radius:.5rem; font-family:'DM Mono',monospace; font-size:.62rem; cursor:pointer; text-transform:uppercase; letter-spacing:.1em; transition:border-color .2s,color .2s; }
+.btn-edit:hover { border-color:var(--accent); color:var(--accent); }
+.btn-delete-card { background:none; border:1px solid rgba(240,106,106,.3); color:#f06a6a; padding:.38rem .8rem; border-radius:.5rem; font-family:'DM Mono',monospace; font-size:.62rem; cursor:pointer; text-transform:uppercase; letter-spacing:.1em; transition:border-color .2s,background .2s; }
+.btn-delete-card:hover { background:rgba(240,106,106,.1); }
+/* Cronologia */
+.notes-section { display:flex; flex-direction:column; gap:.6rem; }
+.week-header { font-size:.58rem; text-transform:uppercase; letter-spacing:.12em; color:var(--muted); padding:.5rem 0 .2rem; border-bottom:1px solid var(--border); }
+.note-card { background:var(--surface); border:1px solid var(--border); border-radius:.8rem; padding:.85rem; cursor:pointer; transition:border-color .2s; display:flex; justify-content:space-between; align-items:center; gap:.5rem; }
+.note-card:hover { border-color:rgba(245,80,54,.4); }
+.note-card-main { flex:1; min-width:0; display:flex; flex-direction:column; gap:.2rem; }
+.note-title { font-family:'DM Serif Display',serif; font-size:.88rem; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.note-meta { display:flex; gap:.4rem; align-items:center; }
+.note-date { font-size:.58rem; color:var(--muted); white-space:nowrap; }
+.note-tags { display:flex; gap:.25rem; }
+.note-tag { font-size:.5rem; text-transform:uppercase; letter-spacing:.08em; padding:.1rem .35rem; border-radius:.25rem; background:rgba(245,80,54,.12); color:var(--accent); border:1px solid rgba(245,80,54,.25); }
+.note-tag.tag-write { background:rgba(74,222,128,.08); color:var(--live); border-color:rgba(74,222,128,.2); }
+.note-tag.tag-ai { background:rgba(147,112,219,.1); color:#a78bfa; border-color:rgba(147,112,219,.2); }
+.note-card-actions { display:flex; gap:.3rem; flex-shrink:0; }
+.note-card-btn { background:none; border:1px solid var(--border); color:var(--muted); padding:.3rem .6rem; border-radius:.4rem; font-family:'DM Mono',monospace; font-size:.58rem; cursor:pointer; touch-action:manipulation; transition:border-color .2s,color .2s; white-space:nowrap; }
+.note-card-btn:hover { border-color:var(--accent); color:var(--accent); }
+.note-card-btn.del { border-color:rgba(240,106,106,.3); color:#f06a6a; }
+.note-card-btn.del:hover { background:rgba(240,106,106,.08); }
+.list-add-row { display:flex; justify-content:flex-end; padding:.2rem 0 .4rem; }
+.btn-add-list { background:var(--accent); border:none; color:#fff; width:32px; height:32px; border-radius:50%; font-size:1.2rem; cursor:pointer; display:flex; align-items:center; justify-content:center; touch-action:manipulation; box-shadow:0 4px 16px rgba(245,80,54,.35); }
+/* Loading/error */
+.empty-state { text-align:center; padding:3rem 1rem; color:var(--muted); font-size:.72rem; line-height:2; }
+.loading-state { text-align:center; padding:2rem; }
+.spinner { display:inline-block; width:18px; height:18px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite; }
+@keyframes spin { to{transform:rotate(360deg)} }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+@keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+@keyframes modalIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+@keyframes pulse { 0%,100%{box-shadow:0 3px 18px rgba(192,57,43,.55)} 50%{box-shadow:0 3px 28px rgba(192,57,43,.85),0 0 0 6px rgba(192,57,43,.1)} }
+.error-msg { background:rgba(240,106,106,.08); border:1px solid rgba(240,106,106,.25); border-radius:.6rem; padding:.65rem .85rem; font-size:.68rem; color:#f06a6a; line-height:1.6; display:none; }
+.error-msg.show { display:block; }
+/* Read overlay */
+.read-overlay { display:none; position:fixed; inset:0; z-index:80; background:var(--bg); flex-direction:column; }
+.read-overlay.show { display:flex; animation:slideUp .25s ease-out; }
+.read-overlay-header { display:flex; justify-content:space-between; align-items:center; padding:1.1rem 1.2rem .8rem; border-bottom:1px solid var(--border); flex-shrink:0; }
+.read-overlay-title { font-family:'DM Serif Display',serif; font-size:1.1rem; color:var(--text); flex:1; margin-right:.5rem; }
+.read-overlay-close { background:none; border:none; color:var(--muted); font-size:1.2rem; cursor:pointer; padding:.1rem .3rem; line-height:1; }
+.read-overlay-body { flex:1; overflow-y:auto; padding:1.2rem; font-size:.85rem; line-height:1.9; color:var(--text); }
+.read-overlay-body p { margin-bottom:.65rem; }
+.read-overlay-body h3 { font-family:'DM Serif Display',serif; font-size:1.05rem; margin:.8rem 0 .35rem; }
+.read-overlay-footer { padding:1rem 1.2rem; border-top:1px solid var(--border); display:flex; gap:.5rem; justify-content:flex-end; flex-shrink:0; }
+/* Edit modal */
+.modal-overlay { display:none; position:fixed; inset:0; z-index:100; background:rgba(0,0,0,.75); backdrop-filter:blur(6px); align-items:flex-start; justify-content:center; padding:1rem; overflow-y:auto; }
+.modal-overlay.show { display:flex; }
+.modal-card { background:var(--surface); border:1px solid var(--border); border-radius:1.2rem; padding:1.5rem; width:100%; max-width:600px; display:flex; flex-direction:column; gap:1rem; animation:modalIn .2s ease-out; margin:auto; }
+.modal-title { font-family:'DM Serif Display',serif; font-size:1.2rem; color:var(--text); display:flex; justify-content:space-between; align-items:center; }
+.modal-close { background:none; border:none; color:var(--muted); font-size:1.1rem; cursor:pointer; padding:.1rem .3rem; }
+.modal-field { display:flex; flex-direction:column; gap:.3rem; }
+.modal-label { font-size:.58rem; text-transform:uppercase; letter-spacing:.12em; color:var(--muted); }
+.modal-input { background:var(--bg); border:1px solid var(--border); border-radius:.6rem; color:var(--text); font-family:'DM Mono',monospace; font-size:.78rem; padding:.55rem .7rem; outline:none; transition:border-color .2s; width:100%; }
+.modal-input:focus { border-color:var(--accent); }
+.modal-content-edit { background:var(--bg); border:1px solid var(--border); border-radius:.6rem; color:var(--text); font-family:'DM Mono',monospace; font-size:.82rem; line-height:1.85; padding:.75rem; outline:none; min-height:55vh; width:100%; overflow-y:auto; }
+.modal-content-edit:focus { border-color:var(--accent); }
+.modal-content-edit p { margin-bottom:.55rem; }
+.modal-content-edit h3 { font-family:'DM Serif Display',serif; font-size:1rem; margin:.7rem 0 .3rem; }
+.modal-actions { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }
+.modal-btn { padding:.5rem 1rem; border-radius:.6rem; font-family:'DM Mono',monospace; font-size:.68rem; cursor:pointer; touch-action:manipulation; border:none; }
+.modal-btn-delete { background:none; border:1px solid rgba(240,106,106,.4); color:#f06a6a; margin-right:auto; }
+.modal-btn-cancel { background:none; border:1px solid var(--border); color:var(--muted); }
+.modal-btn-copy { background:none; border:1px solid var(--border); color:var(--muted); }
+.modal-btn-confirm { background:var(--live); color:#0a0a0f; font-weight:500; }
+.modal-btn-confirm:disabled { opacity:.4; cursor:not-allowed; }
+.modal-spinner { display:inline-block; width:12px; height:12px; border:2px solid rgba(10,10,15,.2); border-top-color:#0a0a0f; border-radius:50%; animation:spin .6s linear infinite; margin-right:.3rem; vertical-align:middle; }
+/* ── ANNOT POPUP — più grande, con sezione AI ── */
+.annot-popup { display:none; position:fixed; inset:0; z-index:90; background:rgba(0,0,0,.65); backdrop-filter:blur(4px); align-items:flex-end; justify-content:center; }
+.annot-popup.show { display:flex; }
+.annot-popup-card { background:var(--surface); border:1px solid var(--border); border-top-left-radius:1.4rem; border-top-right-radius:1.4rem; width:100%; max-width:640px; display:flex; flex-direction:column; gap:.8rem; padding:1.3rem 1.3rem 1.6rem; animation:slideUp .25s ease-out; max-height:94vh; overflow-y:auto; }
+.annot-popup-header { display:flex; justify-content:space-between; align-items:flex-start; }
+.annot-popup-title-input { font-family:'DM Serif Display',serif; font-size:1.05rem; color:var(--text); background:none; border:none; border-bottom:1px solid var(--border); outline:none; width:100%; padding:.15rem 0; transition:border-color .2s; }
+.annot-popup-title-input:focus { border-color:var(--accent); }
+.annot-popup-title-input::placeholder { color:var(--muted); font-style:italic; }
+.annot-popup-close { background:none; border:none; color:var(--muted); font-size:1.1rem; cursor:pointer; padding:.1rem .3rem; line-height:1; flex-shrink:0; margin-left:.5rem; }
+.annot-popup-date { font-size:.6rem; color:var(--muted); text-transform:uppercase; letter-spacing:.1em; margin-top:.25rem; }
+/* Editor area */
+.annot-popup-editor { background:var(--bg); border:1px solid var(--border); border-radius:.8rem; color:var(--text); font-family:'DM Mono',monospace; font-size:.85rem; line-height:1.85; padding:.8rem; outline:none; width:100%; min-height:160px; max-height:28vh; overflow-y:auto; transition:border-color .2s; font-synthesis:weight style; }
+.annot-popup-editor:focus { border-color:var(--accent); }
+.annot-popup-editor:empty::before { content:attr(data-placeholder); color:var(--muted); pointer-events:none; display:block; }
+.annot-popup-editor p { margin-bottom:.4rem; }
+.annot-popup-editor h1 { font-family:'DM Serif Display',serif; font-size:1.3rem; margin:.4rem 0 .25rem; }
+.annot-popup-editor h2 { font-family:'DM Serif Display',serif; font-size:1.1rem; margin:.35rem 0 .2rem; }
+.annot-popup-editor h3 { font-family:'DM Serif Display',serif; font-size:.95rem; margin:.3rem 0 .15rem; }
+.annot-popup-editor strong { font-weight:bold; -webkit-text-stroke:0.3px currentColor; }
+.annot-popup-editor em { font-style:italic; }
+/* Formatting toolbar */
+.fmt-toolbar { display:flex; gap:.3rem; flex-wrap:wrap; }
+.fmt-btn { background:none; border:1px solid var(--border); color:var(--muted); padding:.3rem .6rem; border-radius:.4rem; font-family:'DM Mono',monospace; font-size:.58rem; cursor:pointer; touch-action:manipulation; transition:background .15s,color .15s,border-color .15s; white-space:nowrap; line-height:1.4; user-select:none; -webkit-user-select:none; }
+.fmt-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+.fmt-btn:hover:not(.active) { border-color:var(--accent); color:var(--accent); }
+/* AI section in popup */
+.popup-ai-section { display:flex; flex-direction:column; gap:.6rem; border-top:1px solid var(--border); padding-top:.7rem; }
+.popup-ai-output { background:var(--bg); border:1px solid var(--border); border-radius:.8rem; color:var(--text); font-size:.82rem; line-height:1.85; padding:.8rem; min-height:80px; max-height:22vh; overflow-y:auto; display:none; }
+.popup-ai-output.show { display:block; }
+.popup-ai-output p { margin-bottom:.5rem; }
+.popup-ai-output h3 { font-family:'DM Serif Display',serif; font-size:.95rem; margin:.6rem 0 .25rem; }
+.popup-mood { font-size:.75rem; color:var(--muted); font-style:italic; padding:.4rem 0 0; display:none; }
+.popup-mood.show { display:block; }
+/* Popup footer */
+.annot-popup-footer { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.5rem; }
+.annot-popup-words { font-size:.6rem; color:var(--muted); }
+.annot-popup-actions { display:flex; gap:.4rem; align-items:center; flex-wrap:wrap; }
+.mic-btn-sm { width:36px; height:36px; border-radius:50%; border:none; background:var(--accent); color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:transform .12s; touch-action:manipulation; box-shadow:0 3px 12px rgba(245,80,54,.35); flex-shrink:0; }
+.mic-btn-sm:active { transform:scale(.92); }
+.mic-btn-sm.recording { background:#c0392b; animation:pulse 1.4s ease-in-out infinite; }
+.mic-btn-sm svg { width:18px; height:18px; }
+.live-dot-sm { width:5px; height:5px; border-radius:50%; background:var(--muted); flex-shrink:0; }
+.live-dot-sm.on { background:#f06a6a; animation:blink .8s ease-in-out infinite; }
+.live-dot-sm.done { background:var(--live); animation:none; }
+.processing-pill-sm { display:none; background:rgba(245,80,54,.12); border:1px solid rgba(245,80,54,.25); border-radius:2rem; padding:.2rem .5rem; font-size:.55rem; color:var(--accent); text-transform:uppercase; letter-spacing:.1em; align-items:center; gap:.3rem; }
+.processing-pill-sm.show { display:flex; }
+.pill-dot-sm { width:4px; height:4px; border-radius:50%; background:var(--accent); animation:blink .6s ease-in-out infinite; }
+.btn-ghost-sm { background:none; border:1px solid var(--border); color:var(--muted); padding:.35rem .7rem; border-radius:.5rem; font-family:'DM Mono',monospace; font-size:.6rem; cursor:pointer; text-transform:uppercase; letter-spacing:.1em; touch-action:manipulation; white-space:nowrap; }
+.btn-ghost-sm:disabled { opacity:.4; cursor:not-allowed; }
+.btn-ai-sm { background:none; border:1px solid rgba(245,80,54,.5); color:var(--accent); padding:.35rem .7rem; border-radius:.5rem; font-family:'DM Mono',monospace; font-size:.6rem; cursor:pointer; text-transform:uppercase; letter-spacing:.1em; touch-action:manipulation; white-space:nowrap; transition:background .15s; }
+.btn-ai-sm:hover { background:rgba(245,80,54,.1); }
+.btn-ai-sm:disabled { opacity:.4; cursor:not-allowed; }
+.btn-save-sm { background:var(--live); color:#0a0a0f; border:none; padding:.35rem .75rem; border-radius:.5rem; font-family:'DM Mono',monospace; font-size:.6rem; cursor:pointer; text-transform:uppercase; letter-spacing:.1em; touch-action:manipulation; font-weight:500; white-space:nowrap; }
+.btn-save-sm:disabled { opacity:.4; cursor:not-allowed; }
+.btn-save-ai-sm { background:rgba(147,112,219,.15); color:#a78bfa; border:1px solid rgba(147,112,219,.35); padding:.35rem .75rem; border-radius:.5rem; font-family:'DM Mono',monospace; font-size:.6rem; cursor:pointer; text-transform:uppercase; letter-spacing:.1em; touch-action:manipulation; white-space:nowrap; }
+.btn-save-ai-sm:disabled { opacity:.4; cursor:not-allowed; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header-row">
+    <header>
+      <h1>Diario <em>Viva</em></h1>
+      <p class="subtitle">Le tue note e pensieri</p>
+    </header>
+    <div class="view-switcher">
+      <button class="view-btn active" id="viewCalBtn">Calendario</button>
+      <button class="view-btn" id="viewListBtn">Cronologia</button>
+    </div>
+  </div>
+
+  <div class="mode-switcher">
+    <a class="mode-btn" href="index.html">Annotazioni</a>
+    <button class="mode-btn active">Diario</button>
+  </div>
+
+  <div id="calendarView">
+    <div class="cal-nav">
+      <button class="cal-nav-btn" id="prevMonth">&larr;</button>
+      <span class="cal-month" id="calMonthLabel"></span>
+      <button class="cal-nav-btn" id="nextMonth">&rarr;</button>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+    <div class="day-panel" id="dayPanel"></div>
+  </div>
+
+  <div id="listView" style="display:none">
+    <div class="list-add-row">
+      <button class="btn-add-list" id="listAddBtn" title="Nuova annotazione">+</button>
+    </div>
+    <div class="notes-section" id="notesList"></div>
+  </div>
+
+  <div class="loading-state" id="loadingState"><div class="spinner"></div></div>
+  <div class="error-msg" id="errorMsg"></div>
+</div>
+
+<!-- ANNOT POPUP — più grande, con AI -->
+<div class="annot-popup" id="annotPopup">
+  <div class="annot-popup-card">
+    <div class="annot-popup-header">
+      <div style="flex:1">
+        <input class="annot-popup-title-input" id="annotPopupTitleInput" type="text" placeholder="Titolo annotazione...">
+        <div class="annot-popup-date" id="annotPopupDate"></div>
+      </div>
+      <button class="annot-popup-close" id="annotPopupClose">&#x2715;</button>
+    </div>
+
+    <div class="annot-popup-editor" id="annotPopupEditor" contenteditable="true" spellcheck="true" data-placeholder="Scrivi qui o usa il microfono per dettare..."></div>
+
+    <div class="fmt-toolbar">
+      <button class="fmt-btn active" id="fmtNormal">Testo</button>
+      <button class="fmt-btn" id="fmtH1">H1</button>
+      <button class="fmt-btn" id="fmtH2">H2</button>
+      <button class="fmt-btn" id="fmtH3">H3</button>
+      <button class="fmt-btn" id="fmtBold"><b>G</b></button>
+      <button class="fmt-btn" id="fmtItalic"><i>C</i></button>
+    </div>
+
+    <div class="annot-popup-footer">
+      <div style="display:flex;align-items:center;gap:.5rem;">
+        <span class="live-dot-sm" id="popupLiveDot"></span>
+        <span class="annot-popup-words" id="annotPopupWords">0 parole</span>
+        <div class="processing-pill-sm" id="popupProcPill"><span class="pill-dot-sm"></span> trascrivo</div>
+      </div>
+      <div class="annot-popup-actions">
+        <button class="mic-btn-sm" id="popupMicBtn">
+          <svg id="popupMicIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+          <svg id="popupStopIcon" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+        </button>
+        <button class="btn-ai-sm" id="popupAiBtn" disabled>Elabora AI</button>
+        <button class="btn-ghost-sm" id="annotPopupCancel">Annulla</button>
+        <button class="btn-save-sm" id="annotPopupSave" disabled>Salva nota</button>
+      </div>
+    </div>
+
+    <!-- Sezione AI output (sotto l'editor) -->
+    <div class="popup-ai-section" id="popupAiSection" style="display:none">
+      <div style="font-size:.58rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);">Elaborazione AI</div>
+      <div class="popup-ai-output" id="popupAiOutput"></div>
+      <div class="popup-mood" id="popupMood"></div>
+      <div style="display:flex;justify-content:flex-end;gap:.4rem;">
+        <button class="btn-save-ai-sm" id="popupSaveAi">Salva rielaborazione AI</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- READ OVERLAY -->
+<div class="read-overlay" id="readOverlay">
+  <div class="read-overlay-header">
+    <div class="read-overlay-title" id="readOverlayTitle"></div>
+    <button class="read-overlay-close" id="readOverlayClose">&#x2715;</button>
+  </div>
+  <div class="read-overlay-body" id="readOverlayBody"></div>
+  <div class="read-overlay-footer">
+    <button class="btn-edit" id="readOverlayDelete" style="border-color:rgba(240,106,106,.3);color:#f06a6a;">Elimina</button>
+    <button class="btn-edit" id="readOverlayEdit">Modifica</button>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal-card">
+    <div class="modal-title">
+      Modifica nota
+      <button class="modal-close" id="editModalClose">&#x2715;</button>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Titolo</label>
+      <input class="modal-input" id="editTitle" type="text">
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Data</label>
+      <input class="modal-input" id="editDate" type="date">
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Contenuto</label>
+      <div class="modal-content-edit" id="editContent" contenteditable="true" spellcheck="true"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn modal-btn-delete" id="editDelete">Elimina</button>
+      <button class="modal-btn modal-btn-copy" id="editCopyMd">Copia Markdown</button>
+      <button class="modal-btn modal-btn-cancel" id="editCancel">Annulla</button>
+      <button class="modal-btn modal-btn-confirm" id="editSave">Salva</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── SUPABASE ──────────────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://ezycobgovadcgvnyqcew.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_ASHxxToKJyMy4CpBAqseqA_mepXAAJ-';
+let sb = null;
+try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) {}
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let allNotes = [], currentYear, currentMonth;
+let selectedDay = null, currentView = 'calendar';
+let editingNote = null, readingNote = null;
+
+const MONTHS_IT=['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+const DAYS_IT=['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
+
+const $ = id => document.getElementById(id);
+const errorMsg      = $('errorMsg');
+const loadingState  = $('loadingState');
+const calGrid       = $('calGrid');
+const calMonthLabel = $('calMonthLabel');
+const dayPanel      = $('dayPanel');
+const notesList     = $('notesList');
+const calendarView  = $('calendarView');
+const listView      = $('listView');
+const editModal     = $('editModal');
+const editTitle     = $('editTitle');
+const editDate      = $('editDate');
+const editContent   = $('editContent');
+const readOverlay   = $('readOverlay');
+const readOverlayTitle = $('readOverlayTitle');
+const readOverlayBody  = $('readOverlayBody');
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+const now = new Date();
+currentYear = now.getFullYear(); currentMonth = now.getMonth();
+renderCalendar();
+
+$('viewCalBtn').onclick = () => switchView('calendar');
+$('viewListBtn').onclick = () => switchView('list');
+$('prevMonth').onclick = () => { currentMonth--; if(currentMonth<0){currentMonth=11;currentYear--;} selectedDay=null; renderCalendar(); };
+$('nextMonth').onclick = () => { currentMonth++; if(currentMonth>11){currentMonth=0;currentYear++;} selectedDay=null; renderCalendar(); };
+
+$('readOverlayClose').onclick = () => { readOverlay.classList.remove('show'); readingNote=null; };
+$('readOverlayEdit').onclick  = () => { readOverlay.classList.remove('show'); if(readingNote) openEditModal(readingNote); };
+$('readOverlayDelete').onclick = async () => {
+  if(!readingNote || !confirm('Eliminare questa nota?')) return;
+  try {
+    const{error}=await sb.from('notes').delete().eq('id',readingNote.id);
+    if(error) throw error;
+    readOverlay.classList.remove('show'); readingNote=null; await loadNotes();
+  } catch(e) { showErr('Errore eliminazione: '+(e.message||e)); }
+};
+
+$('editModalClose').onclick = closeEditModal;
+$('editCancel').onclick     = closeEditModal;
+editModal.onclick = (e) => { if(e.target===editModal) closeEditModal(); };
+
+$('editCopyMd').onclick = () => {
+  const md=htmlToMarkdown(editContent.innerHTML), btn=$('editCopyMd');
+  if(navigator.clipboard) navigator.clipboard.writeText(md).then(()=>{btn.textContent='Copiato!';setTimeout(()=>btn.textContent='Copia Markdown',1800);});
+};
+
+$('editSave').onclick = async () => {
+  if(!editingNote) return;
+  const title=editTitle.value.trim(), date=editDate.value, content=editContent.innerHTML.trim();
+  if(!title||!content) return;
+  $('editSave').disabled=true; $('editSave').innerHTML='<span class="modal-spinner"></span>Salvataggio...';
+  try {
+    const{error}=await sb.from('notes').update({title,content,note_date:date,updated_at:new Date().toISOString()}).eq('id',editingNote.id);
+    if(error) throw error;
+    closeEditModal(); await loadNotes();
+  } catch(e) { showErr('Errore aggiornamento: '+(e.message||e)); }
+  finally { $('editSave').innerHTML='Salva'; $('editSave').disabled=false; }
+};
+
+$('editDelete').onclick = async () => {
+  if(!editingNote||!confirm('Eliminare questa nota?')) return;
+  $('editDelete').disabled=true;
+  try {
+    const{error}=await sb.from('notes').delete().eq('id',editingNote.id);
+    if(error) throw error;
+    closeEditModal(); await loadNotes();
+  } catch(e) { showErr('Errore eliminazione: '+(e.message||e)); }
+  finally { $('editDelete').disabled=false; }
+};
+
+function closeEditModal() { editModal.classList.remove('show'); editingNote=null; }
+
+// ── DATA ──────────────────────────────────────────────────────────────────────
+async function loadNotes() {
+  loadingState.style.display='block'; hideErr();
+  if(!sb) { showErr('Supabase non inizializzato.'); loadingState.style.display='none'; return; }
+  try {
+    const{data,error}=await sb.from('notes').select('*').order('note_date',{ascending:false});
+    if(error) throw error;
+    allNotes=data||[]; loadingState.style.display='none';
+    if(currentView==='calendar') renderCalendar(); else renderList();
+  } catch(e) { loadingState.style.display='none'; showErr('Errore caricamento note: '+(e.message||e)); }
+}
+
+async function deleteNote(id) {
+  if(!confirm('Eliminare questa nota?')) return;
+  try {
+    const{error}=await sb.from('notes').delete().eq('id',id);
+    if(error) throw error;
+    await loadNotes();
+  } catch(e) { showErr('Errore eliminazione: '+(e.message||e)); }
+}
+
+function switchView(view) {
+  currentView=view;
+  if(view==='calendar') {
+    $('viewCalBtn').classList.add('active'); $('viewListBtn').classList.remove('active');
+    calendarView.style.display=''; listView.style.display='none'; renderCalendar();
+  } else {
+    $('viewListBtn').classList.add('active'); $('viewCalBtn').classList.remove('active');
+    calendarView.style.display='none'; listView.style.display=''; renderList();
+  }
+}
+
+// ── CALENDAR ──────────────────────────────────────────────────────────────────
+function renderCalendar() {
+  calMonthLabel.textContent=MONTHS_IT[currentMonth]+' '+currentYear;
+  const noteDates=new Set();
+  const ms=currentYear+'-'+String(currentMonth+1).padStart(2,'0');
+  allNotes.forEach(n=>{if(n.note_date&&n.note_date.startsWith(ms))noteDates.add(n.note_date);});
+  const firstDay=new Date(currentYear,currentMonth,1);
+  let startDow=firstDay.getDay(); startDow=startDow===0?6:startDow-1;
+  const dim=new Date(currentYear,currentMonth+1,0).getDate();
+  const pmd=new Date(currentYear,currentMonth,0).getDate();
+  const td=new Date();
+  const ts=td.getFullYear()+'-'+String(td.getMonth()+1).padStart(2,'0')+'-'+String(td.getDate()).padStart(2,'0');
+  let html='';
+  DAYS_IT.forEach(d=>{html+='<div class="cal-header">'+d+'</div>';});
+  for(let i=startDow-1;i>=0;i--) html+='<div class="cal-day other">'+(pmd-i)+'</div>';
+  for(let d=1;d<=dim;d++) {
+    const dateStr=currentYear+'-'+String(currentMonth+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const isToday=dateStr===ts, hasN=noteDates.has(dateStr), isSel=selectedDay===d;
+    let cls='cal-day'; if(isToday) cls+=' today'; if(hasN) cls+=' has-notes'; if(isSel) cls+=' selected';
+    html+='<div class="'+cls+'" data-day="'+d+'" data-date="'+dateStr+'">'+d
+      +(hasN?'<span class="cal-dot"></span>':'')
+      +'<button class="add-btn" data-date="'+dateStr+'">+</button></div>';
+  }
+  const rem=(startDow+dim)%7===0?0:7-(startDow+dim)%7;
+  for(let i=1;i<=rem;i++) html+='<div class="cal-day other">'+i+'</div>';
+  calGrid.innerHTML=html;
+  calGrid.querySelectorAll('.add-btn').forEach(b=>{
+    b.onclick=(e)=>{e.stopPropagation();openAnnotPopup(b.dataset.date);};
+  });
+  calGrid.querySelectorAll('.cal-day.has-notes').forEach(el=>{
+    el.onclick=()=>{
+      const day=parseInt(el.dataset.day), dateStr=el.dataset.date;
+      selectedDay=day;
+      calGrid.querySelectorAll('.cal-day').forEach(c=>c.classList.remove('selected'));
+      el.classList.add('selected'); showDayPanel(dateStr);
+    };
+  });
+  if(selectedDay) {
+    const ds=currentYear+'-'+String(currentMonth+1).padStart(2,'0')+'-'+String(selectedDay).padStart(2,'0');
+    showDayPanel(ds);
+  } else { dayPanel.innerHTML=''; }
+}
+
+function tagsHtml(mode) {
+  if(!mode) return '';
+  const tags=(mode||'').split('+').map(t=>t.trim()).filter(Boolean);
+  return tags.map(t=>{
+    const cls=t==='write'?'note-tag tag-write':t==='AI'?'note-tag tag-ai':'note-tag';
+    return '<span class="'+cls+'">'+esc(t)+'</span>';
+  }).join('');
+}
+
+function showDayPanel(dateStr) {
+  const notes=allNotes.filter(n=>n.note_date===dateStr);
+  if(!notes.length){dayPanel.innerHTML='';return;}
+  const do2=new Date(dateStr+'T12:00:00');
+  let html='<div class="day-panel-header">'+do2.toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long'})+'</div>';
+  notes.forEach(n=>{
+    html+='<div class="read-card" data-id="'+n.id+'">'
+      +'<div class="read-card-top"><div class="read-card-title">'+esc(n.title)+'</div>'
+      +'<button class="read-card-close" data-id="'+n.id+'">&#x2715;</button></div>'
+      +'<div class="read-card-body">'+n.content+'</div>'
+      +'<div class="read-card-footer">'
+      +'<button class="btn-delete-card" data-id="'+n.id+'">Elimina</button>'
+      +'<button class="btn-edit" data-id="'+n.id+'">Modifica</button>'
+      +'</div></div>';
+  });
+  dayPanel.innerHTML=html;
+  dayPanel.querySelectorAll('.read-card-close').forEach(b=>{
+    b.onclick=(e)=>{e.stopPropagation();dayPanel.innerHTML='';selectedDay=null;calGrid.querySelectorAll('.cal-day').forEach(c=>c.classList.remove('selected'));};
+  });
+  dayPanel.querySelectorAll('.btn-edit').forEach(b=>{
+    b.onclick=(e)=>{e.stopPropagation();const note=allNotes.find(n=>n.id===b.dataset.id);if(note)openEditModal(note);};
+  });
+  dayPanel.querySelectorAll('.btn-delete-card').forEach(b=>{
+    b.onclick=(e)=>{e.stopPropagation();deleteNote(b.dataset.id);};
+  });
+}
+
+// ── CRONOLOGIA ────────────────────────────────────────────────────────────────
+function renderList() {
+  if(!allNotes.length){notesList.innerHTML='<div class="empty-state">Nessuna nota nel diario.<br>Registra o scrivi qualcosa e salvalo!</div>';return;}
+  const weeks={};
+  allNotes.forEach(n=>{
+    const d=new Date(n.note_date+'T12:00:00'), ws=getWeekStart(d), key=ws.toISOString().split('T')[0];
+    if(!weeks[key]) weeks[key]=[];
+    weeks[key].push(n);
+  });
+  const sw=Object.keys(weeks).sort((a,b)=>b.localeCompare(a));
+  let html='';
+  sw.forEach(wk=>{
+    const ws=new Date(wk+'T12:00:00'), we=new Date(ws); we.setDate(we.getDate()+6);
+    html+='<div class="week-header">'+ws.toLocaleDateString('it-IT',{day:'numeric',month:'short'})+' – '+we.toLocaleDateString('it-IT',{day:'numeric',month:'short',year:'numeric'})+'</div>';
+    weeks[wk].forEach(n=>{
+      const ds=new Date(n.note_date+'T12:00:00').toLocaleDateString('it-IT',{day:'numeric',month:'short',year:'numeric'});
+      html+='<div class="note-card" data-id="'+n.id+'">'
+        +'<div class="note-card-main">'
+        +'<span class="note-title">'+esc(n.title)+'</span>'
+        +'<div class="note-meta"><span class="note-date">'+ds+'</span><div class="note-tags">'+tagsHtml(n.mode)+'</div></div>'
+        +'</div>'
+        +'<div class="note-card-actions" onclick="event.stopPropagation()">'
+        +'<button class="note-card-btn del" data-id="'+n.id+'">Elimina</button>'
+        +'<button class="note-card-btn" data-id="'+n.id+'">Modifica</button>'
+        +'</div></div>';
+    });
+  });
+  notesList.innerHTML=html;
+  notesList.querySelectorAll('.note-card').forEach(c=>{
+    c.onclick=()=>{const note=allNotes.find(n=>n.id===c.dataset.id);if(note)openReadOverlay(note);};
+  });
+  notesList.querySelectorAll('.note-card-btn:not(.del)').forEach(b=>{
+    b.onclick=(e)=>{e.stopPropagation();const note=allNotes.find(n=>n.id===b.dataset.id);if(note)openEditModal(note);};
+  });
+  notesList.querySelectorAll('.note-card-btn.del').forEach(b=>{
+    b.onclick=(e)=>{e.stopPropagation();deleteNote(b.dataset.id);};
+  });
+}
+
+function getWeekStart(d){const day=d.getDay(),diff=d.getDate()-day+(day===0?-6:1);return new Date(d.getFullYear(),d.getMonth(),diff);}
+function openReadOverlay(note){readingNote=note;readOverlayTitle.textContent=note.title;readOverlayBody.innerHTML=note.content;readOverlay.classList.add('show');}
+function openEditModal(note){editingNote=note;editTitle.value=note.title;editDate.value=note.note_date;editContent.innerHTML=note.content;editModal.classList.add('show');setTimeout(()=>{editContent.scrollTop=0;},50);}
+
+function showErr(m){errorMsg.textContent=m;errorMsg.classList.add('show');}
+function hideErr(){errorMsg.classList.remove('show');}
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function htmlToMarkdown(html){
+  const d=document.createElement('div');d.innerHTML=html;
+  function w(n){
+    if(n.nodeType===3)return n.textContent;
+    const t=(n.tagName||'').toLowerCase(),c=Array.from(n.childNodes).map(w).join('');
+    if(t==='h1')return'# '+c.trim()+'\n\n';if(t==='h2')return'## '+c.trim()+'\n\n';if(t==='h3')return'### '+c.trim()+'\n\n';
+    if(t==='p')return c.trim()+'\n\n';if(t==='ul')return c+'\n';if(t==='li')return'- '+c.trim()+'\n';
+    if(t==='strong'||t==='b')return'**'+c+'**';if(t==='em'||t==='i')return'*'+c+'*';if(t==='br')return'\n';
+    return c;
+  }
+  return w(d).replace(/\n{3,}/g,'\n\n').trim();
+}
+
+// ── ANNOT POPUP ───────────────────────────────────────────────────────────────
+const annotPopup          = $('annotPopup');
+const annotPopupEditor    = $('annotPopupEditor');
+const annotPopupTitleInput= $('annotPopupTitleInput');
+const annotPopupDateEl    = $('annotPopupDate');
+const annotPopupWords     = $('annotPopupWords');
+const annotPopupSave      = $('annotPopupSave');
+const popupAiBtn          = $('popupAiBtn');
+const popupAiSection      = $('popupAiSection');
+const popupAiOutput       = $('popupAiOutput');
+const popupMoodEl         = $('popupMood');
+const popupSaveAi         = $('popupSaveAi');
+const popupLiveDot        = $('popupLiveDot');
+const popupProcPill       = $('popupProcPill');
+const popupMicBtn         = $('popupMicBtn');
+const popupMicIcon        = $('popupMicIcon');
+const popupStopIcon       = $('popupStopIcon');
+
+let popupDate = '';
+let popupHasRec = false;   // traccia se c'è stato del registrato
+let popupAiDone = false;   // traccia se c'è un output AI
+
+let popupIsRecording=false, popupStream=null, popupAudioCtx=null, popupAnalyser=null;
+let popupAdaptiveGain=null, popupMR=null, popupChunkTimer=null;
+let popupPendingChunks=[], popupIsTranscribing=false;
+let popupRnnoiseModule=null, popupRnnoiseState=null;
+let popupIsSummarizing=false;
+
+// Chunk più lunghi per ridurre allucinazioni Whisper
+const CHUNK_MS_P=20000, OVERLAP_MS_P=4000, MIN_BLOB_P=12000, MAX_BLOB_P=8*1024*1024;
+const SILENCE_THR_P=0.007, SPEECH_RATIO_P=0.12;
+const analyserBufP=new Float32Array(2048);
+
+// ── FORMATTING TOOLBAR ────────────────────────────────────────────────────────
+let activeFmt = 'normal';
+let lastRange = null;
+
+const fmtBtns = {
+  normal:$('fmtNormal'), h1:$('fmtH1'), h2:$('fmtH2'), h3:$('fmtH3'),
+  bold:$('fmtBold'), italic:$('fmtItalic')
+};
+
+function setActiveFmt(fmt) {
+  activeFmt=fmt;
+  Object.keys(fmtBtns).forEach(k=>fmtBtns[k].classList.toggle('active',k===fmt));
+}
+
+annotPopupEditor.addEventListener('blur',()=>{
+  const sel=window.getSelection();
+  if(sel&&sel.rangeCount>0) lastRange=sel.getRangeAt(0).cloneRange();
+});
+
+function restoreEditorFocus(){
+  annotPopupEditor.focus();
+  if(!lastRange)return;
+  const sel=window.getSelection();sel.removeAllRanges();sel.addRange(lastRange);
+}
+
+function getCurrentBlock(){
+  const sel=window.getSelection();
+  if(!sel||sel.rangeCount===0)return null;
+  let node=sel.getRangeAt(0).startContainer;
+  if(node.nodeType===3)node=node.parentElement;
+  while(node&&node.parentElement!==annotPopupEditor)node=node.parentElement;
+  return(node&&node!==annotPopupEditor)?node:null;
+}
+
+function applyBlockTag(tag){
+  const realTag=(tag==='normal')?'p':tag;
+  restoreEditorFocus();
+  const sel=window.getSelection();
+  const block=getCurrentBlock();
+  if(!block){
+    const el=document.createElement(realTag);el.innerHTML='<br>';
+    annotPopupEditor.appendChild(el);
+    const r=document.createRange();r.setStart(el,0);r.collapse(true);
+    if(sel){sel.removeAllRanges();sel.addRange(r);}lastRange=r.cloneRange();return;
+  }
+  if(block.tagName.toLowerCase()===realTag)return;
+  const newEl=document.createElement(realTag);newEl.innerHTML=block.innerHTML;
+  block.replaceWith(newEl);
+  const r=document.createRange();r.selectNodeContents(newEl);r.collapse(false);
+  if(sel){sel.removeAllRanges();sel.addRange(r);}lastRange=r.cloneRange();
+}
+
+function applyInlineTag(tag){
+  const sel=window.getSelection();
+  if(!sel||sel.rangeCount===0||sel.isCollapsed)return;
+  const range=sel.getRangeAt(0);
+  const ancestor=range.commonAncestorContainer;
+  const parent=(ancestor.nodeType===3)?ancestor.parentElement:ancestor;
+  if(parent.tagName&&parent.tagName.toLowerCase()===tag&&annotPopupEditor.contains(parent)){
+    const frag=document.createDocumentFragment();
+    while(parent.firstChild)frag.appendChild(parent.firstChild);
+    parent.replaceWith(frag);return;
+  }
+  const wrapper=document.createElement(tag);
+  try{range.surroundContents(wrapper);}
+  catch{wrapper.appendChild(range.extractContents());range.insertNode(wrapper);}
+  const nr=document.createRange();nr.selectNodeContents(wrapper);
+  sel.removeAllRanges();sel.addRange(nr);lastRange=nr.cloneRange();
+}
+
+function hasEditorSelection(){
+  const sel=window.getSelection();
+  if(!sel||sel.isCollapsed||sel.rangeCount===0)return false;
+  return annotPopupEditor.contains(sel.getRangeAt(0).commonAncestorContainer);
+}
+
+// ── TOOLBAR CLICK ─────────────────────────────────────────────────────────────
+Object.keys(fmtBtns).forEach(fmt=>{
+  fmtBtns[fmt].addEventListener('mousedown',e=>{
+    e.preventDefault();
+    const sel=window.getSelection();
+    if(sel&&sel.rangeCount>0)lastRange=sel.getRangeAt(0).cloneRange();
+  });
+  fmtBtns[fmt].addEventListener('click',()=>{
+    const hasSel=hasEditorSelection()||(lastRange&&!lastRange.collapsed&&annotPopupEditor.contains(lastRange.commonAncestorContainer));
+    if(hasSel){
+      if(!hasEditorSelection()&&lastRange){annotPopupEditor.focus();const s=window.getSelection();s.removeAllRanges();s.addRange(lastRange);}
+      if(fmt==='bold')applyInlineTag('strong');
+      else if(fmt==='italic')applyInlineTag('em');
+      else applyBlockTag(fmt);
+      setActiveFmt('normal');annotPopupEditor.focus();
+    }else{
+      const next=(activeFmt===fmt)?'normal':fmt;
+      setActiveFmt(next);
+      if(['h1','h2','h3','normal'].includes(next))applyBlockTag(next);
+      else annotPopupEditor.focus();
+    }
+  });
+});
+
+// ── TYPING BOLD/ITALIC SENZA SELEZIONE ───────────────────────────────────────
+// Inserisce il carattere avvolto nel tag attivo
+function insertStyledChar(char){
+  const tag=(activeFmt==='bold')?'strong':'em';
+  const sel=window.getSelection();
+  if(!sel||sel.rangeCount===0)return false;
+  const range=sel.getRangeAt(0);
+  range.deleteContents();
+  // Se già dentro lo stesso tag: inserisci testo direttamente (continua)
+  let container=range.startContainer;
+  if(container.nodeType===3)container=container.parentElement;
+  if(container.tagName&&container.tagName.toLowerCase()===tag&&annotPopupEditor.contains(container)){
+    const txt=document.createTextNode(char);
+    range.insertNode(txt);range.setStartAfter(txt);range.collapse(true);
+    sel.removeAllRanges();sel.addRange(range);lastRange=range.cloneRange();
+    return true;
+  }
+  // Crea nuovo wrapper
+  const el=document.createElement(tag);el.textContent=char;
+  range.insertNode(el);range.setStartAfter(el);range.collapse(true);
+  sel.removeAllRanges();sel.addRange(range);lastRange=range.cloneRange();
+  return true;
+}
+
+let _fmtKeyHandled=false;
+
+annotPopupEditor.addEventListener('keydown',e=>{
+  _fmtKeyHandled=false;
+  // Enter in titolo → nuovo paragrafo
+  if(e.key==='Enter'&&!e.shiftKey){
+    const block=getCurrentBlock();
+    if(block&&['h1','h2','h3'].includes(block.tagName.toLowerCase())){
+      e.preventDefault();
+      const p=document.createElement('p');p.innerHTML='<br>';
+      if(block.nextSibling)annotPopupEditor.insertBefore(p,block.nextSibling);
+      else annotPopupEditor.appendChild(p);
+      const r=document.createRange();r.setStart(p,0);r.collapse(true);
+      const sel=window.getSelection();sel.removeAllRanges();sel.addRange(r);
+      lastRange=r.cloneRange();setActiveFmt('normal');
+      setTimeout(updatePopupWords,0);return;
+    }
+  }
+  // Carattere stampabile con bold/italic attivo → inserisci con stile
+  if(e.key.length===1&&!e.ctrlKey&&!e.metaKey&&!e.altKey){
+    if(activeFmt==='bold'||activeFmt==='italic'){
+      e.preventDefault();
+      insertStyledChar(e.key);
+      _fmtKeyHandled=true;
+      updatePopupWords();return;
+    }
+  }
+  setTimeout(updatePopupWords,0);
+});
+
+// Fallback keypress per IME/mobile
+annotPopupEditor.addEventListener('keypress',e=>{
+  if(_fmtKeyHandled){_fmtKeyHandled=false;return;}
+  if(activeFmt!=='bold'&&activeFmt!=='italic')return;
+  if(e.key==='Enter'||e.ctrlKey||e.metaKey)return;
+  e.preventDefault();
+  insertStyledChar(e.key);
+  updatePopupWords();
+});
+
+annotPopupEditor.addEventListener('input',()=>{
+  // Se l'utente ha scritto qualcosa senza la mic, segnalo "write"
+  updatePopupWords();
+});
+
+function updatePopupWords(){
+  const txt=(annotPopupEditor.innerText||'').trim();
+  const n=txt?txt.split(/\s+/).filter(Boolean).length:0;
+  annotPopupWords.textContent=n+(n===1?' parola':' parole');
+  const hasContent=n>0;
+  annotPopupSave.disabled=!hasContent;
+  popupAiBtn.disabled=!hasContent||popupIsSummarizing;
+}
+
+// ── AI ELABORA ────────────────────────────────────────────────────────────────
+popupAiBtn.onclick=async()=>{
+  const GROQ=localStorage.getItem('vv_groq')||'';
+  if(!GROQ){showErr('Chiave Groq non trovata.');return;}
+  const plainText=(annotPopupEditor.innerText||'').trim();
+  if(!plainText)return;
+  popupIsSummarizing=true;popupAiBtn.disabled=true;
+  popupAiSection.style.display='flex';popupAiSection.style.flexDirection='column';popupAiSection.style.gap='.6rem';
+  popupAiOutput.classList.add('show');
+  popupAiOutput.innerHTML='<span style="color:var(--muted);font-size:.75rem">Elaborazione in corso...</span>';
+  popupMoodEl.classList.remove('show');
+  for(let a=1;a<=3;a++){
+    try{
+      if(a>1)await sleep(Math.min(1000*Math.pow(2,a-1),8000));
+      const res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
+        method:'POST',cache:'no-store',
+        headers:{'Authorization':'Bearer '+GROQ,'Content-Type':'application/json'},
+        body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:1200,temperature:0.4,
+          messages:[
+            {role:'system',content:'Sei un editor e analista italiano. Ricevi una nota che può provenire da trascrizione audio o testo scritto.\n\nIL TUO COMPITO È DUPLICE:\n\n1. ELABORAZIONE: Correggi silenziosamente errori evidenti, inferisci il senso dove ambiguo, organizza gerarchicamente con titoli <h3> e sottotitoli, raggruppa per tema. Mantieni tutte le informazioni originali senza inventare.\n\n2. STATO D\'ANIMO: Dopo il testo elaborato, aggiungi obbligatoriamente questo blocco:\n<div id="mood-output">Una frase precisa che ipotizza lo stato d\'animo e il tono emotivo dell\'autore, basandoti sul contenuto, sulle parole scelte, sul ritmo del testo e su eventuali sfumature implicite. Sii specifico, non generico.</div>\n\nRispondi SOLO con HTML valido (usa <p>, <h3>, <ul>, <li> e il blocco mood). Zero commenti fuori dall\'HTML.'},
+            {role:'user',content:plainText.slice(0,3000)}
+          ]})
+      });
+      if(res.status===429){const w=parseInt(res.headers.get('retry-after')||'30',10);await sleep(Math.min(w,60)*1000);a--;continue;}
+      if(!res.ok)throw new Error('HTTP '+res.status);
+      const raw=(await res.json()).choices?.[0]?.message?.content?.trim()||'';
+      const moodMatch=raw.match(/<div id="mood-output">([\s\S]*?)<\/div>/i);
+      const moodContent=moodMatch?moodMatch[1].trim():'';
+      const mainHtml=raw.replace(/<div id="mood-output">[\s\S]*?<\/div>/i,'').trim();
+      popupAiOutput.innerHTML=mainHtml||'<p>Nessun risultato.</p>';
+      if(moodContent){popupMoodEl.textContent='Stato d\'animo: '+moodContent;popupMoodEl.classList.add('show');}
+      popupAiDone=true;
+      popupSaveAi.disabled=false;
+      break;
+    }catch(e){
+      if(a===3){popupAiOutput.innerHTML='<p style="color:#f06a6a">Errore: '+e.message+'</p>';}
+    }
+  }
+  popupIsSummarizing=false;popupAiBtn.disabled=false;
+};
+
+// ── OPEN / CLOSE ──────────────────────────────────────────────────────────────
+function openAnnotPopup(dateStr){
+  popupDate=dateStr||new Date().toISOString().split('T')[0];
+  const d=new Date(popupDate+'T12:00:00');
+  annotPopupDateEl.textContent=d.toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  annotPopupEditor.innerHTML='';annotPopupTitleInput.value='';
+  annotPopupSave.disabled=true;annotPopupWords.textContent='0 parole';
+  popupLiveDot.className='live-dot-sm';popupProcPill.classList.remove('show');
+  popupAiSection.style.display='none';popupAiOutput.classList.remove('show');popupMoodEl.classList.remove('show');
+  popupAiOutput.innerHTML='';popupMoodEl.textContent='';
+  popupAiDone=false;popupHasRec=false;popupIsSummarizing=false;
+  popupAiBtn.disabled=true;popupSaveAi.disabled=true;
+  setActiveFmt('normal');lastRange=null;
+  annotPopup.classList.add('show');
+  setTimeout(()=>annotPopupTitleInput.focus(),200);
+}
+
+function closeAnnotPopup(){
+  if(popupIsRecording)stopPopupRec();
+  annotPopup.classList.remove('show');
+  annotPopupEditor.innerHTML='';annotPopupTitleInput.value='';
+  popupAiSection.style.display='none';
+}
+
+$('annotPopupClose').onclick=closeAnnotPopup;
+$('annotPopupCancel').onclick=closeAnnotPopup;
+annotPopup.onclick=(e)=>{if(e.target===annotPopup)closeAnnotPopup();};
+$('listAddBtn').onclick=()=>openAnnotPopup('');
+
+// ── SAVE NOTA GREZZA ──────────────────────────────────────────────────────────
+annotPopupSave.onclick=async()=>{
+  const content=(annotPopupEditor.innerHTML||'').trim();
+  const plainText=(annotPopupEditor.innerText||'').trim();
+  if(!content||!sb)return;
+  annotPopupSave.disabled=true;
+  annotPopupSave.innerHTML='<span class="modal-spinner"></span>';
+  const GROQ=localStorage.getItem('vv_groq')||'';
+
+  let title=annotPopupTitleInput.value.trim();
+  if(!title){
+    title='Nota del '+new Date(popupDate+'T12:00:00').toLocaleDateString('it-IT');
+    if(GROQ){
+      try{
+        const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{
+          method:'POST',cache:'no-store',
+          headers:{'Authorization':'Bearer '+GROQ,'Content-Type':'application/json'},
+          body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:60,temperature:0.5,
+            messages:[
+              {role:'system',content:'Genera un titolo breve (massimo 8 parole) in italiano. Rispondi SOLO con il titolo, senza virgolette, senza punteggiatura finale.'},
+              {role:'user',content:plainText.slice(0,500)}
+            ]})
+        });
+        if(r.ok){const d=await r.json();const t=d?.choices?.[0]?.message?.content?.trim();if(t&&t.length>2&&t.length<100)title=t;}
+      }catch(e){}
+    }
+  }
+
+  // Calcola mode tags
+  const modeTags=[];
+  if(popupHasRec)modeTags.push('rec');
+  // Se l'utente ha anche scritto a mano (non solo registrato)
+  // tracciamo questo tramite data-written sul editor
+  if(annotPopupEditor.dataset.written==='1')modeTags.push('write');
+  const mode=modeTags.length?modeTags.join('+'):'write';
+
+  try{
+    const{error}=await sb.from('notes').insert([{title,content,mode,note_date:popupDate}]);
+    if(error)throw error;
+    closeAnnotPopup();await loadNotes();
+  }catch(e){showErr('Errore salvataggio: '+(e.message||e));}
+  annotPopupSave.innerHTML='Salva nota';annotPopupSave.disabled=false;
+};
+
+// ── SAVE OUTPUT AI ────────────────────────────────────────────────────────────
+popupSaveAi.onclick=async()=>{
+  const content=popupAiOutput.innerHTML.trim();
+  if(!content||!sb)return;
+  popupSaveAi.disabled=true;
+  const GROQ=localStorage.getItem('vv_groq')||'';
+  let title=annotPopupTitleInput.value.trim();
+  if(!title){
+    title='Nota AI del '+new Date(popupDate+'T12:00:00').toLocaleDateString('it-IT');
+    const plain=popupAiOutput.innerText.trim();
+    if(GROQ&&plain){
+      try{
+        const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{
+          method:'POST',cache:'no-store',
+          headers:{'Authorization':'Bearer '+GROQ,'Content-Type':'application/json'},
+          body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:60,temperature:0.5,
+            messages:[
+              {role:'system',content:'Genera un titolo breve (massimo 8 parole) in italiano. Rispondi SOLO con il titolo, senza virgolette, senza punteggiatura finale.'},
+              {role:'user',content:plain.slice(0,500)}
+            ]})
+        });
+        if(r.ok){const d=await r.json();const t=d?.choices?.[0]?.message?.content?.trim();if(t&&t.length>2&&t.length<100)title=t;}
+      }catch(e){}
+    }
+  }
+  const mode='AI';
+  try{
+    const{error}=await sb.from('notes').insert([{title,content,mode,note_date:popupDate}]);
+    if(error)throw error;
+    popupSaveAi.textContent='Salvato!';
+    setTimeout(()=>{popupSaveAi.textContent='Salva rielaborazione AI';popupSaveAi.disabled=false;},2000);
+    await loadNotes();
+  }catch(e){showErr('Errore salvataggio: '+(e.message||e));popupSaveAi.disabled=false;}
+};
+
+// ── POPUP MIC ─────────────────────────────────────────────────────────────────
+function getRMSP(){if(!popupAnalyser)return 0;popupAnalyser.getFloatTimeDomainData(analyserBufP);let s=0;for(let i=0;i<analyserBufP.length;i++)s+=analyserBufP[i]*analyserBufP[i];return Math.sqrt(s/analyserBufP.length);}
+function hasSpeechP(arr){return arr.length>0&&arr.filter(v=>v>SILENCE_THR_P).length/arr.length>SPEECH_RATIO_P;}
+
+async function initRNNoiseP(){
+  if(popupRnnoiseModule)return true;
+  try{if(typeof createRNNWasmModule==='undefined')return false;popupRnnoiseModule=await createRNNWasmModule();popupRnnoiseState=popupRnnoiseModule._rnnoise_create(0);return true;}catch(e){return false;}
+}
+
+async function startPopupRec(){
+  const GROQ=localStorage.getItem('vv_groq')||'';
+  if(!GROQ){showErr('Chiave Groq non trovata. Salvala nella pagina principale.');return;}
+  let stream;
+  try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,sampleRate:48000,channelCount:1}});}
+  catch(e){showErr('Microfono: '+e.message);return;}
+  popupStream=stream;initRNNoiseP();
+  popupAudioCtx=new(window.AudioContext||window.webkitAudioContext)({sampleRate:48000});
+  const src=popupAudioCtx.createMediaStreamSource(stream);
+  const hpf=popupAudioCtx.createBiquadFilter();hpf.type='highpass';hpf.frequency.value=80;hpf.Q.value=0.7;
+  const lpf=popupAudioCtx.createBiquadFilter();lpf.type='lowpass';lpf.frequency.value=4000;lpf.Q.value=0.7;
+  const comp=popupAudioCtx.createDynamicsCompressor();comp.threshold.value=-20;comp.knee.value=8;comp.ratio.value=8;comp.attack.value=0.002;comp.release.value=0.2;
+  const gain=popupAudioCtx.createGain();gain.gain.value=1.6;popupAdaptiveGain=gain;
+  popupAnalyser=popupAudioCtx.createAnalyser();popupAnalyser.fftSize=2048;popupAnalyser.smoothingTimeConstant=0.6;
+  src.connect(hpf);hpf.connect(lpf);lpf.connect(comp);comp.connect(gain);gain.connect(popupAnalyser);
+  const silOsc=popupAudioCtx.createOscillator();const silGain=popupAudioCtx.createGain();silGain.gain.value=0.00001;
+  silOsc.connect(silGain);silGain.connect(popupAudioCtx.destination);silOsc.start();
+  popupPendingChunks=[];popupIsRecording=true;popupHasRec=true;
+  popupMicBtn.classList.add('recording');popupMicIcon.style.display='none';popupStopIcon.style.display='block';
+  popupLiveDot.className='live-dot-sm on';
+  const mimes=['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/mp4',''];
+  const bestMime=mimes.find(m=>!m||MediaRecorder.isTypeSupported(m));
+  doPopupSegment(stream,bestMime);
+}
+
+function doPopupSegment(stream,mime){
+  if(!popupIsRecording)return;
+  const chunks=[],rmsVals=[];let rmsInt=null,overlapTimer=null,mr;
+  try{const o={audioBitsPerSecond:128000};if(mime)o.mimeType=mime;mr=new MediaRecorder(stream,o);}
+  catch(e){try{mr=new MediaRecorder(stream,{audioBitsPerSecond:128000});}catch(e2){mr=new MediaRecorder(stream);}}
+  mr.ondataavailable=e=>{if(e.data&&e.data.size>0)chunks.push(e.data);};
+  mr.onstart=()=>{rmsInt=setInterval(()=>rmsVals.push(getRMSP()),200);overlapTimer=setTimeout(()=>{if(popupIsRecording)doPopupSegment(stream,mime);},CHUNK_MS_P-OVERLAP_MS_P);};
+  mr.onstop=async()=>{
+    clearInterval(rmsInt);clearTimeout(overlapTimer);if(!chunks.length)return;
+    const blob=new Blob(chunks,{type:mr.mimeType||mime||'audio/webm'});
+    if(hasSpeechP(rmsVals)&&blob.size>=MIN_BLOB_P&&blob.size<=MAX_BLOB_P)popupPendingChunks.push(blob);
+    if(!popupIsTranscribing)drainPopupQueue();
+  };
+  mr.onerror=()=>{clearInterval(rmsInt);clearTimeout(overlapTimer);if(popupIsRecording)setTimeout(()=>doPopupSegment(stream,mime),500);};
+  popupChunkTimer=setTimeout(()=>{try{if(mr.state==='recording')mr.stop();}catch(e){}},CHUNK_MS_P);
+  try{mr.start(250);}catch(e){}
+  popupMR=mr;
+}
+
+async function stopPopupRec(){
+  if(!popupIsRecording)return;
+  popupIsRecording=false;clearTimeout(popupChunkTimer);
+  try{if(popupMR&&popupMR.state==='recording')popupMR.stop();}catch(e){}
+  if(popupStream){popupStream.getTracks().forEach(t=>t.stop());popupStream=null;}
+  if(popupAudioCtx){try{popupAudioCtx.close();}catch(e){}popupAudioCtx=null;popupAnalyser=null;}
+  popupMicBtn.classList.remove('recording');popupMicIcon.style.display='block';popupStopIcon.style.display='none';
+  popupLiveDot.className='live-dot-sm';popupProcPill.classList.add('show');
+  await sleep(300);
+  while(popupPendingChunks.length)await transcribePopupBlob(popupPendingChunks.shift());
+  popupProcPill.classList.remove('show');popupLiveDot.className='live-dot-sm done';
+}
+
+popupMicBtn.onclick=()=>{if(!popupIsRecording)startPopupRec();else stopPopupRec();};
+
+async function drainPopupQueue(){
+  if(popupIsTranscribing||!popupPendingChunks.length)return;
+  popupIsTranscribing=true;popupProcPill.classList.add('show');
+  while(popupPendingChunks.length)await transcribePopupBlob(popupPendingChunks.shift());
+  popupProcPill.classList.remove('show');popupIsTranscribing=false;
+}
+
+async function transcribePopupBlob(blob){
+  const GROQ=localStorage.getItem('vv_groq')||'';if(!GROQ)return;
+  if(popupRnnoiseModule&&popupRnnoiseState)blob=await applyRNNoiseP(blob);
+  const mt=blob.type||'',ext=mt.includes('wav')?'wav':mt.includes('ogg')?'ogg':mt.includes('mp4')?'mp4':'webm';
+  const form=new FormData();
+  form.append('file',blob,'audio.'+ext);
+  form.append('model','whisper-large-v3');
+  form.append('language','it');
+  form.append('response_format','text');
+  // Prompt più restrittivo per ridurre allucinazioni
+  const ctx=(annotPopupEditor.innerText||'').trim().split(/\s+/).slice(-60).join(' ');
+  const prompt=ctx
+    ?'Trascrivi esattamente le parole dette in italiano. Non aggiungere parole, non interpretare, non completare frasi. Se non senti nulla di chiaro, non scrivere nulla. Contesto recente: '+ctx
+    :'Trascrivi esattamente le parole dette in italiano. Non aggiungere parole, non interpretare, non completare frasi. Se non senti nulla di chiaro, non scrivere nulla.';
+  form.append('prompt',prompt);
+  for(let a=1;a<=3;a++){
+    try{
+      if(a>1)await sleep(Math.min(1000*Math.pow(2,a-1),8000));
+      const res=await fetch('https://api.groq.com/openai/v1/audio/transcriptions',{method:'POST',cache:'no-store',headers:{'Authorization':'Bearer '+GROQ},body:form});
+      if(res.status===429){const w=parseInt(res.headers.get('retry-after')||'30',10);await sleep(Math.min(w,60)*1000);a--;continue;}
+      if(!res.ok)throw new Error('HTTP '+res.status);
+      const raw=(await res.text()).trim();
+      const txt=raw.replace(/\.{2,}/g,'').replace(/\u2026/g,'').replace(/\s{2,}/g,' ').trim();
+      if(txt&&txt!=='[BLANK_AUDIO]'&&txt.length>1){
+        const curText=(annotPopupEditor.innerText||'').trim();
+        const ew=curText.split(/\s+/),iw=txt.split(/\s+/);
+        let best=0;
+        for(let len=Math.min(20,ew.length,iw.length);len>=2;len--){
+          if(ew.slice(-len).join(' ').toLowerCase()===iw.slice(0,len).join(' ').toLowerCase()){best=len;break;}
+        }
+        const np=best>0?iw.slice(best).join(' ').trim():txt;
+        if(np){
+          annotPopupEditor.focus();
+          const sel=window.getSelection(),range=document.createRange();
+          range.selectNodeContents(annotPopupEditor);range.collapse(false);
+          sel.removeAllRanges();sel.addRange(range);
+          const prefix=curText&&!/\s$/.test(annotPopupEditor.innerText)?' ':'';
+          const tn=document.createTextNode(prefix+np);
+          range.insertNode(tn);range.setStartAfter(tn);range.collapse(true);
+          sel.removeAllRanges();sel.addRange(range);lastRange=range.cloneRange();
+          updatePopupWords();annotPopupEditor.scrollTop=annotPopupEditor.scrollHeight;
+        }
+      }
+      return;
+    }catch(e){if(a===3)showErr('Trascrizione: '+e.message);}
+  }
+}
+
+// Marca il testo come "written" quando l'utente digita manualmente
+annotPopupEditor.addEventListener('keydown',()=>{
+  if(activeFmt==='normal'||activeFmt==='h1'||activeFmt==='h2'||activeFmt==='h3'){
+    annotPopupEditor.dataset.written='1';
+  }
+},true);
+
+async function applyRNNoiseP(blob){
+  try{
+    const arrayBuf=await blob.arrayBuffer();
+    const tmpCtx=new OfflineAudioContext(1,1,48000);
+    const decoded=await tmpCtx.decodeAudioData(arrayBuf);
+    const sr=decoded.sampleRate,raw=decoded.getChannelData(0),frameSize=480;
+    const resampledLen=Math.round(raw.length*48000/sr);
+    const outCtx=new OfflineAudioContext(1,resampledLen,48000);
+    const srcBuf=outCtx.createBuffer(1,raw.length,sr);srcBuf.copyToChannel(raw,0);
+    const srcNode=outCtx.createBufferSource();srcNode.buffer=srcBuf;srcNode.connect(outCtx.destination);srcNode.start();
+    const resampled=(await outCtx.startRendering()).getChannelData(0);
+    const frames=Math.floor(resampled.length/frameSize);
+    const output=new Float32Array(frames*frameSize);
+    const framePtr=popupRnnoiseModule._malloc(frameSize*4);
+    for(let i=0;i<frames;i++){
+      const frame=resampled.subarray(i*frameSize,(i+1)*frameSize);
+      popupRnnoiseModule.HEAPF32.set(frame,framePtr>>2);
+      popupRnnoiseModule._rnnoise_process_frame(popupRnnoiseState,framePtr,framePtr);
+      output.set(popupRnnoiseModule.HEAPF32.subarray(framePtr>>2,(framePtr>>2)+frameSize),i*frameSize);
+    }
+    popupRnnoiseModule._free(framePtr);
+    const outBuf=new AudioBuffer({numberOfChannels:1,length:output.length,sampleRate:48000});
+    outBuf.copyToChannel(output,0);
+    const n=outBuf.length,data=outBuf.getChannelData(0);
+    const int16=new Int16Array(n);for(let i=0;i<n;i++)int16[i]=Math.max(-32768,Math.min(32767,data[i]*32767));
+    const buf=new ArrayBuffer(44+n*2);const v=new DataView(buf);
+    const ws=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));};
+    ws(0,'RIFF');v.setUint32(4,36+n*2,true);ws(8,'WAVE');ws(12,'fmt ');v.setUint32(16,16,true);
+    v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,48000,true);v.setUint32(28,96000,true);
+    v.setUint16(32,2,true);v.setUint16(34,16,true);ws(36,'data');v.setUint32(40,n*2,true);
+    new Int16Array(buf,44).set(int16);
+    return new Blob([buf],{type:'audio/wav'});
+  }catch(e){return blob;}
+}
+
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+// ── SERVICE WORKER ────────────────────────────────────────────────────────────
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.getRegistrations()
+    .then(regs=>Promise.all(regs.map(r=>r.unregister())))
+    .then(()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+
+loadNotes();
+</script>
+</body>
+</html>

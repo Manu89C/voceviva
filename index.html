@@ -75,15 +75,20 @@ h1 em { font-style:italic; color:var(--accent); }
 .annot-editor h3 { font-family:'Crimson Pro',Georgia,serif; font-size:1.1em; font-weight:500; color:#bbbbbb; line-height:1.4; margin:.8em 0 .3em; letter-spacing:.02em; }
 .annot-editor strong { color:#ffffff; font-weight:600; -webkit-text-stroke:0; }
 .annot-editor em { color:#ffffff; font-style:italic; font-weight:400; font-family:"EB Garamond",Georgia,serif; }
-.fmt-toolbar { display:flex; align-items:center; gap:.3rem; }
+.fmt-toolbar { display:flex; align-items:center; gap:.3rem; flex-wrap:nowrap; }
 .fmt-btn { background:none; border:1px solid var(--border); color:var(--muted); padding:.3rem .65rem; border-radius:.4rem; font-family:'JetBrains Mono',monospace; font-size:.62rem; cursor:pointer; touch-action:manipulation; transition:all .12s; white-space:nowrap; line-height:1.4; user-select:none; -webkit-user-select:none; text-transform:uppercase; letter-spacing:.06em; }
 .fmt-btn:hover:not(.active) { background:var(--surface); color:var(--text); border-color:var(--border); }
 .fmt-btn.active { background:rgba(245,80,54,.15); color:var(--accent); border-color:rgba(245,80,54,.45); }
 .fmt-sep { width:1px; height:16px; background:var(--border); margin:0 4px; flex-shrink:0; }
+/* Footer layout — mobile: 3 righe; desktop: toolbar+bottoni su stessa riga */
 .annot-footer { display:flex; flex-direction:column; gap:.5rem; width:100%; }
 .word-count { font-size:.62rem; color:var(--muted); }
-.annot-footer-row { display:flex; justify-content:space-between; align-items:center; width:100%; }
-.action-btns { display:flex; gap:.5rem; align-items:center; }
+.annot-footer-row { display:flex; flex-direction:column; gap:.5rem; width:100%; }
+.action-btns { display:flex; gap:.5rem; align-items:center; justify-content:flex-end; }
+@media (min-width:540px) {
+  .annot-footer-row { flex-direction:row; justify-content:space-between; align-items:center; }
+  .action-btns { justify-content:flex-end; }
+}
 .btn-save-direct { background:rgba(74,222,128,.15); color:var(--live); border:1px solid rgba(74,222,128,.3); padding:.38rem .8rem; border-radius:.5rem; font-family:'JetBrains Mono',monospace; font-size:.62rem; cursor:pointer; text-transform:uppercase; letter-spacing:.1em; touch-action:manipulation; white-space:nowrap; }
 .btn-save-direct:disabled { opacity:.3; cursor:not-allowed; }
 /* Processing pill */
@@ -332,7 +337,7 @@ let apiWarmedUp = false;
 let rnnoiseModule = null, rnnoiseState = null;
 const analyserBuf = new Float32Array(2048);
 // Traccia le origini del contenuto nell'editor
-let _hasRec = false, _hasWrite = false;
+let _hasRec = false, _hasWrite = false, _hasAI = false;
 
 // ── DOM ───────────────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
@@ -373,7 +378,11 @@ saveKeyBtn.onclick = () => {
 };
 
 // ── EDITOR CONTENTEDITABLE — conteggio parole ─────────────────────────────────
-annotEditor.addEventListener('input', () => { _hasWrite=true; updateWords(); });
+annotEditor.addEventListener('input', () => { updateWords(); });
+// _hasWrite only on real keyboard input
+annotEditor.addEventListener('keydown', (e) => {
+  if (!e.ctrlKey && !e.metaKey && e.key.length === 1) _hasWrite = true;
+});
 function getEditorText() { return (annotEditor.innerText||'').trim(); }
 function getEditorHtml() { return (annotEditor.innerHTML||'').trim(); }
 function updateWords() {
@@ -676,6 +685,7 @@ aiBtn.onclick = async () => {
       const moodContent = moodMatch ? moodMatch[1].trim() : '';
       const mainHtml = raw.replace(/<div id="mood-output">[\s\S]*?<\/div>/i,'').trim();
       outputText.innerHTML = mainHtml || '<p>Nessun risultato.</p>';
+      _hasAI = true;
       if (moodContent) { moodText.textContent=moodContent; moodBox.style.display='block'; }
       outputBox.classList.remove('loading'); outputBox.classList.add('done');
       outputDot.className='live-dot done'; outputOverlay.classList.remove('show');
@@ -979,7 +989,7 @@ copyBtn.onclick=()=>doCopy(htmlToMarkdown(getEditorHtml()),copyBtn,'Copia');
 
 function resetAll(){
   annotEditor.innerHTML='';
-  _hasRec=false;_hasWrite=false;
+  _hasRec=false;_hasWrite=false;_hasAI=false;
   updateWords();
   annotWrap.classList.remove('done');
   liveDot.className='live-dot';

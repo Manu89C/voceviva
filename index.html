@@ -1013,7 +1013,7 @@ modalConfirm.onclick = async () => {
       title,
       content,
       note_date: date,
-      mode: _saveMode === 'ai' ? 'AI' : (_hasRec && _hasWrite ? 'rec+write' : _hasRec ? 'rec' : 'write')
+      mode: _saveMode === 'ai' ? 'ai' : (_hasRec && _hasWrite ? 'rec+write' : _hasRec ? 'rec' : 'write')
     }]);
     if (error) throw error;
     modalCard.innerHTML = `<div class="modal-success"><span class="modal-success-icon">✓</span><div class="modal-success-text">Salvato nel Diario!</div><div class="modal-success-sub">${title}</div></div>`;
@@ -1026,14 +1026,15 @@ modalConfirm.onclick = async () => {
 };
 
 function rebuildModal() {
-  modalCard.innerHTML = `
-    <div class="modal-title" id="modalTitle">Salva nel Diario</div>
-    <div class="modal-field"><label class="modal-label">Titolo</label><input class="modal-input" id="modalTitleInput" type="text" placeholder="Titolo della nota..."></div>
-    <div class="modal-field"><label class="modal-label">Data</label><input class="modal-input" id="modalDateInput" type="date"></div>
-    <div class="modal-field"><label class="modal-label">Anteprima contenuto</label><div class="modal-preview" id="modalPreview"></div></div>
-    <div class="modal-actions"><button class="modal-btn modal-btn-cancel" id="modalCancel">Annulla</button><button class="modal-btn modal-btn-confirm" id="modalConfirm">Salva</button></div>`;
-  // Re-bind after rebuild
-  $('modalCancel').onclick = () => { saveModal.classList.remove('show'); };
+  // Non ricreare il DOM — resetta solo i valori, così i riferimenti costanti rimangono validi
+  modalTitleInput.value = '';
+  modalDateInput.value = '';
+  modalPreview.innerHTML = '';
+  modalConfirm.disabled = false;
+  modalConfirm.textContent = 'Salva';
+  if (modalTitle) modalTitle.textContent = 'Salva nel Diario';
+  // Re-bind modalCancel (era già bound ma ripetiamo per sicurezza)
+  modalCancel.onclick = () => { saveModal.classList.remove('show'); };
 }
 
 // ── PWA ───────────────────────────────────────────────────────────────────────

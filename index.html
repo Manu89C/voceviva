@@ -150,7 +150,7 @@ h1 em { font-style:italic; color:var(--accent); }
 /* Modal */
 .modal-overlay { display:none; position:fixed; inset:0; z-index:100; background:rgba(0,0,0,.75); backdrop-filter:blur(6px); align-items:center; justify-content:center; padding:1rem; }
 .modal-overlay.show { display:flex; }
-.modal-card { background:var(--surface); border:1px solid var(--border); border-radius:1.2rem; padding:1.5rem; width:100%; max-width:480px; display:flex; flex-direction:column; gap:1rem; animation:modalIn .2s ease-out; }
+.modal-card { background:var(--surface); border:1px solid var(--border); border-radius:1.2rem; padding:1.5rem; width:100%; max-width:480px; display:flex; flex-direction:column; gap:1rem; animation:modalIn .2s ease-out; position:relative; overflow:hidden; }
 @keyframes modalIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
 .modal-title { font-family:'DM Serif Display',serif; font-size:1.2rem; color:var(--text); }
 .modal-field { display:flex; flex-direction:column; gap:.3rem; }
@@ -304,6 +304,12 @@ h1 em { font-style:italic; color:var(--accent); }
     <div class="modal-actions">
       <button class="modal-btn modal-btn-cancel" id="modalCancel">Annulla</button>
       <button class="modal-btn modal-btn-confirm" id="modalConfirm">Salva</button>
+    </div>
+    <!-- Successo: overlay sopra il form, non sostituisce il DOM -->
+    <div id="modalSuccess" style="display:none;position:absolute;inset:0;background:var(--surface);border-radius:1.2rem;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;padding:2rem;">
+      <span style="font-size:2rem;color:var(--live);">✓</span>
+      <div id="modalSuccessText" style="font-size:.78rem;color:var(--text);">Salvato nel Diario!</div>
+      <div id="modalSuccessSub" style="font-size:.62rem;color:var(--muted);"></div>
     </div>
   </div>
 </div>
@@ -998,12 +1004,16 @@ function resetAll(){
 clearBtn.onclick=()=>{ if(isRecording)return; resetAll(); };
 
 // ── MODAL BUTTONS ─────────────────────────────────────────────────────────────
+const modalSuccess    = $('modalSuccess');
+const modalSuccessText= $('modalSuccessText');
+const modalSuccessSub = $('modalSuccessSub');
+
 modalCancel.onclick = () => { saveModal.classList.remove('show'); };
 
 modalConfirm.onclick = async () => {
   if (!sb) { showErr('Supabase non disponibile.'); return; }
-  const title = modalTitleInput.value.trim() || 'Senza titolo';
-  const date  = modalDateInput.value || new Date().toISOString().split('T')[0];
+  const title   = modalTitleInput.value.trim() || 'Senza titolo';
+  const date    = modalDateInput.value || new Date().toISOString().split('T')[0];
   const content = _saveMode === 'ai' ? outputText.innerHTML.trim() : getEditorHtml();
   if (!content) { saveModal.classList.remove('show'); return; }
   modalConfirm.disabled = true;
@@ -1013,29 +1023,49 @@ modalConfirm.onclick = async () => {
       title,
       content,
       note_date: date,
-      mode: _saveMode === 'ai' ? 'ai' : (_hasRec && _hasWrite ? 'rec+write' : _hasRec ? 'rec' : 'write')
+      mode: _saveMode === 'ai' ? 'AI' : (_hasRec && _hasWrite ? 'rec+write' : _hasRec ? 'rec' : 'write')
     }]);
     if (error) throw error;
-    modalCard.innerHTML = `<div class="modal-success"><span class="modal-success-icon">✓</span><div class="modal-success-text">Salvato nel Diario!</div><div class="modal-success-sub">${title}</div></div>`;
-    setTimeout(() => { saveModal.classList.remove('show'); modalCard.innerHTML = ''; rebuildModal(); }, 1800);
+
+    // Mostra successo senza toccare il DOM del form
+    modalSuccessText.textContent = 'Salvato nel Diario!';
+    modalSuccessSub.textContent  = title;
+    modalSuccess.style.display   = 'flex';
+
+    setTimeout(() => {
+      // Nascondi modal
+      saveModal.classList.remove('show');
+      modalSuccess.style.display = 'none';
+
+      // Reset form fields (gli elementi DOM sono ancora validi)
+      modalTitleInput.value    = '';
+      modalDateInput.value     = '';
+      modalPreview.innerHTML   = '';
+      modalConfirm.disabled    = false;
+      modalConfirm.textContent = 'Salva';
+      if (modalTitle) modalTitle.textContent = 'Salva nel Diario';
+
+      // Se era salvataggio diretto: pulisci editor e flags
+      if (_saveMode === 'direct') {
+        resetAll();
+      }
+      // Se era salvataggio AI: pulisci l'output box ma NON l'editor
+      if (_saveMode === 'ai') {
+        outputBox.className = 'output-box';
+        outputText.innerHTML = '';
+        outputActions.style.display = 'none';
+        outputLabel.style.display = 'none';
+        moodBox.style.display = 'none';
+        _hasAI = false;
+      }
+    }, 1800);
+
   } catch(e) {
     showErr('Errore salvataggio: ' + e.message);
     modalConfirm.disabled = false;
     modalConfirm.textContent = 'Salva';
   }
 };
-
-function rebuildModal() {
-  // Non ricreare il DOM — resetta solo i valori, così i riferimenti costanti rimangono validi
-  modalTitleInput.value = '';
-  modalDateInput.value = '';
-  modalPreview.innerHTML = '';
-  modalConfirm.disabled = false;
-  modalConfirm.textContent = 'Salva';
-  if (modalTitle) modalTitle.textContent = 'Salva nel Diario';
-  // Re-bind modalCancel (era già bound ma ripetiamo per sicurezza)
-  modalCancel.onclick = () => { saveModal.classList.remove('show'); };
-}
 
 // ── PWA ───────────────────────────────────────────────────────────────────────
 let swReg=null;

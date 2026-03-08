@@ -118,9 +118,9 @@ h1 em { font-style:italic; color:var(--accent); }
 .modal-content-edit em { color:#fff; font-style:italic; font-family:"EB Garamond",Georgia,serif; }
 .modal-content-edit ul, .modal-content-edit ol { margin:.3em 0 .3em 1.5em; padding:0; }
 .modal-content-edit li { margin:.15em 0; }
-.modal-actions { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }
-.modal-btn { padding:.5rem 1rem; border-radius:.6rem; font-family:'JetBrains Mono',monospace; font-size:.68rem; cursor:pointer; touch-action:manipulation; border:none; }
-.modal-btn-delete { background:none; border:1px solid rgba(240,106,106,.4); color:#f06a6a; margin-right:auto; }
+.modal-actions { display:flex; gap:.2rem; align-items:center; width:100%; flex-wrap:nowrap; }
+.modal-btn { padding:.5rem 0; border-radius:.6rem; font-family:'JetBrains Mono',monospace; font-size:.62rem; cursor:pointer; touch-action:manipulation; border:none; flex:1; text-align:center; white-space:nowrap; }
+.modal-btn-delete { background:none; border:1px solid rgba(240,106,106,.4); color:#f06a6a; }
 .modal-btn-cancel { background:none; border:1px solid var(--border); color:var(--muted); }
 .modal-btn-copy { background:none; border:1px solid var(--border); color:var(--muted); }
 .modal-btn-confirm { background:var(--live); color:#0a0a0f; font-weight:500; }
@@ -149,8 +149,8 @@ h1 em { font-style:italic; color:var(--accent); }
 .annot-popup-editor ul, .annot-popup-editor ol { margin:.3em 0 .3em 1.5em; padding:0; }
 .annot-popup-editor li { margin:.15em 0; }
 /* Formatting toolbar */
-.fmt-toolbar { display:flex; align-items:center; gap:.3rem; }
-.fmt-btn { background:none; border:1px solid var(--border); color:var(--muted); padding:.3rem .65rem; border-radius:.4rem; font-family:'JetBrains Mono',monospace; font-size:.62rem; cursor:pointer; touch-action:manipulation; transition:all .12s; white-space:nowrap; line-height:1.4; user-select:none; -webkit-user-select:none; text-transform:uppercase; letter-spacing:.06em; }
+.fmt-toolbar { display:flex; align-items:center; gap:.2rem; justify-content:space-between; width:100%; flex-wrap:nowrap; }
+.fmt-btn { background:none; border:1px solid var(--border); color:var(--muted); padding:.3rem 0; border-radius:.4rem; font-family:'JetBrains Mono',monospace; font-size:.62rem; cursor:pointer; touch-action:manipulation; transition:all .12s; white-space:nowrap; line-height:1.4; user-select:none; -webkit-user-select:none; text-transform:uppercase; letter-spacing:.04em; flex:1; text-align:center; }
 .fmt-btn.active { background:rgba(245,80,54,.15); color:var(--accent); border-color:rgba(245,80,54,.45); }
 .fmt-btn:hover:not(.active) { background:var(--surface); color:var(--text); border-color:var(--border); }
 .fmt-sep { width:1px; height:16px; background:var(--border); margin:0 4px; flex-shrink:0; }
@@ -163,9 +163,11 @@ h1 em { font-style:italic; color:var(--accent); }
 .popup-mood { font-size:.75rem; color:var(--muted); font-style:italic; padding:.4rem 0 0; display:none; }
 .popup-mood.show { display:block; }
 /* Popup footer */
-.annot-popup-footer { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.5rem; }
 .annot-popup-words { font-size:.6rem; color:var(--muted); }
-.annot-popup-actions { display:flex; gap:.4rem; align-items:center; flex-wrap:wrap; }
+.annot-popup-actions { display:flex; gap:.2rem; align-items:center; width:100%; flex-wrap:nowrap; }
+.popup-footer { display:flex; flex-direction:column; gap:.5rem; width:100%; margin-top:.5rem; }
+.popup-row-words { display:flex; align-items:center; gap:.5rem; }
+.popup-row-mic { display:flex; justify-content:center; width:100%; padding-top:.25rem; }
 .mic-btn-sm { width:36px; height:36px; border-radius:50%; border:none; background:var(--accent); color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:transform .12s; touch-action:manipulation; box-shadow:0 3px 12px rgba(245,80,54,.35); flex-shrink:0; }
 .mic-btn-sm:active { transform:scale(.92); }
 .mic-btn-sm.recording { background:#c0392b; animation:pulse 1.4s ease-in-out infinite; }
@@ -176,14 +178,14 @@ h1 em { font-style:italic; color:var(--accent); }
 .processing-pill-sm { display:none; background:rgba(245,80,54,.12); border:1px solid rgba(245,80,54,.25); border-radius:2rem; padding:.2rem .5rem; font-size:.55rem; color:var(--accent); text-transform:uppercase; letter-spacing:.1em; align-items:center; gap:.3rem; }
 .processing-pill-sm.show { display:flex; }
 .pill-dot-sm { width:4px; height:4px; border-radius:50%; background:var(--accent); animation:blink .6s ease-in-out infinite; }
-.btn-ghost-sm { background:none; border:1px solid var(--border); color:var(--muted); padding:.35rem .7rem; border-radius:.5rem; font-family:'JetBrains Mono',monospace; font-size:.6rem; cursor:pointer; text-transform:uppercase; letter-spacing:.1em; touch-action:manipulation; white-space:nowrap; }
+.btn-ghost-sm { background:none; border:1px solid var(--border); color:var(--muted); padding:.35rem 0; border-radius:.5rem; font-family:'JetBrains Mono',monospace; font-size:.6rem; cursor:pointer; text-transform:uppercase; letter-spacing:.1em; touch-action:manipulation; white-space:nowrap; flex:1; text-align:center; }
 .btn-ghost-sm:disabled { opacity:.4; cursor:not-allowed; }
-.btn-ai-sm { background:none; border:1px solid rgba(245,80,54,.5); color:var(--accent); padding:.35rem .7rem; border-radius:.5rem; font-family:'JetBrains Mono',monospace; font-size:.6rem; cursor:pointer; text-transform:uppercase; letter-spacing:.1em; touch-action:manipulation; white-space:nowrap; transition:background .15s; }
+.btn-ai-sm { background:none; border:1px solid rgba(245,80,54,.5); color:var(--accent); padding:.35rem 0; border-radius:.5rem; font-family:'JetBrains Mono',monospace; font-size:.6rem; cursor:pointer; text-transform:uppercase; letter-spacing:.1em; touch-action:manipulation; white-space:nowrap; transition:background .15s; flex:2; text-align:center; }
 .btn-ai-sm:hover { background:rgba(245,80,54,.1); }
 .btn-ai-sm:disabled { opacity:.4; cursor:not-allowed; }
-.btn-save-sm { background:var(--live); color:#0a0a0f; border:none; padding:.35rem .75rem; border-radius:.5rem; font-family:'JetBrains Mono',monospace; font-size:.6rem; cursor:pointer; text-transform:uppercase; letter-spacing:.1em; touch-action:manipulation; font-weight:500; white-space:nowrap; }
+.btn-save-sm { background:var(--live); color:#0a0a0f; border:none; padding:.35rem 0; border-radius:.5rem; font-family:'JetBrains Mono',monospace; font-size:.6rem; cursor:pointer; text-transform:uppercase; letter-spacing:.1em; touch-action:manipulation; font-weight:500; white-space:nowrap; flex:1; text-align:center; }
 .btn-save-sm:disabled { opacity:.4; cursor:not-allowed; }
-.btn-save-ai-sm { background:rgba(147,112,219,.15); color:#a78bfa; border:1px solid rgba(147,112,219,.35); padding:.35rem .75rem; border-radius:.5rem; font-family:'JetBrains Mono',monospace; font-size:.6rem; cursor:pointer; text-transform:uppercase; letter-spacing:.1em; touch-action:manipulation; white-space:nowrap; }
+.btn-save-ai-sm { background:rgba(147,112,219,.15); color:#a78bfa; border:1px solid rgba(147,112,219,.35); padding:.35rem 0; border-radius:.5rem; font-family:'JetBrains Mono',monospace; font-size:.6rem; cursor:pointer; text-transform:uppercase; letter-spacing:.1em; touch-action:manipulation; white-space:nowrap; flex:1; text-align:center; }
 .btn-save-ai-sm:disabled { opacity:.4; cursor:not-allowed; }
 </style>
 </head>
@@ -240,32 +242,37 @@ h1 em { font-style:italic; color:var(--accent); }
 
     <div class="annot-popup-editor" id="annotPopupEditor" contenteditable="true" spellcheck="true" data-placeholder="Scrivi qui o usa il microfono per dettare..."></div>
 
-    <div class="fmt-toolbar">
-      <button class="fmt-btn" id="fmtH1">𝐓 H¹</button>
-      <button class="fmt-btn" id="fmtH2">𝐓 H²</button>
-      <button class="fmt-btn" id="fmtH3">𝐓 H³</button>
-      <span class="fmt-sep"></span>
-      <button class="fmt-btn" id="fmtBold">𝐁</button>
-      <button class="fmt-btn" id="fmtItalic">𝐼</button>
-      <span class="fmt-sep"></span>
-      <button class="fmt-btn" id="fmtUl"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:middle"><circle cx="2" cy="4" r="1.5"/><rect x="5" y="3" width="10" height="2" rx="1"/><circle cx="2" cy="8" r="1.5"/><rect x="5" y="7" width="10" height="2" rx="1"/><circle cx="2" cy="12" r="1.5"/><rect x="5" y="11" width="10" height="2" rx="1"/></svg></button>
-      <button class="fmt-btn" id="fmtOl"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:middle"><text x="0" y="5" font-size="5" font-family="monospace">1.</text><rect x="5" y="3" width="10" height="2" rx="1"/><text x="0" y="9" font-size="5" font-family="monospace">2.</text><rect x="5" y="7" width="10" height="2" rx="1"/><text x="0" y="13" font-size="5" font-family="monospace">3.</text><rect x="5" y="11" width="10" height="2" rx="1"/></svg></button>
-    </div>
-
-    <div class="annot-popup-footer">
-      <div style="display:flex;align-items:center;gap:.5rem;">
+    <div class="popup-footer">
+      <!-- Riga 1: conteggio parole + dot live -->
+      <div class="popup-row-words">
         <span class="live-dot-sm" id="popupLiveDot"></span>
         <span class="annot-popup-words" id="annotPopupWords">0 parole</span>
         <div class="processing-pill-sm" id="popupProcPill"><span class="pill-dot-sm"></span> trascrivo</div>
       </div>
+      <!-- Riga 2: toolbar formattazione -->
+      <div class="fmt-toolbar">
+        <button class="fmt-btn" id="fmtH1">𝐓 H¹</button>
+        <button class="fmt-btn" id="fmtH2">𝐓 H²</button>
+        <button class="fmt-btn" id="fmtH3">𝐓 H³</button>
+        <span class="fmt-sep"></span>
+        <button class="fmt-btn" id="fmtBold">𝐁</button>
+        <button class="fmt-btn" id="fmtItalic">𝐼</button>
+        <span class="fmt-sep"></span>
+        <button class="fmt-btn" id="fmtUl"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:middle"><circle cx="2" cy="4" r="1.5"/><rect x="5" y="3" width="10" height="2" rx="1"/><circle cx="2" cy="8" r="1.5"/><rect x="5" y="7" width="10" height="2" rx="1"/><circle cx="2" cy="12" r="1.5"/><rect x="5" y="11" width="10" height="2" rx="1"/></svg></button>
+        <button class="fmt-btn" id="fmtOl"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:middle"><text x="0" y="5" font-size="5" font-family="monospace">1.</text><rect x="5" y="3" width="10" height="2" rx="1"/><text x="0" y="9" font-size="5" font-family="monospace">2.</text><rect x="5" y="7" width="10" height="2" rx="1"/><text x="0" y="13" font-size="5" font-family="monospace">3.</text><rect x="5" y="11" width="10" height="2" rx="1"/></svg></button>
+      </div>
+      <!-- Riga 3: Elabora AI | Annulla | Salva nota -->
       <div class="annot-popup-actions">
+        <button class="btn-ai-sm" id="popupAiBtn" disabled>Elabora AI</button>
+        <button class="btn-ghost-sm" id="annotPopupCancel">Annulla</button>
+        <button class="btn-save-sm" id="annotPopupSave" disabled>Salva nota</button>
+      </div>
+      <!-- Riga 4: bottone microfono centrato -->
+      <div class="popup-row-mic">
         <button class="mic-btn-sm" id="popupMicBtn">
           <svg id="popupMicIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
           <svg id="popupStopIcon" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
         </button>
-        <button class="btn-ai-sm" id="popupAiBtn" disabled>Elabora AI</button>
-        <button class="btn-ghost-sm" id="annotPopupCancel">Annulla</button>
-        <button class="btn-save-sm" id="annotPopupSave" disabled>Salva nota</button>
       </div>
     </div>
 
@@ -274,7 +281,7 @@ h1 em { font-style:italic; color:var(--accent); }
       <div style="font-size:.58rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);">Elaborazione AI</div>
       <div class="popup-ai-output" id="popupAiOutput"></div>
       <div class="popup-mood" id="popupMood"></div>
-      <div style="display:flex;justify-content:flex-end;gap:.4rem;">
+      <div style="display:flex;justify-content:stretch;gap:.2rem;width:100%;">
         <button class="btn-save-ai-sm" id="popupSaveAi">Salva rielaborazione AI</button>
       </div>
     </div>
@@ -311,7 +318,7 @@ h1 em { font-style:italic; color:var(--accent); }
     </div>
     <div class="modal-field">
       <label class="modal-label">Contenuto</label>
-      <div class="fmt-toolbar" style="margin-bottom:.5rem;">
+      <div class="fmt-toolbar" style="margin-bottom:.5rem;width:100%;">
         <button class="fmt-btn" id="editFmtH1">𝐓 H¹</button>
         <button class="fmt-btn" id="editFmtH2">𝐓 H²</button>
         <button class="fmt-btn" id="editFmtH3">𝐓 H³</button>

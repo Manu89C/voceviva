@@ -999,9 +999,11 @@ modalConfirm.onclick = async () => {
   modalConfirm.disabled = true;
   modalConfirm.innerHTML = '<span class="modal-spinner"></span>Salvo...';
   try {
-    const { error } = await sb.from('diary_entries').insert([{
-      title, date, content,
-      tags: [_saveMode === 'ai' ? 'AI' : (_hasRec && _hasWrite ? 'rec+write' : _hasRec ? 'rec' : 'write')]
+    const { error } = await sb.from('notes').insert([{
+      title,
+      content,
+      note_date: date,
+      mode: _saveMode === 'ai' ? 'AI' : (_hasRec && _hasWrite ? 'rec+write' : _hasRec ? 'rec' : 'write')
     }]);
     if (error) throw error;
     modalCard.innerHTML = `<div class="modal-success"><span class="modal-success-icon">✓</span><div class="modal-success-text">Salvato nel Diario!</div><div class="modal-success-sub">${title}</div></div>`;

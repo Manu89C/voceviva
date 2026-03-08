@@ -318,7 +318,8 @@ h1 em { font-style:italic; color:var(--accent); }
     </div>
     <div class="modal-field">
       <label class="modal-label">Contenuto</label>
-      <div class="fmt-toolbar" style="margin-bottom:.5rem;width:100%;">
+      <div class="modal-content-edit" id="editContent" contenteditable="true" spellcheck="true"></div>
+      <div class="fmt-toolbar" style="margin-top:.5rem;width:100%;">
         <button class="fmt-btn" id="editFmtH1">𝐓 H¹</button>
         <button class="fmt-btn" id="editFmtH2">𝐓 H²</button>
         <button class="fmt-btn" id="editFmtH3">𝐓 H³</button>
@@ -329,11 +330,19 @@ h1 em { font-style:italic; color:var(--accent); }
         <button class="fmt-btn" id="editFmtUl"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:middle"><circle cx="2" cy="4" r="1.5"/><rect x="5" y="3" width="10" height="2" rx="1"/><circle cx="2" cy="8" r="1.5"/><rect x="5" y="7" width="10" height="2" rx="1"/><circle cx="2" cy="12" r="1.5"/><rect x="5" y="11" width="10" height="2" rx="1"/></svg></button>
         <button class="fmt-btn" id="editFmtOl"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:middle"><text x="0" y="5" font-size="5" font-family="monospace">1.</text><rect x="5" y="3" width="10" height="2" rx="1"/><text x="0" y="9" font-size="5" font-family="monospace">2.</text><rect x="5" y="7" width="10" height="2" rx="1"/><text x="0" y="13" font-size="5" font-family="monospace">3.</text><rect x="5" y="11" width="10" height="2" rx="1"/></svg></button>
       </div>
-      <div class="modal-content-edit" id="editContent" contenteditable="true" spellcheck="true"></div>
+    </div>
+    <!-- Sezione output AI modifica -->
+    <div class="popup-ai-section" id="editAiSection" style="display:none">
+      <div style="font-size:.58rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);">Elaborazione AI</div>
+      <div class="popup-ai-output" id="editAiOutput"></div>
+      <div class="popup-mood" id="editAiMood"></div>
+      <div style="display:flex;gap:.2rem;width:100%;">
+        <button class="btn-save-ai-sm" id="editSaveAi">Applica rielaborazione</button>
+      </div>
     </div>
     <div class="modal-actions">
-      <button class="modal-btn modal-btn-delete" id="editDelete">Elimina</button>
-      <button class="modal-btn modal-btn-copy" id="editCopyMd">Copia Markdown</button>
+      <button class="modal-btn btn-ai-sm" id="editAiBtn">Elabora con AI</button>
+      <button class="modal-btn modal-btn-copy" id="editCopyMd">Copia</button>
       <button class="modal-btn modal-btn-cancel" id="editCancel">Annulla</button>
       <button class="modal-btn modal-btn-confirm" id="editSave">Salva</button>
     </div>
@@ -399,7 +408,7 @@ editModal.onclick = (e) => { if(e.target===editModal) closeEditModal(); };
 
 $('editCopyMd').onclick = () => {
   const md=htmlToMarkdown(editContent.innerHTML), btn=$('editCopyMd');
-  if(navigator.clipboard) navigator.clipboard.writeText(md).then(()=>{btn.textContent='Copiato!';setTimeout(()=>btn.textContent='Copia Markdown',1800);});
+  if(navigator.clipboard) navigator.clipboard.writeText(md).then(()=>{btn.textContent='Copiato!';setTimeout(()=>btn.textContent='Copia',1800);});
 };
 
 $('editSave').onclick = async () => {
@@ -415,18 +424,72 @@ $('editSave').onclick = async () => {
   finally { $('editSave').innerHTML='Salva'; $('editSave').disabled=false; }
 };
 
-$('editDelete').onclick = async () => {
-  if(!editingNote||!confirm('Eliminare questa nota?')) return;
-  $('editDelete').disabled=true;
-  try {
-    const{error}=await sb.from('notes').delete().eq('id',editingNote.id);
-    if(error) throw error;
-    closeEditModal(); await loadNotes();
-  } catch(e) { showErr('Errore eliminazione: '+(e.message||e)); }
-  finally { $('editDelete').disabled=false; }
+// ── EDIT MODAL AI ─────────────────────────────────────────────────────────────
+let editIsSummarizing = false;
+const editAiSection = $('editAiSection');
+const editAiOutput  = $('editAiOutput');
+const editAiMood    = $('editAiMood');
+const editSaveAi    = $('editSaveAi');
+const editAiBtn     = $('editAiBtn');
+
+editAiBtn.onclick = async () => {
+  const GROQ = localStorage.getItem('vv_groq') || '';
+  if (!GROQ) { showErr('Chiave Groq non trovata.'); return; }
+  const plainText = (editContent.innerText || '').trim();
+  if (!plainText) return;
+  editIsSummarizing = true; editAiBtn.disabled = true;
+  editAiSection.style.display = 'flex'; editAiSection.style.flexDirection = 'column'; editAiSection.style.gap = '.6rem';
+  editAiOutput.classList.add('show');
+  editAiOutput.innerHTML = '<span style="color:var(--muted);font-size:.75rem">Elaborazione in corso...</span>';
+  editAiMood.classList.remove('show');
+  for (let a = 1; a <= 3; a++) {
+    try {
+      if (a > 1) await sleep(Math.min(1000 * Math.pow(2, a - 1), 8000));
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST', cache: 'no-store',
+        headers: { 'Authorization': 'Bearer ' + GROQ, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'llama-3.3-70b-versatile', max_tokens: 1200, temperature: 0.4,
+          messages: [
+            { role: 'system', content: 'Sei un editor e analista italiano. Ricevi una nota che può provenire da trascrizione audio o testo scritto.\n\nIL TUO COMPITO È DUPLICE:\n\n1. ELABORAZIONE: Correggi silenziosamente errori evidenti, inferisci il senso dove ambiguo, organizza gerarchicamente con titoli <h3> e sottotitoli, raggruppa per tema. Mantieni tutte le informazioni originali senza inventare.\n\n2. STATO D\'ANIMO: Dopo il testo elaborato, aggiungi obbligatoriamente questo blocco:\n<div id="mood-output">Una frase precisa che ipotizza lo stato d\'animo e il tono emotivo dell\'autore, basandoti sul contenuto, sulle parole scelte, sul ritmo del testo e su eventuali sfumature implicite. Sii specifico, non generico.</div>\n\nRispondi SOLO con HTML valido (usa <p>, <h3>, <ul>, <li> e il blocco mood). Zero commenti fuori dall\'HTML.' },
+            { role: 'user', content: plainText.slice(0, 3000) }
+          ]
+        })
+      });
+      if (res.status === 429) { const w = parseInt(res.headers.get('retry-after') || '30', 10); await sleep(Math.min(w, 60) * 1000); a--; continue; }
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const raw = (await res.json()).choices?.[0]?.message?.content?.trim() || '';
+      const moodMatch = raw.match(/<div id="mood-output">([\s\S]*?)<\/div>/i);
+      const moodContent = moodMatch ? moodMatch[1].trim() : '';
+      const mainHtml = raw.replace(/<div id="mood-output">[\s\S]*?<\/div>/i, '').trim();
+      editAiOutput.innerHTML = mainHtml || '<p>Nessun risultato.</p>';
+      if (moodContent) { editAiMood.textContent = 'Stato d\'animo: ' + moodContent; editAiMood.classList.add('show'); }
+      editSaveAi.disabled = false;
+      break;
+    } catch(e) {
+      if (a === 3) { editAiOutput.innerHTML = '<p style="color:#f06a6a">Errore: ' + e.message + '</p>'; }
+    }
+  }
+  editIsSummarizing = false; editAiBtn.disabled = false;
 };
 
-function closeEditModal() { editModal.classList.remove('show'); editingNote=null; }
+// "Applica rielaborazione": sostituisce il contenuto dell'editor con l'output AI
+editSaveAi.onclick = () => {
+  const newContent = editAiOutput.innerHTML.trim();
+  if (!newContent) return;
+  editContent.innerHTML = newContent;
+  editAiSection.style.display = 'none';
+  editAiOutput.classList.remove('show'); editAiMood.classList.remove('show');
+  editAiOutput.innerHTML = ''; editAiMood.textContent = '';
+  editSaveAi.disabled = true; editAiBtn.disabled = false;
+};
+
+function closeEditModal() {
+  editModal.classList.remove('show'); editingNote = null;
+  editAiSection.style.display = 'none';
+  editAiOutput.classList.remove('show'); editAiMood.classList.remove('show');
+  editAiOutput.innerHTML = ''; editAiMood.textContent = '';
+  editIsSummarizing = false; editSaveAi.disabled = true; editAiBtn.disabled = false;
+}
 
 // ── EDIT MODAL FORMATTING TOOLBAR ────────────────────────────────────────────
 var eLastRange = null;
@@ -725,7 +788,14 @@ function renderList() {
 
 function getWeekStart(d){const day=d.getDay(),diff=d.getDate()-day+(day===0?-6:1);return new Date(d.getFullYear(),d.getMonth(),diff);}
 function openReadOverlay(note){readingNote=note;readOverlayTitle.textContent=note.title;readOverlayBody.innerHTML=note.content;readOverlay.classList.add('show');}
-function openEditModal(note){editingNote=note;editTitle.value=note.title;editDate.value=note.note_date;editContent.innerHTML=note.content;editModal.classList.add('show');setTimeout(()=>{editContent.scrollTop=0;},50);}
+function openEditModal(note){
+  editingNote=note; editTitle.value=note.title; editDate.value=note.note_date; editContent.innerHTML=note.content;
+  editAiSection.style.display='none';
+  editAiOutput.classList.remove('show'); editAiMood.classList.remove('show');
+  editAiOutput.innerHTML=''; editAiMood.textContent='';
+  editSaveAi.disabled=true; editAiBtn.disabled=false;
+  editModal.classList.add('show'); setTimeout(()=>{editContent.scrollTop=0;},50);
+}
 
 function showErr(m){errorMsg.textContent=m;errorMsg.classList.add('show');}
 function hideErr(){errorMsg.classList.remove('show');}

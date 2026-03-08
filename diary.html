@@ -645,7 +645,7 @@ function tagsHtml(mode) {
   if(!mode) return '';
   const tags=(mode||'').split('+').map(t=>t.trim()).filter(Boolean);
   return tags.map(t=>{
-    const cls=t==='write'?'note-tag tag-write':t==='AI'?'note-tag tag-ai':'note-tag';
+    const cls=t==='write'?'note-tag tag-write':t==='ai'?'note-tag tag-ai':'note-tag';
     return '<span class="'+cls+'">'+esc(t)+'</span>';
   }).join('');
 }
@@ -1109,7 +1109,7 @@ popupSaveAi.onclick=async()=>{
       }catch(e){}
     }
   }
-  const mode='AI';
+  const mode='ai';
   try{
     const{error}=await sb.from('notes').insert([{title,content,mode,note_date:popupDate}]);
     if(error)throw error;

@@ -125,14 +125,16 @@ h1 em { font-style:italic; color:var(--accent); }
 .output-overlay.show { display:flex; }
 .spinner { width:15px; height:15px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite; }
 @keyframes spin { to{transform:rotate(360deg)} }
-#outputText { font-size:.85rem; line-height:1.85; color:var(--text); word-break:break-word; outline:none; }
+#outputText { font-size:1.1rem; line-height:1.9; color:var(--text); word-break:break-word; outline:none; font-family:'Crimson Pro',Georgia,serif; }
 #outputText:focus { background:rgba(255,255,255,.02); border-radius:.4rem; padding:.2rem; }
 #outputText p { margin-bottom:.65rem; }
 #outputText ul { padding-left:1.1rem; margin-bottom:.65rem; }
 #outputText li { margin-bottom:.35rem; }
-#outputText h2 { font-family:'DM Serif Display',serif; font-size:1.3rem; margin:.9rem 0 .4rem; color:var(--text); }
-#outputText h3 { font-family:'DM Serif Display',serif; font-size:1.1rem; margin:.75rem 0 .35rem; color:var(--text); }
-#outputText h4 { font-family:'DM Serif Display',serif; font-size:.9rem; font-style:italic; margin:.5rem 0 .25rem; color:var(--text); }
+#outputText h2 { font-family:'Crimson Pro',Georgia,serif; font-size:1.7em; font-weight:500; color:#ffffff; line-height:1.3; margin:.9rem 0 .4rem; letter-spacing:.04em; border-bottom:1px solid var(--border); padding-bottom:.3em; }
+#outputText h3 { font-family:'Crimson Pro',Georgia,serif; font-size:1.35em; font-weight:500; color:#dddddd; line-height:1.35; margin:.9rem 0 .4rem; letter-spacing:.03em; }
+#outputText h4 { font-family:'Crimson Pro',Georgia,serif; font-size:1.1em; font-weight:500; color:#bbbbbb; line-height:1.4; margin:.8rem 0 .3em; letter-spacing:.02em; }
+#outputText strong { color:#ffffff; font-weight:600; }
+#outputText em { color:#ffffff; font-style:italic; font-family:'EB Garamond',Georgia,serif; }
 /* Mood */
 .mood-box { background:rgba(245,80,54,.05); border:1px solid rgba(245,80,54,.2); border-radius:.8rem; padding:.8rem 1rem; margin-top:.75rem; }
 .mood-label { font-size:.55rem; text-transform:uppercase; letter-spacing:.15em; color:var(--accent); margin-bottom:.35rem; }

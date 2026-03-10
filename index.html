@@ -640,7 +640,7 @@ async function openSaveModal(mode) {
       const res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
         method:'POST',cache:'no-store',
         headers:{'Authorization':'Bearer '+GROQ_KEY,'Content-Type':'application/json'},
-        body:JSON.stringify({model:'meta-llama/llama-4-maverick-17b-128e-instruct',max_tokens:60,temperature:0.5,
+        body:JSON.stringify({model:'meta-llama/llama-4-scout-17b-16e-instruct',max_tokens:60,temperature:0.5,
           messages:[{role:'system',content:'Genera un titolo breve (massimo 8 parole) in italiano. Rispondi SOLO con il titolo, senza virgolette, senza punteggiatura finale.'},{role:'user',content:plainText}]})
       });
       if(res.ok){const data=await res.json();const t=data?.choices?.[0]?.message?.content?.trim();if(t&&t.length>2&&t.length<100)suggestedTitle=t;}
@@ -671,7 +671,7 @@ aiBtn.onclick = async () => {
         method:'POST', cache:'no-store',
         headers:{'Authorization':'Bearer '+GROQ_KEY,'Content-Type':'application/json'},
         body:JSON.stringify({
-          model:'meta-llama/llama-4-maverick-17b-128e-instruct', max_tokens:2048, temperature:0.4,
+          model:'meta-llama/llama-4-scout-17b-16e-instruct', max_tokens:2048, temperature:0.4,
           messages:[
             {role:'system',content:'Sei un editor e analista italiano. Ricevi una nota che può provenire da trascrizione audio o testo scritto.\n\nIL TUO COMPITO È DUPLICE:\n\n1. ELABORAZIONE: Correggi silenziosamente errori evidenti, inferisci il senso dove ambiguo, organizza gerarchicamente con titoli <h3> e sottotitoli <h4>, raggruppa per tema. Mantieni tutte le informazioni originali senza inventare.\n\n2. STATO D\'ANIMO: Dopo il testo elaborato, aggiungi obbligatoriamente questo blocco:\n<div id="mood-output">Una frase precisa che ipotizza lo stato d\'animo e il tono emotivo dell\'autore, basandoti sul contenuto, sulle parole scelte, sul ritmo del testo e su eventuali sfumature implicite. Sii specifico, non generico.</div>\n\nRispondi SOLO con HTML valido (usa <p>, <h3>, <h4>, <ul>, <li> e il blocco mood). Zero commenti fuori dall\'HTML.'},
             {role:'user',content:'Nota:\n\n'+txt}

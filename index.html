@@ -139,6 +139,17 @@ h1 em { font-style:italic; color:var(--accent); }
 .mood-box { background:rgba(245,80,54,.05); border:1px solid rgba(245,80,54,.2); border-radius:.8rem; padding:.8rem 1rem; margin-top:.75rem; }
 .mood-label { font-size:.55rem; text-transform:uppercase; letter-spacing:.15em; color:var(--accent); margin-bottom:.35rem; }
 .mood-text { font-size:.8rem; line-height:1.7; color:var(--text); font-style:italic; }
+/* Refine feedback area */
+.refine-area { display:none; margin-top:.6rem; border-top:1px solid var(--border); padding-top:.6rem; }
+.refine-area.show { display:block; }
+.refine-input { width:100%; background:rgba(255,255,255,.04); border:1px solid var(--border); border-radius:.5rem; color:var(--text); font-family:'Crimson Pro',Georgia,serif; font-size:.95rem; line-height:1.6; padding:.5rem .7rem; resize:none; outline:none; min-height:60px; box-sizing:border-box; }
+.refine-input:focus { border-color:var(--accent); }
+.refine-input::placeholder { color:var(--muted); font-style:italic; }
+.refine-row { display:flex; gap:.4rem; margin-top:.4rem; align-items:center; }
+.btn-refine { flex:1; background:rgba(245,80,54,.12); border:1px solid rgba(245,80,54,.3); border-radius:.5rem; color:var(--accent); font-size:.75rem; padding:.4rem .6rem; cursor:pointer; text-align:center; }
+.btn-refine:hover { background:rgba(245,80,54,.2); }
+.btn-refine:disabled { opacity:.4; cursor:not-allowed; }
+.refine-hint { font-size:.65rem; color:var(--muted); flex:1; }
 /* Error */
 .error-msg { background:rgba(240,106,106,.08); border:1px solid rgba(240,106,106,.25); border-radius:.6rem; padding:.65rem .85rem; font-size:.68rem; color:#f06a6a; line-height:1.6; display:none; }
 .error-msg.show { display:block; }
@@ -175,21 +186,16 @@ h1 em { font-style:italic; color:var(--accent); }
 
   <header>
     <h1>Voce <em>Viva</em></h1>
-    <p class="subtitle">Whisper · GEMINI · <span class="badge">ANNOTAZIONI</span></p>
+    <p class="subtitle">Whisper · LLaMA · <span class="badge">ANNOTAZIONI</span></p>
   </header>
 
   <div class="api-card" id="apiCard">
     <div class="api-label"><span class="dot" id="apiDot"></span><span id="apiLabel">Chiave Groq richiesta</span></div>
     <div class="api-row">
-      <input class="api-input" type="password" id="apiKeyInput" placeholder="gsk_... (Groq — audio)" autocomplete="off" spellcheck="false">
+      <input class="api-input" type="password" id="apiKeyInput" placeholder="gsk_... (Groq)" autocomplete="off" spellcheck="false">
       <button class="btn-save" id="saveKeyBtn">Salva</button>
     </div>
-    <p class="api-hint">Audio: <a href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a></p>
-    <div class="api-row" style="margin-top:.4rem">
-      <input class="api-input" type="password" id="geminiKeyInput" placeholder="AIza... (Gemini — AI)" autocomplete="off" spellcheck="false">
-      <button class="btn-save" id="saveGeminiKeyBtn">Salva</button>
-    </div>
-    <p class="api-hint">AI: <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a></p>
+    <p class="api-hint">Gratis su <a href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a></p>
   </div>
 
   <!-- SWITCHER: Annotazioni / Diario -->
@@ -273,6 +279,13 @@ h1 em { font-style:italic; color:var(--accent); }
         <div class="mood-label">Stato d&rsquo;animo</div>
         <div class="mood-text" id="moodText"></div>
       </div>
+      <div class="refine-area" id="refineArea">
+        <textarea class="refine-input" id="refineInput" placeholder="Scrivi un feedback… es. &quot;approfondisci il tema della solitudine&quot;, &quot;rimuovi la parte sui libri&quot;, &quot;più conciso&quot;"></textarea>
+        <div class="refine-row">
+          <span class="refine-hint">Il modello vedrà il testo originale, l&rsquo;elaborazione attuale e il tuo feedback.</span>
+          <button class="btn-refine" id="refineBtn">&#10227; Raffina</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -319,7 +332,6 @@ h1 em { font-style:italic; color:var(--accent); }
 <script>
 // ── CONFIG ──────────────────────────────────────────────────────────────────
 let GROQ_KEY = localStorage.getItem('vv_groq') || '';
-let GEMINI_KEY = localStorage.getItem('vv_gemini') || '';
 const CHUNK_MS       = 20000;   // chunk più lunghi → meno allucinazioni Whisper
 const OVERLAP_MS     = 4000;
 const MIN_BLOB_BYTES = 12000;
@@ -351,7 +363,6 @@ let _hasRec = false, _hasWrite = false, _hasAI = false;
 // ── DOM ───────────────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
 const apiKeyInput=$('apiKeyInput'), saveKeyBtn=$('saveKeyBtn'), apiDot=$('apiDot'), apiLabel=$('apiLabel'), apiCard=$('apiCard');
-const geminiKeyInput=$('geminiKeyInput'), saveGeminiKeyBtn=$('saveGeminiKeyBtn');
 const micBtn=$('micBtn'), micIcon=$('micIcon'), stopIcon=$('stopIcon');
 const timerEl=$('timer'), statusDot=$('statusDot'), statusText=$('statusText');
 const annotWrap=$('annotWrap'), annotEditor=$('annotEditor');
@@ -364,6 +375,7 @@ const errorMsg=$('errorMsg'), wordCount=$('wordCount');
 const copyBtn=$('copyBtn'), aiBtn=$('aiBtn'), clearBtn=$('clearBtn'), copyOutputBtn=$('copyOutputBtn');
 const meterFill=$('meterFill'), qualityBadge=$('qualityBadge'), meterSection=$('meterSection');
 const saveDiaryBtn=$('saveDiaryBtn'), saveDirectBtn=$('saveDirectBtn');
+const refineArea=$('refineArea'), refineInput=$('refineInput'), refineBtn=$('refineBtn');
 const saveModal=$('saveModal'), modalCard=$('modalCard');
 const modalTitleInput=$('modalTitleInput'), modalDateInput=$('modalDateInput');
 const modalPreview=$('modalPreview'), modalCancel=$('modalCancel'), modalConfirm=$('modalConfirm');
@@ -374,7 +386,7 @@ function applyKey(k) {
   GROQ_KEY = k.trim();
   if (GROQ_KEY) {
     apiDot.className='dot ok'; apiLabel.textContent='Chiave Groq salvata';
-    apiCard.classList.add('ok'); setStatus('idle', GEMINI_KEY ? 'Pronto' : 'Inserisci chiave Gemini');
+    apiCard.classList.add('ok'); setStatus('idle','Pronto');
   } else {
     apiDot.className='dot'; apiLabel.textContent='Chiave Groq richiesta';
     apiCard.classList.remove('ok'); setStatus('idle','Inserisci le chiavi API');
@@ -385,16 +397,6 @@ saveKeyBtn.onclick = () => {
   const k = apiKeyInput.value.trim();
   if (!k) { showErr('Incolla la chiave Groq.'); return; }
   localStorage.setItem('vv_groq',k); applyKey(k); hideErr();
-};
-
-// ── GEMINI KEY ───────────────────────────────────────────────────────────────
-if (GEMINI_KEY) { geminiKeyInput.value=GEMINI_KEY; }
-saveGeminiKeyBtn.onclick = () => {
-  const k = geminiKeyInput.value.trim();
-  if (!k) { showErr('Incolla la chiave Gemini.'); return; }
-  GEMINI_KEY = k; localStorage.setItem('vv_gemini', k);
-  apiDot.className='dot ok'; apiLabel.textContent='Chiavi salvate';
-  setStatus('idle','Pronto'); hideErr();
 };
 
 // ── EDITOR CONTENTEDITABLE — conteggio parole ─────────────────────────────────
@@ -654,14 +656,15 @@ async function openSaveModal(mode) {
   saveModal.classList.add('show');
   const plainText = (mode==='ai' ? outputText.innerText : getEditorText()).slice(0,500);
   let suggestedTitle = 'Nota del '+today.toLocaleDateString('it-IT');
-  if(GEMINI_KEY){
+  if(GROQ_KEY){
     try{
-      const res=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='+GEMINI_KEY,{
+      const res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
         method:'POST',cache:'no-store',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({contents:[{parts:[{text:'Genera un titolo breve (massimo 8 parole) in italiano per questa nota. Rispondi SOLO con il titolo, senza virgolette, senza punteggiatura finale.\n\n'+plainText}]}],generationConfig:{maxOutputTokens:60,temperature:0.5}})
+        headers:{'Authorization':'Bearer '+GROQ_KEY,'Content-Type':'application/json'},
+        body:JSON.stringify({model:'meta-llama/llama-4-scout-17b-16e-instruct',max_tokens:60,temperature:0.5,
+          messages:[{role:'system',content:'Genera un titolo breve (massimo 8 parole) in italiano. Rispondi SOLO con il titolo, senza virgolette, senza punteggiatura finale.'},{role:'user',content:plainText}]})
       });
-      if(res.ok){const data=await res.json();const t=data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();if(t&&t.length>2&&t.length<100)suggestedTitle=t;}
+      if(res.ok){const data=await res.json();const t=data?.choices?.[0]?.message?.content?.trim();if(t&&t.length>2&&t.length<100)suggestedTitle=t;}
     }catch(e){}
   }
   modalTitleInput.value=suggestedTitle;
@@ -671,57 +674,92 @@ async function openSaveModal(mode) {
 saveDirectBtn.onclick = () => openSaveModal('direct');
 
 // ── AI BUTTON ─────────────────────────────────────────────────────────────────
+const AI_SYSTEM_PROMPT = 'Sei un lettore empatico e un analista dell\'animo umano. Ricevi una nota personale — diario, sfogo, pensiero, appunto vocale trascritto, appunti di studio, trascrizione di riunione.\n\nREGOLE ASSOLUTE — NON DEROGABILI:\n\n1. STRUTTURA OBBLIGATORIA: Dividi SEMPRE il testo in sezioni distinte con <h2> per i macro-temi e <h3> per i sotto-temi. Ogni sezione deve contenere almeno un paragrafo <p>. Mai un blocco unico di testo continuo.\n\n2. ELENCHI: Quando emergono elementi enumerabili — emozioni, azioni, pensieri ricorrenti, concetti — usali come <ul> o <ol>. Non condensare in prosa ciò che è naturalmente una lista.\n\n3. IMMAGINI EVOCATIVE: I riferimenti concreti — nomi di persone, luoghi, oggetti, libri, film, date — non vanno MAI rimossi o generalizzati. Sono il cuore del testo. "Claudio non si fa più sentire" vale più di "un amico si è allontanato". Citali e approfondiscili.\n\n4. TONO EMOTIVO: Non descrivere le emozioni dall\'esterno. Entra nel testo, interpretale, approfondiscile. Cerca cosa c\'è sotto la superficie — i desideri nascosti, le contraddizioni, le paure non dette. Ogni sezione deve aggiungere profondità che l\'autore non ha esplicitato.\n\n5. ADATTA IL RUOLO al tipo di contenuto: empatico per diari, preciso per appunti tecnici, esecutivo per riunioni.\n\nSTATO D\'ANIMO: Chiudi sempre con:\n<div id="mood-output">Una frase densa e specifica che cita elementi concreti del testo — non emozioni generiche.</div>\n\nRispondi SOLO con HTML valido (<p>, <h2>, <h3>, <ul>, <ol>, <li> e il blocco mood). Zero commenti fuori dall\'HTML. VIETATO usare markdown: niente asterischi, niente underscore, niente hashtag. Scrivi sempre in italiano.';
+
+let _originalTxt = '';
+
+async function callLlama(messages) {
+  for (let a=1; a<=3; a++) {
+    if (a>1) await sleep(Math.min(1000*Math.pow(2,a-1),8000));
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions',{
+      method:'POST', cache:'no-store',
+      headers:{'Authorization':'Bearer '+GROQ_KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({ model:'meta-llama/llama-4-scout-17b-16e-instruct', max_tokens:2048, temperature:0.4, messages })
+    });
+    if (res.status===429){const w=parseInt(res.headers.get('retry-after')||'10',10);await waitWithCountdown(Math.min(w,30),'Rate limit — riprovo tra');a--;continue;}
+    if (!res.ok){const e=await res.json().catch(()=>{});throw new Error(e?.error?.message||'HTTP '+res.status);}
+    const data = await res.json();
+    return data?.choices?.[0]?.message?.content?.trim()||'';
+  }
+}
+
+function parseAiOutput(raw) {
+  const moodMatch = raw.match(/<div id="mood-output">([\s\S]*?)<\/div>/i);
+  const moodContent = moodMatch ? moodMatch[1].trim() : '';
+  const mainHtml = raw.replace(/<div id="mood-output">[\s\S]*?<\/div>/i,'').trim();
+  return { mainHtml, moodContent };
+}
+
+function renderAiOutput(mainHtml, moodContent) {
+  outputText.innerHTML = mainHtml || '<p>Nessun risultato.</p>';
+  _hasAI = true;
+  if (moodContent) { moodText.textContent=moodContent; moodBox.style.display='block'; }
+  else { moodBox.style.display='none'; }
+  outputBox.classList.remove('loading'); outputBox.classList.add('done');
+  outputDot.className='live-dot done'; outputOverlay.classList.remove('show');
+  outputActions.style.display='flex';
+  refineArea.classList.add('show'); refineInput.value='';
+  copyOutputBtn.onclick=()=>doCopy(htmlToMarkdown(outputText.innerHTML)+(moodContent?'\n\n**Stato d\'animo:** '+moodContent:''),copyOutputBtn,'Copia nota');
+}
+
 aiBtn.onclick = async () => {
   const txt = getEditorText();
-  if (!txt || !GEMINI_KEY) { showErr('Inserisci la chiave Gemini e del testo.'); return; }
+  if (!txt || !GROQ_KEY) { showErr('Inserisci la chiave Groq e del testo.'); return; }
   if (isSummarizing) return;
+  _originalTxt = txt;
   isSummarizing = true; aiBtn.disabled = true;
   outputLabelText.textContent = 'Elaborazione AI';
   overlayText.textContent = 'AI sta elaborando la nota...';
   outputLabel.style.display='flex'; outputDot.className='live-dot processing';
   outputBox.className='output-box show loading'; outputOverlay.classList.add('show');
-  outputActions.style.display='none'; moodBox.style.display='none';
-
-  for (let a=1; a<=3; a++) {
-    try {
-      if (a>1) await sleep(Math.min(1000*Math.pow(2,a-1),8000));
-      const SYSTEM_PROMPT = 'Sei un assistente intelligente e adattivo. Ricevi una nota che può essere qualsiasi cosa — un diario personale, uno sfogo emotivo, appunti tecnici, materiale di studio, la trascrizione di una riunione, un\'idea creativa.\n\nPRIMO PASSO — RICONOSCI IL TIPO E SCEGLI IL RUOLO:\n\n- DIARIO / RIFLESSIONE PERSONALE → Sei un lettore empatico e uno psicologo letterario. Analizza in profondità le tensioni emotive sottostanti, i temi non detti, le contraddizioni interne, i desideri nascosti. Usa sezioni tematiche con <h2> per i macro-temi e <h3> per i sotto-temi. Dentro ogni sezione scrivi paragrafi <p> fluidi e profondi, non liste. Scrivi come se parlassi direttamente all\'autore — con calore e precisione.\n\n- APPUNTI TECNICI / STUDIO → Sei un tutor esperto. Riorganizza i concetti in modo chiaro e gerarchico. Usa <h2> per i macro-argomenti, <h3> per i sotto-argomenti, <ul>/<li> per elenchi di concetti o passaggi. Evidenzia connessioni tra concetti e segnala eventuali lacune.\n\n- RIUNIONE / LAVORO → Sei un assistente esecutivo preciso. Estrai con <h2> le sezioni: Decisioni prese, Azioni da fare (con responsabili se presenti), Punti aperti, Scadenze. Sii sintetico e diretto.\n\n- IDEA CREATIVA → Sei un collaboratore creativo. Sviluppa e amplia l\'idea mantenendo la voce originale. Usa struttura libera.\n\n- MISTO → Combina gli approcci più adatti.\n\nPRINCIPIO FONDAMENTALE — VALE SEMPRE:\nI riferimenti concreti — nomi di persone, luoghi, eventi, libri, film, oggetti, date — non vanno MAI rimossi, generalizzati o sostituiti con categorie astratte. Sono il cuore evocativo del testo. "Claudio non si fa più sentire" è più potente di "un amico si è allontanato". "Il Conte di Montecristo" dice qualcosa di preciso sull\'autore, "un personaggio letterario" non dice nulla. Cita sempre i riferimenti specifici nell\'analisi.\n\nPROFONDITÀ:\nPer i testi personali non fermarti alla superficie — cerca cosa c\'è sotto. Se l\'autore parla di solitudine, esplora come si manifesta concretamente nel testo. Se cita un libro o un film, interpretane il significato nel contesto emotivo. Ogni sezione deve aggiungere qualcosa che l\'autore non ha detto esplicitamente ma che si percepisce chiaramente.\n\nSTATO D\'ANIMO:\nChiudi sempre con:\n<div id="mood-output">Per testi personali: frase densa e specifica che cita elementi concreti del testo — non emozioni generiche. Per testi tecnici o lavorativi: frase sul focus e l\'energia con cui l\'autore ha affrontato il tema.</div>\n\nRispondi SOLO con HTML valido (<p>, <h2>, <h3>, <ul>, <li> e il blocco mood). Zero commenti fuori dall\'HTML. Scrivi sempre in italiano. VIETATO usare markdown: niente asterischi, niente underscore, niente hashtag. Solo tag HTML.';
-      const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='+GEMINI_KEY,{
-        method:'POST', cache:'no-store',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-          systemInstruction:{parts:[{text:SYSTEM_PROMPT}]},
-          contents:[{parts:[{text:'Nota:\n\n'+txt}]}],
-          generationConfig:{maxOutputTokens:2048,temperature:0.4}
-        })
-      });
-      if (res.status===429){await waitWithCountdown(30,'Rate limit — riprovo tra');a--;continue;}
-      if (!res.ok){const e=await res.json().catch(()=>{});throw new Error(e?.error?.message||'HTTP '+res.status);}
-      const data = await res.json();
-      const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim()||'';
-      const moodMatch = raw.match(/<div id="mood-output">([\s\S]*?)<\/div>/i);
-      const moodContent = moodMatch ? moodMatch[1].trim() : '';
-      const mainHtml = raw.replace(/<div id="mood-output">[\s\S]*?<\/div>/i,'').trim();
-      outputText.innerHTML = mainHtml || '<p>Nessun risultato.</p>';
-      _hasAI = true;
-      if (moodContent) { moodText.textContent=moodContent; moodBox.style.display='block'; }
-      outputBox.classList.remove('loading'); outputBox.classList.add('done');
-      outputDot.className='live-dot done'; outputOverlay.classList.remove('show');
-      outputActions.style.display='flex';
-      copyOutputBtn.onclick=()=>doCopy(htmlToMarkdown(outputText.innerHTML)+(moodContent?'\n\n**Stato d\'animo:** '+moodContent:''),copyOutputBtn,'Copia nota');
-      isSummarizing=false; aiBtn.disabled=false; return;
-    } catch(e) {
-      console.error('AI error attempt', a, e);
-      if (a===3){
-        const msg = e?.message || String(e);
-        outputText.innerHTML='<p>Errore. Riprova.</p>';
-        showErr('Errore AI: '+msg);
-        outputBox.classList.remove('loading');
-        outputOverlay.classList.remove('show');
-        isSummarizing=false; aiBtn.disabled=false;
-      }
-    }
+  outputActions.style.display='none'; moodBox.style.display='none'; refineArea.classList.remove('show');
+  try {
+    const raw = await callLlama([
+      {role:'system', content: AI_SYSTEM_PROMPT},
+      {role:'user', content:'Nota:\n\n'+txt}
+    ]);
+    const {mainHtml, moodContent} = parseAiOutput(raw);
+    renderAiOutput(mainHtml, moodContent);
+  } catch(e) {
+    outputText.innerHTML='<p>Errore. Riprova.</p>';
+    showErr('Errore AI: '+(e?.message||String(e)));
+    outputBox.classList.remove('loading'); outputOverlay.classList.remove('show');
   }
+  isSummarizing=false; aiBtn.disabled=false;
+};
+
+// ── RAFFINA ───────────────────────────────────────────────────────────────────
+refineBtn.onclick = async () => {
+  const feedback = refineInput.value.trim();
+  if (!feedback) { refineInput.focus(); return; }
+  if (!GROQ_KEY) { showErr('Chiave Groq mancante.'); return; }
+  refineBtn.disabled = true; refineBtn.textContent = '...';
+  outputOverlay.classList.add('show'); overlayText.textContent = 'Raffinamento in corso...';
+  const currentHtml = outputText.innerHTML;
+  try {
+    const raw = await callLlama([
+      {role:'system', content: AI_SYSTEM_PROMPT},
+      {role:'user', content:'Nota originale:\n\n'+_originalTxt},
+      {role:'assistant', content: currentHtml},
+      {role:'user', content:'Feedback sul testo elaborato:\n\n'+feedback+'\n\nRielabora tenendo conto di questo feedback. Mantieni le regole assolute di struttura, elenchi, immagini evocative e tono emotivo.'}
+    ]);
+    const {mainHtml, moodContent} = parseAiOutput(raw);
+    renderAiOutput(mainHtml, moodContent);
+  } catch(e) {
+    showErr('Errore raffinamento: '+(e?.message||String(e)));
+    outputOverlay.classList.remove('show');
+  }
+  refineBtn.disabled = false; refineBtn.textContent = '↺ Raffina';
 };
 
 // "Salva nel Diario" (output AI)

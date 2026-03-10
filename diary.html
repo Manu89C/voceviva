@@ -448,7 +448,7 @@ editAiBtn.onclick = async () => {
       const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST', cache: 'no-store',
         headers: { 'Authorization': 'Bearer ' + GROQ, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'llama-3.3-70b-versatile', max_tokens: 1200, temperature: 0.4,
+        body: JSON.stringify({ model: 'llama-4-maverick-17b-128e-instruct', max_tokens: 1200, temperature: 0.4,
           messages: [
             { role: 'system', content: 'Sei un editor e analista italiano. Ricevi una nota che può provenire da trascrizione audio o testo scritto.\n\nIL TUO COMPITO È DUPLICE:\n\n1. ELABORAZIONE: Correggi silenziosamente errori evidenti, inferisci il senso dove ambiguo, organizza gerarchicamente con titoli <h3> e sottotitoli, raggruppa per tema. Mantieni tutte le informazioni originali senza inventare.\n\n2. STATO D\'ANIMO: Dopo il testo elaborato, aggiungi obbligatoriamente questo blocco:\n<div id="mood-output">Una frase precisa che ipotizza lo stato d\'animo e il tono emotivo dell\'autore, basandoti sul contenuto, sulle parole scelte, sul ritmo del testo e su eventuali sfumature implicite. Sii specifico, non generico.</div>\n\nRispondi SOLO con HTML valido (usa <p>, <h3>, <ul>, <li> e il blocco mood). Zero commenti fuori dall\'HTML.' },
             { role: 'user', content: plainText.slice(0, 3000) }
@@ -1063,7 +1063,7 @@ popupAiBtn.onclick=async()=>{
       const res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
         method:'POST',cache:'no-store',
         headers:{'Authorization':'Bearer '+GROQ,'Content-Type':'application/json'},
-        body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:1200,temperature:0.4,
+        body:JSON.stringify({model:'llama-4-maverick-17b-128e-instruct',max_tokens:1200,temperature:0.4,
           messages:[
             {role:'system',content:'Sei un editor e analista italiano. Ricevi una nota che può provenire da trascrizione audio o testo scritto.\n\nIL TUO COMPITO È DUPLICE:\n\n1. ELABORAZIONE: Correggi silenziosamente errori evidenti, inferisci il senso dove ambiguo, organizza gerarchicamente con titoli <h3> e sottotitoli, raggruppa per tema. Mantieni tutte le informazioni originali senza inventare.\n\n2. STATO D\'ANIMO: Dopo il testo elaborato, aggiungi obbligatoriamente questo blocco:\n<div id="mood-output">Una frase precisa che ipotizza lo stato d\'animo e il tono emotivo dell\'autore, basandoti sul contenuto, sulle parole scelte, sul ritmo del testo e su eventuali sfumature implicite. Sii specifico, non generico.</div>\n\nRispondi SOLO con HTML valido (usa <p>, <h3>, <ul>, <li> e il blocco mood). Zero commenti fuori dall\'HTML.'},
             {role:'user',content:plainText.slice(0,3000)}
@@ -1134,7 +1134,7 @@ annotPopupSave.onclick=async()=>{
         const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{
           method:'POST',cache:'no-store',
           headers:{'Authorization':'Bearer '+GROQ,'Content-Type':'application/json'},
-          body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:60,temperature:0.5,
+          body:JSON.stringify({model:'llama-4-maverick-17b-128e-instruct',max_tokens:60,temperature:0.5,
             messages:[
               {role:'system',content:'Genera un titolo breve (massimo 8 parole) in italiano. Rispondi SOLO con il titolo, senza virgolette, senza punteggiatura finale.'},
               {role:'user',content:plainText.slice(0,500)}
@@ -1176,7 +1176,7 @@ popupSaveAi.onclick=async()=>{
         const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{
           method:'POST',cache:'no-store',
           headers:{'Authorization':'Bearer '+GROQ,'Content-Type':'application/json'},
-          body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:60,temperature:0.5,
+          body:JSON.stringify({model:'llama-4-maverick-17b-128e-instruct',max_tokens:60,temperature:0.5,
             messages:[
               {role:'system',content:'Genera un titolo breve (massimo 8 parole) in italiano. Rispondi SOLO con il titolo, senza virgolette, senza punteggiatura finale.'},
               {role:'user',content:plain.slice(0,500)}

@@ -156,11 +156,15 @@ h1 em { font-style:italic; color:var(--accent); }
 .fmt-sep { width:1px; height:16px; background:var(--border); margin:0 4px; flex-shrink:0; }
 /* AI section in popup */
 .popup-ai-section { display:flex; flex-direction:column; gap:.6rem; border-top:1px solid var(--border); padding-top:.7rem; }
-.popup-ai-output { background:var(--bg); border:1px solid var(--border); border-radius:.8rem; color:var(--text); font-size:.82rem; line-height:1.85; padding:.8rem; min-height:80px; max-height:22vh; overflow-y:auto; display:none; }
+.popup-ai-output { background:var(--bg); border:1px solid var(--border); border-radius:.8rem; color:var(--text); font-size:1rem; line-height:1.9; padding:.8rem; min-height:80px; max-height:22vh; overflow-y:auto; display:none; font-family:'Crimson Pro',Georgia,serif; }
 .popup-ai-output.show { display:block; }
 .popup-ai-output p { margin-bottom:.5rem; }
-.popup-ai-output h3 { font-family:'DM Serif Display',serif; font-size:.95rem; margin:.6rem 0 .25rem; }
-.popup-mood { font-size:.75rem; color:var(--muted); font-style:italic; padding:.4rem 0 0; display:none; }
+.popup-ai-output h2 { font-family:'Crimson Pro',Georgia,serif; font-size:1.7em; font-weight:500; color:#ffffff; border-bottom:1px solid var(--border); padding-bottom:.3em; margin:.1em 0 .5em; letter-spacing:.04em; }
+.popup-ai-output h3 { font-family:'Crimson Pro',Georgia,serif; font-size:1.35em; font-weight:500; color:#dddddd; margin:.9em 0 .4em; letter-spacing:.03em; }
+.popup-ai-output h4 { font-family:'Crimson Pro',Georgia,serif; font-size:1.1em; font-weight:500; color:#bbbbbb; margin:.8em 0 .3em; letter-spacing:.02em; }
+.popup-ai-output strong { color:#ffffff; font-weight:600; }
+.popup-ai-output em { color:#ffffff; font-style:italic; font-family:'EB Garamond',Georgia,serif; }
+.popup-mood { font-size:.85rem; color:var(--muted); font-style:italic; font-family:'EB Garamond',Georgia,serif; padding:.4rem 0 0; display:none; }
 .popup-mood.show { display:block; }
 /* Popup footer */
 .annot-popup-words { font-size:.6rem; color:var(--muted); }

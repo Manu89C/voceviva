@@ -139,6 +139,9 @@ h1 em { font-style:italic; color:var(--accent); }
 .mood-box { background:rgba(245,80,54,.05); border:1px solid rgba(245,80,54,.2); border-radius:.8rem; padding:.8rem 1rem; margin-top:.75rem; }
 .mood-label { font-size:.55rem; text-transform:uppercase; letter-spacing:.15em; color:var(--accent); margin-bottom:.35rem; }
 .mood-text { font-size:.8rem; line-height:1.7; color:var(--text); font-style:italic; }
+/* Output AI toolbar */
+.output-fmt-toolbar { display:flex; align-items:center; gap:.2rem; flex-wrap:nowrap; justify-content:space-between; width:100%; margin-bottom:.5rem; display:none; }
+.output-fmt-toolbar.show { display:flex; }
 /* Refine feedback area */
 .refine-area { display:none; margin-top:.6rem; border-top:1px solid var(--border); padding-top:.6rem; }
 .refine-area.show { display:block; }
@@ -279,6 +282,17 @@ h1 em { font-style:italic; color:var(--accent); }
         <div class="mood-label">Stato d&rsquo;animo</div>
         <div class="mood-text" id="moodText"></div>
       </div>
+      <div class="output-fmt-toolbar fmt-toolbar" id="outputFmtToolbar">
+        <button class="fmt-btn" id="oFmtH1">𝐓 H¹</button>
+        <button class="fmt-btn" id="oFmtH2">𝐓 H²</button>
+        <button class="fmt-btn" id="oFmtH3">𝐓 H³</button>
+        <span class="fmt-sep"></span>
+        <button class="fmt-btn" id="oFmtBold">𝐁</button>
+        <button class="fmt-btn" id="oFmtItalic">𝐼</button>
+        <span class="fmt-sep"></span>
+        <button class="fmt-btn" id="oFmtUl"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:middle"><circle cx="2" cy="4" r="1.5"/><rect x="5" y="3" width="10" height="2" rx="1"/><circle cx="2" cy="8" r="1.5"/><rect x="5" y="7" width="10" height="2" rx="1"/><circle cx="2" cy="12" r="1.5"/><rect x="5" y="11" width="10" height="2" rx="1"/></svg></button>
+        <button class="fmt-btn" id="oFmtOl"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:middle"><text x="0" y="5" font-size="5" font-family="monospace">1.</text><rect x="5" y="3" width="10" height="2" rx="1"/><text x="0" y="9" font-size="5" font-family="monospace">2.</text><rect x="5" y="7" width="10" height="2" rx="1"/><text x="0" y="13" font-size="5" font-family="monospace">3.</text><rect x="5" y="11" width="10" height="2" rx="1"/></svg></button>
+      </div>
       <div class="refine-area" id="refineArea">
         <textarea class="refine-input" id="refineInput" placeholder="Scrivi un feedback… es. &quot;approfondisci il tema della solitudine&quot;, &quot;rimuovi la parte sui libri&quot;, &quot;più conciso&quot;"></textarea>
         <div class="refine-row">
@@ -376,6 +390,7 @@ const copyBtn=$('copyBtn'), aiBtn=$('aiBtn'), clearBtn=$('clearBtn'), copyOutput
 const meterFill=$('meterFill'), qualityBadge=$('qualityBadge'), meterSection=$('meterSection');
 const saveDiaryBtn=$('saveDiaryBtn'), saveDirectBtn=$('saveDirectBtn');
 const refineArea=$('refineArea'), refineInput=$('refineInput'), refineBtn=$('refineBtn');
+const outputFmtToolbar=$('outputFmtToolbar');
 const saveModal=$('saveModal'), modalCard=$('modalCard');
 const modalTitleInput=$('modalTitleInput'), modalDateInput=$('modalDateInput');
 const modalPreview=$('modalPreview'), modalCancel=$('modalCancel'), modalConfirm=$('modalConfirm');
@@ -708,7 +723,7 @@ function renderAiOutput(mainHtml, moodContent) {
   outputBox.classList.remove('loading'); outputBox.classList.add('done');
   outputDot.className='live-dot done'; outputOverlay.classList.remove('show');
   outputActions.style.display='flex';
-  refineArea.classList.add('show'); refineInput.value='';
+  refineArea.classList.add('show'); refineInput.value=''; outputFmtToolbar.classList.add('show');
   copyOutputBtn.onclick=()=>doCopy(htmlToMarkdown(outputText.innerHTML)+(moodContent?'\n\n**Stato d\'animo:** '+moodContent:''),copyOutputBtn,'Copia nota');
 }
 
@@ -722,7 +737,7 @@ aiBtn.onclick = async () => {
   overlayText.textContent = 'AI sta elaborando la nota...';
   outputLabel.style.display='flex'; outputDot.className='live-dot processing';
   outputBox.className='output-box show loading'; outputOverlay.classList.add('show');
-  outputActions.style.display='none'; moodBox.style.display='none'; refineArea.classList.remove('show');
+  outputActions.style.display='none'; moodBox.style.display='none'; refineArea.classList.remove('show'); outputFmtToolbar.classList.remove('show');
   try {
     const raw = await callLlama([
       {role:'system', content: AI_SYSTEM_PROMPT},
@@ -737,6 +752,33 @@ aiBtn.onclick = async () => {
   }
   isSummarizing=false; aiBtn.disabled=false;
 };
+
+// ── OUTPUT FORMAT ────────────────────────────────────────────────────────────
+window.oFmt = function(type) {
+  outputText.focus();
+  if (type === 'bold') { document.execCommand('bold', false, null); }
+  else if (type === 'italic') { document.execCommand('italic', false, null); }
+  else if (type === 'ul') { document.execCommand('insertUnorderedList', false, null); }
+  else if (type === 'ol') { document.execCommand('insertOrderedList', false, null); }
+  else if (type === 'h1' || type === 'h2' || type === 'h3') {
+    var sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return;
+    var block = sel.anchorNode;
+    while (block && block !== outputText && block.nodeType !== 1) block = block.parentNode;
+    if (block && block.tagName && block.tagName.toLowerCase() === type) {
+      document.execCommand('formatBlock', false, 'div');
+    } else {
+      document.execCommand('formatBlock', false, type);
+    }
+  }
+};
+$('oFmtH1').addEventListener('mousedown', e => { e.preventDefault(); oFmt('h1'); });
+$('oFmtH2').addEventListener('mousedown', e => { e.preventDefault(); oFmt('h2'); });
+$('oFmtH3').addEventListener('mousedown', e => { e.preventDefault(); oFmt('h3'); });
+$('oFmtBold').addEventListener('mousedown', e => { e.preventDefault(); oFmt('bold'); });
+$('oFmtItalic').addEventListener('mousedown', e => { e.preventDefault(); oFmt('italic'); });
+$('oFmtUl').addEventListener('mousedown', e => { e.preventDefault(); oFmt('ul'); });
+$('oFmtOl').addEventListener('mousedown', e => { e.preventDefault(); oFmt('ol'); });
 
 // ── RAFFINA ───────────────────────────────────────────────────────────────────
 refineBtn.onclick = async () => {

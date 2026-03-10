@@ -279,10 +279,23 @@ h1 em { font-style:italic; color:var(--accent); }
     <!-- Sezione AI output (sotto l'editor) -->
     <div class="popup-ai-section" id="popupAiSection" style="display:none">
       <div style="font-size:.58rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);">Elaborazione AI</div>
-      <div class="popup-ai-output" id="popupAiOutput"></div>
+      <div class="popup-ai-output" id="popupAiOutput" contenteditable="true" spellcheck="true"></div>
       <div class="popup-mood" id="popupMood"></div>
-      <div style="display:flex;justify-content:stretch;gap:.2rem;width:100%;">
-        <button class="btn-save-ai-sm" id="popupSaveAi">Salva rielaborazione AI</button>
+      <div class="fmt-toolbar" style="margin-top:.4rem;width:100%;">
+        <button class="fmt-btn" onmousedown="event.preventDefault();dFmt(this,'h1')">𝐓 H¹</button>
+        <button class="fmt-btn" onmousedown="event.preventDefault();dFmt(this,'h2')">𝐓 H²</button>
+        <button class="fmt-btn" onmousedown="event.preventDefault();dFmt(this,'h3')">𝐓 H³</button>
+        <span class="fmt-sep"></span>
+        <button class="fmt-btn" onmousedown="event.preventDefault();dFmt(this,'bold')">𝐁</button>
+        <button class="fmt-btn" onmousedown="event.preventDefault();dFmt(this,'italic')">𝐼</button>
+        <span class="fmt-sep"></span>
+        <button class="fmt-btn" onmousedown="event.preventDefault();dFmt(this,'ul')"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:middle"><circle cx="2" cy="4" r="1.5"/><rect x="5" y="3" width="10" height="2" rx="1"/><circle cx="2" cy="8" r="1.5"/><rect x="5" y="7" width="10" height="2" rx="1"/><circle cx="2" cy="12" r="1.5"/><rect x="5" y="11" width="10" height="2" rx="1"/></svg></button>
+        <button class="fmt-btn" onmousedown="event.preventDefault();dFmt(this,'ol')"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:middle"><text x="0" y="5" font-size="5" font-family="monospace">1.</text><rect x="5" y="3" width="10" height="2" rx="1"/><text x="0" y="9" font-size="5" font-family="monospace">2.</text><rect x="5" y="7" width="10" height="2" rx="1"/><text x="0" y="13" font-size="5" font-family="monospace">3.</text><rect x="5" y="11" width="10" height="2" rx="1"/></svg></button>
+      </div>
+      <textarea class="refine-input" id="popupRefineInput" style="width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:.5rem;color:var(--text);font-family:'Crimson Pro',Georgia,serif;font-size:.9rem;line-height:1.6;padding:.5rem .7rem;resize:none;outline:none;min-height:50px;box-sizing:border-box;margin-top:.4rem;" placeholder="Feedback per raffinare… es. &quot;più dettagli emotivi&quot;, &quot;aggiungi sezione su X&quot;"></textarea>
+      <div style="display:flex;gap:.2rem;margin-top:.3rem;width:100%;">
+        <button class="btn-refine" id="popupRefineBtn" style="flex:1;background:rgba(245,80,54,.12);border:1px solid rgba(245,80,54,.3);border-radius:.5rem;color:var(--accent);font-size:.75rem;padding:.4rem .6rem;cursor:pointer;">&#10227; Raffina</button>
+        <button class="btn-save-ai-sm" id="popupSaveAi" style="flex:2;">Salva rielaborazione AI</button>
       </div>
     </div>
   </div>
@@ -334,10 +347,23 @@ h1 em { font-style:italic; color:var(--accent); }
     <!-- Sezione output AI modifica -->
     <div class="popup-ai-section" id="editAiSection" style="display:none">
       <div style="font-size:.58rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);">Elaborazione AI</div>
-      <div class="popup-ai-output" id="editAiOutput"></div>
+      <div class="popup-ai-output" id="editAiOutput" contenteditable="true" spellcheck="true"></div>
       <div class="popup-mood" id="editAiMood"></div>
-      <div style="display:flex;gap:.2rem;width:100%;">
-        <button class="btn-save-ai-sm" id="editSaveAi">Applica rielaborazione</button>
+      <div class="fmt-toolbar" style="margin-top:.4rem;width:100%;">
+        <button class="fmt-btn" onmousedown="event.preventDefault();dFmt(this,'h1')">𝐓 H¹</button>
+        <button class="fmt-btn" onmousedown="event.preventDefault();dFmt(this,'h2')">𝐓 H²</button>
+        <button class="fmt-btn" onmousedown="event.preventDefault();dFmt(this,'h3')">𝐓 H³</button>
+        <span class="fmt-sep"></span>
+        <button class="fmt-btn" onmousedown="event.preventDefault();dFmt(this,'bold')">𝐁</button>
+        <button class="fmt-btn" onmousedown="event.preventDefault();dFmt(this,'italic')">𝐼</button>
+        <span class="fmt-sep"></span>
+        <button class="fmt-btn" onmousedown="event.preventDefault();dFmt(this,'ul')"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:middle"><circle cx="2" cy="4" r="1.5"/><rect x="5" y="3" width="10" height="2" rx="1"/><circle cx="2" cy="8" r="1.5"/><rect x="5" y="7" width="10" height="2" rx="1"/><circle cx="2" cy="12" r="1.5"/><rect x="5" y="11" width="10" height="2" rx="1"/></svg></button>
+        <button class="fmt-btn" onmousedown="event.preventDefault();dFmt(this,'ol')"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:middle"><text x="0" y="5" font-size="5" font-family="monospace">1.</text><rect x="5" y="3" width="10" height="2" rx="1"/><text x="0" y="9" font-size="5" font-family="monospace">2.</text><rect x="5" y="7" width="10" height="2" rx="1"/><text x="0" y="13" font-size="5" font-family="monospace">3.</text><rect x="5" y="11" width="10" height="2" rx="1"/></svg></button>
+      </div>
+      <textarea class="refine-input" id="editRefineInput" style="width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:.5rem;color:var(--text);font-family:'Crimson Pro',Georgia,serif;font-size:.9rem;line-height:1.6;padding:.5rem .7rem;resize:none;outline:none;min-height:50px;box-sizing:border-box;margin-top:.4rem;" placeholder="Feedback per raffinare… es. &quot;più dettagli emotivi&quot;, &quot;aggiungi sezione su X&quot;"></textarea>
+      <div style="display:flex;gap:.2rem;margin-top:.3rem;width:100%;">
+        <button class="btn-refine" id="editRefineBtn" style="flex:1;background:rgba(245,80,54,.12);border:1px solid rgba(245,80,54,.3);border-radius:.5rem;color:var(--accent);font-size:.75rem;padding:.4rem .6rem;cursor:pointer;">&#10227; Raffina</button>
+        <button class="btn-save-ai-sm" id="editSaveAi" style="flex:2;">Applica rielaborazione</button>
       </div>
     </div>
     <div class="modal-actions">
@@ -432,11 +458,16 @@ const editAiMood    = $('editAiMood');
 const editSaveAi    = $('editSaveAi');
 const editAiBtn     = $('editAiBtn');
 
+// ── DIARY AI SYSTEM PROMPT ────────────────────────────────────────────────────
+const DIARY_SYSTEM_PROMPT = 'Sei un lettore empatico e un analista dell\'animo umano. Ricevi una nota personale — diario, sfogo, pensiero, appunto vocale trascritto, appunti di studio, trascrizione di riunione.\n\nREGOLE ASSOLUTE — NON DEROGABILI:\n\n1. STRUTTURA OBBLIGATORIA: Dividi SEMPRE il testo in sezioni distinte con <h2> per i macro-temi e <h3> per i sotto-temi. Ogni sezione deve contenere almeno un paragrafo <p>. Mai un blocco unico di testo continuo.\n\n2. ELENCHI: Quando emergono elementi enumerabili — emozioni, azioni, pensieri ricorrenti, concetti — usali come <ul> o <ol>. Non condensare in prosa ciò che è naturalmente una lista.\n\n3. IMMAGINI EVOCATIVE: I riferimenti concreti — nomi di persone, luoghi, oggetti, libri, film, date — non vanno MAI rimossi o generalizzati. Sono il cuore del testo. Citali e approfondiscili.\n\n4. TONO EMOTIVO: Non descrivere le emozioni dall\'esterno. Entra nel testo, interpretale, approfondiscile. Cerca cosa c\'è sotto la superficie — i desideri nascosti, le contraddizioni, le paure non dette.\n\n5. ADATTA IL RUOLO al tipo di contenuto: empatico per diari, preciso per appunti tecnici, esecutivo per riunioni.\n\nSTATO D\'ANIMO: Chiudi sempre con:\n<div id="mood-output">Una frase densa e specifica che cita elementi concreti del testo — non emozioni generiche.</div>\n\nRispondi SOLO con HTML valido (<p>, <h2>, <h3>, <ul>, <ol>, <li> e il blocco mood). Zero commenti fuori dall\'HTML. VIETATO markdown. Scrivi sempre in italiano.';
+
+let _editOrigTxt = '';
 editAiBtn.onclick = async () => {
   const GROQ_D=localStorage.getItem('vv_groq')||'';
   if(!GROQ_D){showErr('Chiave Groq non trovata.');return;}
   const plainText = (editContent.innerText || '').trim();
   if (!plainText) return;
+  _editOrigTxt = plainText;
   editIsSummarizing = true; editAiBtn.disabled = true;
   editAiSection.style.display = 'flex'; editAiSection.style.flexDirection = 'column'; editAiSection.style.gap = '.6rem';
   editAiOutput.classList.add('show');
@@ -471,7 +502,44 @@ editAiBtn.onclick = async () => {
   editIsSummarizing = false; editAiBtn.disabled = false;
 };
 
-// "Applica rielaborazione": sostituisce il contenuto dell'editor con l'output AI
+// ── EDIT RAFFINA ──────────────────────────────────────────────────────────────
+const editRefineBtn = $('editRefineBtn');
+const editRefineInput = $('editRefineInput');
+editRefineBtn.onclick = async () => {
+  const feedback = editRefineInput.value.trim();
+  if (!feedback) { editRefineInput.focus(); return; }
+  const GROQ_D = localStorage.getItem('vv_groq') || '';
+  if (!GROQ_D) { showErr('Chiave Groq non trovata.'); return; }
+  editRefineBtn.disabled = true; editRefineBtn.textContent = '...';
+  const currentHtml = editAiOutput.innerHTML;
+  try {
+    for (let a=1; a<=3; a++) {
+      if (a>1) await sleep(Math.min(1000*Math.pow(2,a-1),8000));
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method:'POST', cache:'no-store',
+        headers:{'Authorization':'Bearer '+GROQ_D,'Content-Type':'application/json'},
+        body: JSON.stringify({model:'meta-llama/llama-4-scout-17b-16e-instruct',max_tokens:1500,temperature:0.4,
+          messages:[
+            {role:'system', content: DIARY_SYSTEM_PROMPT},
+            {role:'user', content:'Nota originale:\n\n'+_editOrigTxt},
+            {role:'assistant', content: currentHtml},
+            {role:'user', content:'Feedback:\n\n'+feedback+'\n\nRielabora tenendo conto di questo feedback mantenendo tutte le regole.'}
+          ]})
+      });
+      if (res.status===429){const w=parseInt(res.headers.get('retry-after')||'10',10);await sleep(Math.min(w,30)*1000);a--;continue;}
+      if (!res.ok) throw new Error('HTTP '+res.status);
+      const raw=(await res.json()).choices?.[0]?.message?.content?.trim()||'';
+      const moodMatch=raw.match(/<div id="mood-output">([\s\S]*?)<\/div>/i);
+      const moodContent=moodMatch?moodMatch[1].trim():'';
+      const mainHtml=raw.replace(/<div id="mood-output">[\s\S]*?<\/div>/i,'').trim();
+      editAiOutput.innerHTML=mainHtml||'<p>Nessun risultato.</p>';
+      if(moodContent){editAiMood.textContent='Stato d\'animo: '+moodContent;editAiMood.classList.add('show');}
+      editRefineInput.value='';
+      break;
+    }
+  } catch(e) { showErr('Errore raffinamento: '+(e?.message||String(e))); }
+  editRefineBtn.disabled=false; editRefineBtn.textContent='↺ Raffina';
+};
 editSaveAi.onclick = () => {
   const newContent = editAiOutput.innerHTML.trim();
   if (!newContent) return;
@@ -1046,11 +1114,13 @@ function updatePopupWords(){
 }
 
 // ── AI ELABORA ────────────────────────────────────────────────────────────────
+let _popupOrigTxt = '';
 popupAiBtn.onclick=async()=>{
   const GROQ_P=localStorage.getItem('vv_groq')||'';
   if(!GROQ_P){showErr('Chiave Groq non trovata.');return;}
   const plainText=(annotPopupEditor.innerText||'').trim();
   if(!plainText)return;
+  _popupOrigTxt = plainText;
   popupIsSummarizing=true;popupAiBtn.disabled=true;
   popupAiSection.style.display='flex';popupAiSection.style.flexDirection='column';popupAiSection.style.gap='.6rem';
   popupAiOutput.classList.add('show');
@@ -1084,6 +1154,69 @@ popupAiBtn.onclick=async()=>{
     }
   }
   popupIsSummarizing=false;popupAiBtn.disabled=false;
+};
+
+// ── POPUP RAFFINA ─────────────────────────────────────────────────────────────
+const popupRefineBtn = $('popupRefineBtn');
+const popupRefineInput = $('popupRefineInput');
+popupRefineBtn.onclick = async () => {
+  const feedback = popupRefineInput.value.trim();
+  if (!feedback) { popupRefineInput.focus(); return; }
+  const GROQ_P = localStorage.getItem('vv_groq') || '';
+  if (!GROQ_P) { showErr('Chiave Groq non trovata.'); return; }
+  popupRefineBtn.disabled = true; popupRefineBtn.textContent = '...';
+  const currentHtml = popupAiOutput.innerHTML;
+  try {
+    for (let a=1; a<=3; a++) {
+      if (a>1) await sleep(Math.min(1000*Math.pow(2,a-1),8000));
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method:'POST', cache:'no-store',
+        headers:{'Authorization':'Bearer '+GROQ_P,'Content-Type':'application/json'},
+        body: JSON.stringify({model:'meta-llama/llama-4-scout-17b-16e-instruct',max_tokens:1500,temperature:0.4,
+          messages:[
+            {role:'system', content: DIARY_SYSTEM_PROMPT},
+            {role:'user', content:'Nota originale:\n\n'+_popupOrigTxt},
+            {role:'assistant', content: currentHtml},
+            {role:'user', content:'Feedback:\n\n'+feedback+'\n\nRielabora tenendo conto di questo feedback mantenendo tutte le regole.'}
+          ]})
+      });
+      if (res.status===429){const w=parseInt(res.headers.get('retry-after')||'10',10);await sleep(Math.min(w,30)*1000);a--;continue;}
+      if (!res.ok) throw new Error('HTTP '+res.status);
+      const raw=(await res.json()).choices?.[0]?.message?.content?.trim()||'';
+      const moodMatch=raw.match(/<div id="mood-output">([\s\S]*?)<\/div>/i);
+      const moodContent=moodMatch?moodMatch[1].trim():'';
+      const mainHtml=raw.replace(/<div id="mood-output">[\s\S]*?<\/div>/i,'').trim();
+      popupAiOutput.innerHTML=mainHtml||'<p>Nessun risultato.</p>';
+      if(moodContent){popupMoodEl.textContent='Stato d\'animo: '+moodContent;popupMoodEl.classList.add('show');}
+      popupRefineInput.value='';
+      break;
+    }
+  } catch(e) { showErr('Errore raffinamento: '+(e?.message||String(e))); }
+  popupRefineBtn.disabled=false; popupRefineBtn.textContent='↺ Raffina';
+};
+let _dFmtTarget = null;
+document.addEventListener('focusin', e => {
+  if (e.target.id === 'popupAiOutput' || e.target.id === 'editAiOutput') _dFmtTarget = e.target;
+});
+window.dFmt = function(btn, type) {
+  var target = _dFmtTarget;
+  if (!target) return;
+  target.focus();
+  if (type === 'bold') { document.execCommand('bold', false, null); }
+  else if (type === 'italic') { document.execCommand('italic', false, null); }
+  else if (type === 'ul') { document.execCommand('insertUnorderedList', false, null); }
+  else if (type === 'ol') { document.execCommand('insertOrderedList', false, null); }
+  else if (type === 'h1' || type === 'h2' || type === 'h3') {
+    var sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return;
+    var block = sel.anchorNode;
+    while (block && block !== target && block.nodeType !== 1) block = block.parentNode;
+    if (block && block.tagName && block.tagName.toLowerCase() === type) {
+      document.execCommand('formatBlock', false, 'div');
+    } else {
+      document.execCommand('formatBlock', false, type);
+    }
+  }
 };
 
 // ── OPEN / CLOSE ──────────────────────────────────────────────────────────────

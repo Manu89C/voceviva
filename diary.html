@@ -433,8 +433,8 @@ const editSaveAi    = $('editSaveAi');
 const editAiBtn     = $('editAiBtn');
 
 editAiBtn.onclick = async () => {
-  const GEMINI=localStorage.getItem('vv_gemini')||'';
-  if(!GEMINI){showErr('Chiave Gemini non trovata.');return;}
+  const GROQ_D=localStorage.getItem('vv_groq')||'';
+  if(!GROQ_D){showErr('Chiave Groq non trovata.');return;}
   const plainText = (editContent.innerText || '').trim();
   if (!plainText) return;
   editIsSummarizing = true; editAiBtn.disabled = true;
@@ -445,18 +445,18 @@ editAiBtn.onclick = async () => {
   for (let a = 1; a <= 3; a++) {
     try {
       if (a > 1) await sleep(Math.min(1000 * Math.pow(2, a - 1), 8000));
-      const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='+GEMINI, {
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST', cache: 'no-store',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          systemInstruction:{parts:[{text:'Sei un assistente intelligente e adattivo. Ricevi una nota che può essere qualsiasi cosa — un diario personale, uno sfogo emotivo, appunti tecnici, materiale di studio, la trascrizione di una riunione, un\'idea creativa.\n\nPRIMO PASSO — RICONOSCI IL TIPO E SCEGLI IL RUOLO:\n\n- DIARIO / RIFLESSIONE PERSONALE → Sei un lettore empatico e uno psicologo letterario. Analizza in profondità le tensioni emotive sottostanti, i temi non detti, le contraddizioni interne, i desideri nascosti. Usa sezioni tematiche con <h2> per i macro-temi e <h3> per i sotto-temi. Dentro ogni sezione scrivi paragrafi <p> fluidi e profondi, non liste. Scrivi come se parlassi direttamente all\'autore — con calore e precisione.\n\n- APPUNTI TECNICI / STUDIO → Sei un tutor esperto. Riorganizza i concetti in modo chiaro e gerarchico. Usa <h2> per i macro-argomenti, <h3> per i sotto-argomenti, <ul>\/<li> per elenchi di concetti o passaggi. Evidenzia connessioni tra concetti e segnala eventuali lacune.\n\n- RIUNIONE / LAVORO → Sei un assistente esecutivo preciso. Estrai con <h2> le sezioni: Decisioni prese, Azioni da fare (con responsabili se presenti), Punti aperti, Scadenze. Sii sintetico e diretto.\n\n- IDEA CREATIVA → Sei un collaboratore creativo. Sviluppa e amplia l\'idea mantenendo la voce originale. Usa struttura libera.\n\n- MISTO → Combina gli approcci più adatti.\n\nPRINCIPIO FONDAMENTALE — VALE SEMPRE:\nI riferimenti concreti — nomi di persone, luoghi, eventi, libri, film, oggetti, date — non vanno MAI rimossi, generalizzati o sostituiti con categorie astratte. Sono il cuore evocativo del testo. \"Claudio non si fa più sentire\" è più potente di \"un amico si è allontanato\". \"Il Conte di Montecristo\" dice qualcosa di preciso sull\'autore, \"un personaggio letterario\" non dice nulla. Cita sempre i riferimenti specifici nell\'analisi.\n\nPROFONDITÀ:\nPer i testi personali non fermarti alla superficie — cerca cosa c\'è sotto. Se l\'autore parla di solitudine, esplora come si manifesta concretamente nel testo. Se cita un libro o un film, interpretane il significato nel contesto emotivo. Ogni sezione deve aggiungere qualcosa che l\'autore non ha detto esplicitamente ma che si percepisce chiaramente.\n\nSTATO D\'ANIMO:\nChiudi sempre con:\n<div id=\"mood-output\">Per testi personali: frase densa e specifica che cita elementi concreti del testo — non emozioni generiche. Per testi tecnici o lavorativi: frase sul focus e l\'energia con cui l\'autore ha affrontato il tema.<\/div>\n\nRispondi SOLO con HTML valido (<p>, <h2>, <h3>, <ul>, <li> e il blocco mood). Zero commenti fuori dall\'HTML. Scrivi sempre in italiano. VIETATO usare markdown: niente asterischi, niente underscore, niente hashtag. Solo tag HTML.'}]},
-          contents:[{parts:[{text:plainText.slice(0,3000)}]}],
-          generationConfig:{maxOutputTokens:1500,temperature:0.4}
-        })
+        headers: {'Authorization':'Bearer '+GROQ_D, 'Content-Type': 'application/json'},
+        body: JSON.stringify({model:'meta-llama/llama-4-scout-17b-16e-instruct',max_tokens:1500,temperature:0.4,
+          messages:[
+            {role:'system',content:'Sei un lettore empatico e un analista dell\'animo umano. Ricevi una nota personale — diario, sfogo, pensiero, appunto vocale trascritto, appunti di studio, trascrizione di riunione.\n\nREGOLE ASSOLUTE — NON DEROGABILI:\n\n1. STRUTTURA OBBLIGATORIA: Dividi SEMPRE il testo in sezioni distinte con <h2> per i macro-temi e <h3> per i sotto-temi. Ogni sezione deve contenere almeno un paragrafo <p>. Mai un blocco unico di testo continuo.\n\n2. ELENCHI: Quando emergono elementi enumerabili — emozioni, azioni, pensieri ricorrenti, concetti — usali come <ul> o <ol>. Non condensare in prosa ciò che è naturalmente una lista.\n\n3. IMMAGINI EVOCATIVE: I riferimenti concreti — nomi di persone, luoghi, oggetti, libri, film, date — non vanno MAI rimossi o generalizzati. Sono il cuore del testo. Citali e approfondiscili.\n\n4. TONO EMOTIVO: Non descrivere le emozioni dall\'esterno. Entra nel testo, interpretale, approfondiscile. Cerca cosa c\'è sotto la superficie — i desideri nascosti, le contraddizioni, le paure non dette.\n\n5. ADATTA IL RUOLO al tipo di contenuto: empatico per diari, preciso per appunti tecnici, esecutivo per riunioni.\n\nSTATO D\'ANIMO: Chiudi sempre con:\n<div id="mood-output">Una frase densa e specifica che cita elementi concreti del testo — non emozioni generiche.</div>\n\nRispondi SOLO con HTML valido (<p>, <h2>, <h3>, <ul>, <ol>, <li> e il blocco mood). Zero commenti fuori dall\'HTML. VIETATO markdown. Scrivi sempre in italiano.'},
+            {role:'user',content:plainText.slice(0,3000)}
+          ]})
       });
-      if (res.status === 429) { await sleep(30000); a--; continue; }
+      if (res.status === 429) { const w=parseInt(res.headers.get('retry-after')||'10',10); await sleep(Math.min(w,30)*1000); a--; continue; }
       if (!res.ok) throw new Error('HTTP ' + res.status);
-      const raw = (await res.json()).candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+      const raw = (await res.json()).choices?.[0]?.message?.content?.trim() || '';
       const moodMatch = raw.match(/<div id="mood-output">([\s\S]*?)<\/div>/i);
       const moodContent = moodMatch ? moodMatch[1].trim() : '';
       const mainHtml = raw.replace(/<div id="mood-output">[\s\S]*?<\/div>/i, '').trim();
@@ -1047,8 +1047,8 @@ function updatePopupWords(){
 
 // ── AI ELABORA ────────────────────────────────────────────────────────────────
 popupAiBtn.onclick=async()=>{
-  const GEMINI=localStorage.getItem('vv_gemini')||'';
-  if(!GEMINI){showErr('Chiave Gemini non trovata.');return;}
+  const GROQ_P=localStorage.getItem('vv_groq')||'';
+  if(!GROQ_P){showErr('Chiave Groq non trovata.');return;}
   const plainText=(annotPopupEditor.innerText||'').trim();
   if(!plainText)return;
   popupIsSummarizing=true;popupAiBtn.disabled=true;
@@ -1059,18 +1059,18 @@ popupAiBtn.onclick=async()=>{
   for(let a=1;a<=3;a++){
     try{
       if(a>1)await sleep(Math.min(1000*Math.pow(2,a-1),8000));
-      const res=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='+GEMINI,{
+      const res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
         method:'POST',cache:'no-store',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-          systemInstruction:{parts:[{text:'Sei un assistente intelligente e adattivo. Ricevi una nota che può essere qualsiasi cosa — un diario personale, uno sfogo emotivo, appunti tecnici, materiale di studio, la trascrizione di una riunione, un\'idea creativa.\n\nPRIMO PASSO — RICONOSCI IL TIPO E SCEGLI IL RUOLO:\n\n- DIARIO / RIFLESSIONE PERSONALE → Sei un lettore empatico e uno psicologo letterario. Analizza in profondità le tensioni emotive sottostanti, i temi non detti, le contraddizioni interne, i desideri nascosti. Usa sezioni tematiche con <h2> per i macro-temi e <h3> per i sotto-temi. Dentro ogni sezione scrivi paragrafi <p> fluidi e profondi, non liste. Scrivi come se parlassi direttamente all\'autore — con calore e precisione.\n\n- APPUNTI TECNICI / STUDIO → Sei un tutor esperto. Riorganizza i concetti in modo chiaro e gerarchico. Usa <h2> per i macro-argomenti, <h3> per i sotto-argomenti, <ul>\/<li> per elenchi di concetti o passaggi. Evidenzia connessioni tra concetti e segnala eventuali lacune.\n\n- RIUNIONE / LAVORO → Sei un assistente esecutivo preciso. Estrai con <h2> le sezioni: Decisioni prese, Azioni da fare (con responsabili se presenti), Punti aperti, Scadenze. Sii sintetico e diretto.\n\n- IDEA CREATIVA → Sei un collaboratore creativo. Sviluppa e amplia l\'idea mantenendo la voce originale. Usa struttura libera.\n\n- MISTO → Combina gli approcci più adatti.\n\nPRINCIPIO FONDAMENTALE — VALE SEMPRE:\nI riferimenti concreti — nomi di persone, luoghi, eventi, libri, film, oggetti, date — non vanno MAI rimossi, generalizzati o sostituiti con categorie astratte. Sono il cuore evocativo del testo. \"Claudio non si fa più sentire\" è più potente di \"un amico si è allontanato\". \"Il Conte di Montecristo\" dice qualcosa di preciso sull\'autore, \"un personaggio letterario\" non dice nulla. Cita sempre i riferimenti specifici nell\'analisi.\n\nPROFONDITÀ:\nPer i testi personali non fermarti alla superficie — cerca cosa c\'è sotto. Se l\'autore parla di solitudine, esplora come si manifesta concretamente nel testo. Se cita un libro o un film, interpretane il significato nel contesto emotivo. Ogni sezione deve aggiungere qualcosa che l\'autore non ha detto esplicitamente ma che si percepisce chiaramente.\n\nSTATO D\'ANIMO:\nChiudi sempre con:\n<div id=\"mood-output\">Per testi personali: frase densa e specifica che cita elementi concreti del testo — non emozioni generiche. Per testi tecnici o lavorativi: frase sul focus e l\'energia con cui l\'autore ha affrontato il tema.<\/div>\n\nRispondi SOLO con HTML valido (<p>, <h2>, <h3>, <ul>, <li> e il blocco mood). Zero commenti fuori dall\'HTML. Scrivi sempre in italiano. VIETATO usare markdown: niente asterischi, niente underscore, niente hashtag. Solo tag HTML.'}]},
-          contents:[{parts:[{text:plainText.slice(0,3000)}]}],
-          generationConfig:{maxOutputTokens:1500,temperature:0.4}
-        })
+        headers:{'Authorization':'Bearer '+GROQ_P,'Content-Type':'application/json'},
+        body:JSON.stringify({model:'meta-llama/llama-4-scout-17b-16e-instruct',max_tokens:1500,temperature:0.4,
+          messages:[
+            {role:'system',content:'Sei un lettore empatico e un analista dell\'animo umano. Ricevi una nota personale — diario, sfogo, pensiero, appunto vocale trascritto, appunti di studio, trascrizione di riunione.\n\nREGOLE ASSOLUTE — NON DEROGABILI:\n\n1. STRUTTURA OBBLIGATORIA: Dividi SEMPRE il testo in sezioni distinte con <h2> per i macro-temi e <h3> per i sotto-temi. Ogni sezione deve contenere almeno un paragrafo <p>. Mai un blocco unico di testo continuo.\n\n2. ELENCHI: Quando emergono elementi enumerabili — emozioni, azioni, pensieri ricorrenti, concetti — usali come <ul> o <ol>. Non condensare in prosa ciò che è naturalmente una lista.\n\n3. IMMAGINI EVOCATIVE: I riferimenti concreti — nomi di persone, luoghi, oggetti, libri, film, date — non vanno MAI rimossi o generalizzati. Sono il cuore del testo. Citali e approfondiscili.\n\n4. TONO EMOTIVO: Non descrivere le emozioni dall\'esterno. Entra nel testo, interpretale, approfondiscile. Cerca cosa c\'è sotto la superficie — i desideri nascosti, le contraddizioni, le paure non dette.\n\n5. ADATTA IL RUOLO al tipo di contenuto: empatico per diari, preciso per appunti tecnici, esecutivo per riunioni.\n\nSTATO D\'ANIMO: Chiudi sempre con:\n<div id="mood-output">Una frase densa e specifica che cita elementi concreti del testo — non emozioni generiche.</div>\n\nRispondi SOLO con HTML valido (<p>, <h2>, <h3>, <ul>, <ol>, <li> e il blocco mood). Zero commenti fuori dall\'HTML. VIETATO markdown. Scrivi sempre in italiano.'},
+            {role:'user',content:plainText.slice(0,3000)}
+          ]})
       });
-      if(res.status===429){await sleep(30000);a--;continue;}
+      if(res.status===429){const w=parseInt(res.headers.get('retry-after')||'10',10);await sleep(Math.min(w,30)*1000);a--;continue;}
       if(!res.ok)throw new Error('HTTP '+res.status);
-      const raw=(await res.json()).candidates?.[0]?.content?.parts?.[0]?.text?.trim()||'';
+      const raw=(await res.json()).choices?.[0]?.message?.content?.trim()||'';
       const moodMatch=raw.match(/<div id="mood-output">([\s\S]*?)<\/div>/i);
       const moodContent=moodMatch?moodMatch[1].trim():'';
       const mainHtml=raw.replace(/<div id="mood-output">[\s\S]*?<\/div>/i,'').trim();
@@ -1128,15 +1128,15 @@ annotPopupSave.onclick=async()=>{
   let title=annotPopupTitleInput.value.trim();
   if(!title){
     title='Nota del '+new Date(popupDate+'T12:00:00').toLocaleDateString('it-IT');
-    const GEMINI_T=localStorage.getItem('vv_gemini')||'';
+    const GEMINI_T=localStorage.getItem('vv_groq')||'';
     if(GEMINI_T){
       try{
-        const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='+GEMINI_T,{
+        const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{
           method:'POST',cache:'no-store',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({contents:[{parts:[{text:'Genera un titolo breve (massimo 8 parole) in italiano per questa nota. Rispondi SOLO con il titolo, senza virgolette, senza punteggiatura finale.\n\n'+plainText.slice(0,500)}]}],generationConfig:{maxOutputTokens:60,temperature:0.5}})
+          headers:{'Authorization':'Bearer '+GEMINI_T,'Content-Type':'application/json'},
+          body:JSON.stringify({model:'meta-llama/llama-4-scout-17b-16e-instruct',max_tokens:60,temperature:0.5,messages:[{role:'system',content:'Genera un titolo breve (massimo 8 parole) in italiano. Rispondi SOLO con il titolo, senza virgolette, senza punteggiatura finale.'},{role:'user',content:plainText.slice(0,500)}]})
         });
-        if(r.ok){const d=await r.json();const t=d?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();if(t&&t.length>2&&t.length<100)title=t;}
+        if(r.ok){const d=await r.json();const t=d?.choices?.[0]?.message?.content?.trim();if(t&&t.length>2&&t.length<100)title=t;}
       }catch(e){}
     }
   }
@@ -1167,15 +1167,15 @@ popupSaveAi.onclick=async()=>{
   if(!title){
     title='Nota AI del '+new Date(popupDate+'T12:00:00').toLocaleDateString('it-IT');
     const plain=popupAiOutput.innerText.trim();
-    const GEMINI_T2=localStorage.getItem('vv_gemini')||'';
+    const GEMINI_T2=localStorage.getItem('vv_groq')||'';
     if(GEMINI_T2&&plain){
       try{
-        const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='+GEMINI_T2,{
+        const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{
           method:'POST',cache:'no-store',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({contents:[{parts:[{text:'Genera un titolo breve (massimo 8 parole) in italiano per questa nota. Rispondi SOLO con il titolo, senza virgolette, senza punteggiatura finale.\n\n'+plain.slice(0,500)}]}],generationConfig:{maxOutputTokens:60,temperature:0.5}})
+          headers:{'Authorization':'Bearer '+GEMINI_T2,'Content-Type':'application/json'},
+          body:JSON.stringify({model:'meta-llama/llama-4-scout-17b-16e-instruct',max_tokens:60,temperature:0.5,messages:[{role:'system',content:'Genera un titolo breve (massimo 8 parole) in italiano. Rispondi SOLO con il titolo, senza virgolette, senza punteggiatura finale.'},{role:'user',content:plain.slice(0,500)}]})
         });
-        if(r.ok){const d=await r.json();const t=d?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();if(t&&t.length>2&&t.length<100)title=t;}
+        if(r.ok){const d=await r.json();const t=d?.choices?.[0]?.message?.content?.trim();if(t&&t.length>2&&t.length<100)title=t;}
       }catch(e){}
     }
   }

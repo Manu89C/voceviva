@@ -181,10 +181,15 @@ h1 em { font-style:italic; color:var(--accent); }
   <div class="api-card" id="apiCard">
     <div class="api-label"><span class="dot" id="apiDot"></span><span id="apiLabel">Chiave Groq richiesta</span></div>
     <div class="api-row">
-      <input class="api-input" type="password" id="apiKeyInput" placeholder="gsk_..." autocomplete="off" spellcheck="false">
+      <input class="api-input" type="password" id="apiKeyInput" placeholder="gsk_... (Groq — audio)" autocomplete="off" spellcheck="false">
       <button class="btn-save" id="saveKeyBtn">Salva</button>
     </div>
-    <p class="api-hint">Gratis su <a href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a></p>
+    <p class="api-hint">Audio: <a href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a></p>
+    <div class="api-row" style="margin-top:.4rem">
+      <input class="api-input" type="password" id="geminiKeyInput" placeholder="AIza... (Gemini — AI)" autocomplete="off" spellcheck="false">
+      <button class="btn-save" id="saveGeminiKeyBtn">Salva</button>
+    </div>
+    <p class="api-hint">AI: <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a></p>
   </div>
 
   <!-- SWITCHER: Annotazioni / Diario -->
@@ -314,6 +319,7 @@ h1 em { font-style:italic; color:var(--accent); }
 <script>
 // ── CONFIG ──────────────────────────────────────────────────────────────────
 let GROQ_KEY = localStorage.getItem('vv_groq') || '';
+let GEMINI_KEY = localStorage.getItem('vv_gemini') || '';
 const CHUNK_MS       = 20000;   // chunk più lunghi → meno allucinazioni Whisper
 const OVERLAP_MS     = 4000;
 const MIN_BLOB_BYTES = 12000;
@@ -345,6 +351,7 @@ let _hasRec = false, _hasWrite = false, _hasAI = false;
 // ── DOM ───────────────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
 const apiKeyInput=$('apiKeyInput'), saveKeyBtn=$('saveKeyBtn'), apiDot=$('apiDot'), apiLabel=$('apiLabel'), apiCard=$('apiCard');
+const geminiKeyInput=$('geminiKeyInput'), saveGeminiKeyBtn=$('saveGeminiKeyBtn');
 const micBtn=$('micBtn'), micIcon=$('micIcon'), stopIcon=$('stopIcon');
 const timerEl=$('timer'), statusDot=$('statusDot'), statusText=$('statusText');
 const annotWrap=$('annotWrap'), annotEditor=$('annotEditor');
@@ -367,10 +374,10 @@ function applyKey(k) {
   GROQ_KEY = k.trim();
   if (GROQ_KEY) {
     apiDot.className='dot ok'; apiLabel.textContent='Chiave Groq salvata';
-    apiCard.classList.add('ok'); setStatus('idle','Pronto');
+    apiCard.classList.add('ok'); setStatus('idle', GEMINI_KEY ? 'Pronto' : 'Inserisci chiave Gemini');
   } else {
     apiDot.className='dot'; apiLabel.textContent='Chiave Groq richiesta';
-    apiCard.classList.remove('ok'); setStatus('idle','Inserisci la chiave API');
+    apiCard.classList.remove('ok'); setStatus('idle','Inserisci le chiavi API');
   }
 }
 if (GROQ_KEY) { apiKeyInput.value=GROQ_KEY; applyKey(GROQ_KEY); }
@@ -378,6 +385,16 @@ saveKeyBtn.onclick = () => {
   const k = apiKeyInput.value.trim();
   if (!k) { showErr('Incolla la chiave Groq.'); return; }
   localStorage.setItem('vv_groq',k); applyKey(k); hideErr();
+};
+
+// ── GEMINI KEY ───────────────────────────────────────────────────────────────
+if (GEMINI_KEY) { geminiKeyInput.value=GEMINI_KEY; }
+saveGeminiKeyBtn.onclick = () => {
+  const k = geminiKeyInput.value.trim();
+  if (!k) { showErr('Incolla la chiave Gemini.'); return; }
+  GEMINI_KEY = k; localStorage.setItem('vv_gemini', k);
+  apiDot.className='dot ok'; apiLabel.textContent='Chiavi salvate';
+  setStatus('idle','Pronto'); hideErr();
 };
 
 // ── EDITOR CONTENTEDITABLE — conteggio parole ─────────────────────────────────
@@ -637,15 +654,14 @@ async function openSaveModal(mode) {
   saveModal.classList.add('show');
   const plainText = (mode==='ai' ? outputText.innerText : getEditorText()).slice(0,500);
   let suggestedTitle = 'Nota del '+today.toLocaleDateString('it-IT');
-  if(GROQ_KEY){
+  if(GEMINI_KEY){
     try{
-      const res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
+      const res=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='+GEMINI_KEY,{
         method:'POST',cache:'no-store',
-        headers:{'Authorization':'Bearer '+GROQ_KEY,'Content-Type':'application/json'},
-        body:JSON.stringify({model:'meta-llama/llama-4-scout-17b-16e-instruct',max_tokens:60,temperature:0.5,
-          messages:[{role:'system',content:'Genera un titolo breve (massimo 8 parole) in italiano. Rispondi SOLO con il titolo, senza virgolette, senza punteggiatura finale.'},{role:'user',content:plainText}]})
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({contents:[{parts:[{text:'Genera un titolo breve (massimo 8 parole) in italiano per questa nota. Rispondi SOLO con il titolo, senza virgolette, senza punteggiatura finale.\n\n'+plainText}]}],generationConfig:{maxOutputTokens:60,temperature:0.5}})
       });
-      if(res.ok){const data=await res.json();const t=data?.choices?.[0]?.message?.content?.trim();if(t&&t.length>2&&t.length<100)suggestedTitle=t;}
+      if(res.ok){const data=await res.json();const t=data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();if(t&&t.length>2&&t.length<100)suggestedTitle=t;}
     }catch(e){}
   }
   modalTitleInput.value=suggestedTitle;
@@ -657,7 +673,7 @@ saveDirectBtn.onclick = () => openSaveModal('direct');
 // ── AI BUTTON ─────────────────────────────────────────────────────────────────
 aiBtn.onclick = async () => {
   const txt = getEditorText();
-  if (!txt || !GROQ_KEY) { showErr('Inserisci la chiave Groq e del testo.'); return; }
+  if (!txt || !GEMINI_KEY) { showErr('Inserisci la chiave Gemini e del testo.'); return; }
   if (isSummarizing) return;
   isSummarizing = true; aiBtn.disabled = true;
   outputLabelText.textContent = 'Elaborazione AI';
@@ -669,21 +685,20 @@ aiBtn.onclick = async () => {
   for (let a=1; a<=3; a++) {
     try {
       if (a>1) await sleep(Math.min(1000*Math.pow(2,a-1),8000));
-      const res = await fetch('https://api.groq.com/openai/v1/chat/completions',{
+      const SYSTEM_PROMPT = 'Sei un assistente intelligente e adattivo. Ricevi una nota che può essere qualsiasi cosa — un diario personale, uno sfogo emotivo, appunti tecnici, materiale di studio, la trascrizione di una riunione, un\'idea creativa.\n\nPRIMO PASSO — RICONOSCI IL TIPO E SCEGLI IL RUOLO:\n\n- DIARIO / RIFLESSIONE PERSONALE → Sei un lettore empatico e uno psicologo letterario. Analizza in profondità le tensioni emotive sottostanti, i temi non detti, le contraddizioni interne, i desideri nascosti. Usa sezioni tematiche con <h2> per i macro-temi e <h3> per i sotto-temi. Dentro ogni sezione scrivi paragrafi <p> fluidi e profondi, non liste. Scrivi come se parlassi direttamente all\'autore — con calore e precisione.\n\n- APPUNTI TECNICI / STUDIO → Sei un tutor esperto. Riorganizza i concetti in modo chiaro e gerarchico. Usa <h2> per i macro-argomenti, <h3> per i sotto-argomenti, <ul>/<li> per elenchi di concetti o passaggi. Evidenzia connessioni tra concetti e segnala eventuali lacune.\n\n- RIUNIONE / LAVORO → Sei un assistente esecutivo preciso. Estrai con <h2> le sezioni: Decisioni prese, Azioni da fare (con responsabili se presenti), Punti aperti, Scadenze. Sii sintetico e diretto.\n\n- IDEA CREATIVA → Sei un collaboratore creativo. Sviluppa e amplia l\'idea mantenendo la voce originale. Usa struttura libera.\n\n- MISTO → Combina gli approcci più adatti.\n\nPRINCIPIO FONDAMENTALE — VALE SEMPRE:\nI riferimenti concreti — nomi di persone, luoghi, eventi, libri, film, oggetti, date — non vanno MAI rimossi, generalizzati o sostituiti con categorie astratte. Sono il cuore evocativo del testo. "Claudio non si fa più sentire" è più potente di "un amico si è allontanato". "Il Conte di Montecristo" dice qualcosa di preciso sull\'autore, "un personaggio letterario" non dice nulla. Cita sempre i riferimenti specifici nell\'analisi.\n\nPROFONDITÀ:\nPer i testi personali non fermarti alla superficie — cerca cosa c\'è sotto. Se l\'autore parla di solitudine, esplora come si manifesta concretamente nel testo. Se cita un libro o un film, interpretane il significato nel contesto emotivo. Ogni sezione deve aggiungere qualcosa che l\'autore non ha detto esplicitamente ma che si percepisce chiaramente.\n\nSTATO D\'ANIMO:\nChiudi sempre con:\n<div id="mood-output">Per testi personali: frase densa e specifica che cita elementi concreti del testo — non emozioni generiche. Per testi tecnici o lavorativi: frase sul focus e l\'energia con cui l\'autore ha affrontato il tema.</div>\n\nRispondi SOLO con HTML valido (<p>, <h2>, <h3>, <ul>, <li> e il blocco mood). Zero commenti fuori dall\'HTML. Scrivi sempre in italiano. VIETATO usare markdown: niente asterischi, niente underscore, niente hashtag. Solo tag HTML.';
+      const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='+GEMINI_KEY,{
         method:'POST', cache:'no-store',
-        headers:{'Authorization':'Bearer '+GROQ_KEY,'Content-Type':'application/json'},
+        headers:{'Content-Type':'application/json'},
         body:JSON.stringify({
-          model:'meta-llama/llama-4-scout-17b-16e-instruct', max_tokens:2048, temperature:0.4,
-          messages:[
-            {role:'system',content:'Sei un assistente intelligente e adattivo. Ricevi una nota che può essere qualsiasi cosa — un diario personale, uno sfogo emotivo, appunti tecnici, materiale di studio, la trascrizione di una riunione, un\'idea creativa, una lista di cose da fare.\n\nPRIMO PASSO — RICONOSCI IL TIPO:\nPrima di tutto capisci cosa hai davanti e adatta il tuo approccio:\n\n- DIARIO / RIFLESSIONE PERSONALE → Sei un lettore empatico e profondo. Cerca le tensioni emotive sottostanti, i temi non detti, le contraddizioni. Scrivi con calore, come se parlassi direttamente all\'autore.\n\n- APPUNTI TECNICI / STUDIO → Sei un tutor esperto. Riorganizza i concetti in modo chiaro, evidenzia i punti chiave, segnala eventuali lacune o connessioni tra concetti. Usa struttura gerarchica solo se utile.\n\n- RIUNIONE / LAVORO → Sei un assistente esecutivo. Estrai decisioni prese, azioni da fare (con eventuali responsabili), punti aperti e scadenze. Sii preciso e sintetico.\n\n- IDEA CREATIVA → Sei un collaboratore creativo. Sviluppa l\'idea, suggerisci connessioni, espandi i punti interessanti senza snaturare la visione originale.\n\n- MISTO O AMBIGUO → Combina gli approcci più adatti.\n\nPRINCIPIO FONDAMENTALE — VALE SEMPRE:\nI riferimenti concreti — nomi di persone, luoghi, eventi, libri, film, oggetti, date — non vanno mai rimossi, generalizzati o sostituiti con categorie astratte. Sono il cuore evocativo e informativo del testo. \"Claudio non si fa più sentire\" è più potente di \"un amico si è allontanato\". \"il Conte di Montecristo\" dice qualcosa di preciso, \"un personaggio letterario\" non dice nulla.\n\nSTRUTTURA:\nAdatta la struttura al contenuto — paragrafi fluidi per testi personali, struttura più chiara per appunti tecnici o riunioni. Evita liste puntate per testi emotivi. Usa <h3> solo se emergono sezioni davvero distinte.\n\nSTATO D\'ANIMO:\nChiudi sempre con:\n<div id="mood-output">Per testi personali: una frase specifica sullo stato emotivo reale, citando elementi concreti. Per testi tecnici o lavorativi: una frase sul focus e l\'energia con cui l\'autore ha affrontato il tema.</div>\n\nRispondi SOLO con HTML valido (<p>, <h3>, <ul>, <li> e il blocco mood). Zero commenti fuori dall\'HTML. Scrivi sempre in italiano.'},
-            {role:'user',content:'Nota:\n\n'+txt}
-          ]
+          systemInstruction:{parts:[{text:SYSTEM_PROMPT}]},
+          contents:[{parts:[{text:'Nota:\n\n'+txt}]}],
+          generationConfig:{maxOutputTokens:2048,temperature:0.4}
         })
       });
-      if (res.status===429){const w=parseInt(res.headers.get('retry-after')||'10',10);await waitWithCountdown(Math.min(w,30),'Rate limit — riprovo tra');a--;continue;}
+      if (res.status===429){await waitWithCountdown(30,'Rate limit — riprovo tra');a--;continue;}
       if (!res.ok){const e=await res.json().catch(()=>{});throw new Error(e?.error?.message||'HTTP '+res.status);}
       const data = await res.json();
-      const raw = data?.choices?.[0]?.message?.content?.trim()||'';
+      const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim()||'';
       const moodMatch = raw.match(/<div id="mood-output">([\s\S]*?)<\/div>/i);
       const moodContent = moodMatch ? moodMatch[1].trim() : '';
       const mainHtml = raw.replace(/<div id="mood-output">[\s\S]*?<\/div>/i,'').trim();

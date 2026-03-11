@@ -740,7 +740,7 @@ aiBtn.onclick = async () => {
   outputActions.style.display='none'; moodBox.style.display='none'; refineArea.classList.remove('show'); outputFmtToolbar.classList.remove('show');
   try {
     const raw = await callLlama([
-      {role:'system', content: AI_SYSTEM_PROMPT},
+      {role:'system', content: ProfileManager.buildSystemPrompt(AI_SYSTEM_PROMPT)},
       {role:'user', content:'Nota:\n\n'+txt}
     ]);
     const {mainHtml, moodContent} = parseAiOutput(raw);
@@ -790,7 +790,7 @@ refineBtn.onclick = async () => {
   const currentHtml = outputText.innerHTML;
   try {
     const raw = await callLlama([
-      {role:'system', content: AI_SYSTEM_PROMPT},
+      {role:'system', content: ProfileManager.buildSystemPrompt(AI_SYSTEM_PROMPT)},
       {role:'user', content:'Nota originale:\n\n'+_originalTxt},
       {role:'assistant', content: currentHtml},
       {role:'user', content:'Feedback sul testo elaborato:\n\n'+feedback+'\n\nRielabora tenendo conto di questo feedback. Mantieni le regole assolute di struttura, elenchi, immagini evocative e tono emotivo.'}
@@ -1120,6 +1120,14 @@ modalConfirm.onclick = async () => {
     if (error) throw error;
 
     // Mostra successo senza toccare il DOM del form
+    // Salva esempio approvato nel profilo
+    if (_saveMode === 'ai' && _originalTxt) {
+      const feedback = refineInput ? refineInput.value.trim() : '';
+      try {
+        const rules = feedback ? await ProfileManager.analyzeFeedback(feedback, GROQ_KEY) : null;
+        await ProfileManager.saveApprovedExample(_originalTxt, outputText.innerHTML, rules, feedback);
+      } catch(e) { console.warn('[ProfileManager] saveApprovedExample error:', e); }
+    }
     modalSuccessText.textContent = 'Salvato nel Diario!';
     modalSuccessSub.textContent  = title;
     modalSuccess.style.display   = 'flex';

@@ -382,6 +382,16 @@ const SUPABASE_KEY = 'sb_publishable_ASHxxToKJyMy4CpBAqseqA_mepXAAJ-';
 let sb = null;
 try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) {}
 
+// ── PROFILE MANAGER INIT ──────────────────────────────────────────────────────
+(async () => {
+  await ProfileManager.init();
+  if (ProfileManager.needsOnboarding()) {
+    ProfileManager.renderOnboarding(document.body, (styleKey) => {
+      console.log('[VoceViva] Stile scelto:', styleKey);
+    });
+  }
+})();
+
 // ── STATE ─────────────────────────────────────────────────────────────────────
 let allNotes = [], currentYear, currentMonth;
 let selectedDay = null, currentView = 'calendar';
@@ -481,7 +491,7 @@ editAiBtn.onclick = async () => {
         headers: {'Authorization':'Bearer '+GROQ_D, 'Content-Type': 'application/json'},
         body: JSON.stringify({model:'meta-llama/llama-4-scout-17b-16e-instruct',max_tokens:1500,temperature:0.4,
           messages:[
-            {role:'system',content:'Sei un lettore empatico e un analista dell\'animo umano. Ricevi una nota personale — diario, sfogo, pensiero, appunto vocale trascritto, appunti di studio, trascrizione di riunione.\n\nREGOLE ASSOLUTE — NON DEROGABILI:\n\n1. STRUTTURA OBBLIGATORIA: Dividi SEMPRE il testo in sezioni distinte con <h2> per i macro-temi e <h3> per i sotto-temi. Ogni sezione deve contenere almeno un paragrafo <p>. Mai un blocco unico di testo continuo.\n\n2. ELENCHI: Quando emergono elementi enumerabili — emozioni, azioni, pensieri ricorrenti, concetti — usali come <ul> o <ol>. Non condensare in prosa ciò che è naturalmente una lista.\n\n3. IMMAGINI EVOCATIVE: I riferimenti concreti — nomi di persone, luoghi, oggetti, libri, film, date — non vanno MAI rimossi o generalizzati. Sono il cuore del testo. Citali e approfondiscili.\n\n4. TONO EMOTIVO: Non descrivere le emozioni dall\'esterno. Entra nel testo, interpretale, approfondiscile. Cerca cosa c\'è sotto la superficie — i desideri nascosti, le contraddizioni, le paure non dette.\n\n5. ADATTA IL RUOLO al tipo di contenuto: empatico per diari, preciso per appunti tecnici, esecutivo per riunioni.\n\nSTATO D\'ANIMO: Chiudi sempre con:\n<div id="mood-output">Una frase densa e specifica che cita elementi concreti del testo — non emozioni generiche.</div>\n\nRispondi SOLO con HTML valido (<p>, <h2>, <h3>, <ul>, <ol>, <li> e il blocco mood). Zero commenti fuori dall\'HTML. VIETATO markdown. Scrivi sempre in italiano.'},
+            {role:'system',content:ProfileManager.buildSystemPrompt(DIARY_SYSTEM_PROMPT)},
             {role:'user',content:plainText.slice(0,3000)}
           ]})
       });
@@ -520,7 +530,7 @@ editRefineBtn.onclick = async () => {
         headers:{'Authorization':'Bearer '+GROQ_D,'Content-Type':'application/json'},
         body: JSON.stringify({model:'meta-llama/llama-4-scout-17b-16e-instruct',max_tokens:1500,temperature:0.4,
           messages:[
-            {role:'system', content: DIARY_SYSTEM_PROMPT},
+            {role:'system', content: ProfileManager.buildSystemPrompt(DIARY_SYSTEM_PROMPT)},
             {role:'user', content:'Nota originale:\n\n'+_editOrigTxt},
             {role:'assistant', content: currentHtml},
             {role:'user', content:'Feedback:\n\n'+feedback+'\n\nRielabora tenendo conto di questo feedback mantenendo tutte le regole.'}
@@ -540,10 +550,17 @@ editRefineBtn.onclick = async () => {
   } catch(e) { showErr('Errore raffinamento: '+(e?.message||String(e))); }
   editRefineBtn.disabled=false; editRefineBtn.textContent='↺ Raffina';
 };
-editSaveAi.onclick = () => {
+editSaveAi.onclick = async () => {
   const newContent = editAiOutput.innerHTML.trim();
   if (!newContent) return;
   editContent.innerHTML = newContent;
+  // Salva esempio approvato nel profilo
+  try {
+    const feedback = editRefineInput ? editRefineInput.value.trim() : '';
+    const GROQ = localStorage.getItem('vv_groq') || '';
+    const rules = feedback ? await ProfileManager.analyzeFeedback(feedback, GROQ) : null;
+    await ProfileManager.saveApprovedExample(_editOrigTxt, newContent, rules, feedback);
+  } catch(e) { console.warn('[ProfileManager] saveApprovedExample error:', e); }
   editAiSection.style.display = 'none';
   editAiOutput.classList.remove('show'); editAiMood.classList.remove('show');
   editAiOutput.innerHTML = ''; editAiMood.textContent = '';
@@ -1134,7 +1151,7 @@ popupAiBtn.onclick=async()=>{
         headers:{'Authorization':'Bearer '+GROQ_P,'Content-Type':'application/json'},
         body:JSON.stringify({model:'meta-llama/llama-4-scout-17b-16e-instruct',max_tokens:1500,temperature:0.4,
           messages:[
-            {role:'system',content:'Sei un lettore empatico e un analista dell\'animo umano. Ricevi una nota personale — diario, sfogo, pensiero, appunto vocale trascritto, appunti di studio, trascrizione di riunione.\n\nREGOLE ASSOLUTE — NON DEROGABILI:\n\n1. STRUTTURA OBBLIGATORIA: Dividi SEMPRE il testo in sezioni distinte con <h2> per i macro-temi e <h3> per i sotto-temi. Ogni sezione deve contenere almeno un paragrafo <p>. Mai un blocco unico di testo continuo.\n\n2. ELENCHI: Quando emergono elementi enumerabili — emozioni, azioni, pensieri ricorrenti, concetti — usali come <ul> o <ol>. Non condensare in prosa ciò che è naturalmente una lista.\n\n3. IMMAGINI EVOCATIVE: I riferimenti concreti — nomi di persone, luoghi, oggetti, libri, film, date — non vanno MAI rimossi o generalizzati. Sono il cuore del testo. Citali e approfondiscili.\n\n4. TONO EMOTIVO: Non descrivere le emozioni dall\'esterno. Entra nel testo, interpretale, approfondiscile. Cerca cosa c\'è sotto la superficie — i desideri nascosti, le contraddizioni, le paure non dette.\n\n5. ADATTA IL RUOLO al tipo di contenuto: empatico per diari, preciso per appunti tecnici, esecutivo per riunioni.\n\nSTATO D\'ANIMO: Chiudi sempre con:\n<div id="mood-output">Una frase densa e specifica che cita elementi concreti del testo — non emozioni generiche.</div>\n\nRispondi SOLO con HTML valido (<p>, <h2>, <h3>, <ul>, <ol>, <li> e il blocco mood). Zero commenti fuori dall\'HTML. VIETATO markdown. Scrivi sempre in italiano.'},
+            {role:'system',content:ProfileManager.buildSystemPrompt(DIARY_SYSTEM_PROMPT)},
             {role:'user',content:plainText.slice(0,3000)}
           ]})
       });
@@ -1174,7 +1191,7 @@ popupRefineBtn.onclick = async () => {
         headers:{'Authorization':'Bearer '+GROQ_P,'Content-Type':'application/json'},
         body: JSON.stringify({model:'meta-llama/llama-4-scout-17b-16e-instruct',max_tokens:1500,temperature:0.4,
           messages:[
-            {role:'system', content: DIARY_SYSTEM_PROMPT},
+            {role:'system', content: ProfileManager.buildSystemPrompt(DIARY_SYSTEM_PROMPT)},
             {role:'user', content:'Nota originale:\n\n'+_popupOrigTxt},
             {role:'assistant', content: currentHtml},
             {role:'user', content:'Feedback:\n\n'+feedback+'\n\nRielabora tenendo conto di questo feedback mantenendo tutte le regole.'}
@@ -1316,6 +1333,12 @@ popupSaveAi.onclick=async()=>{
   try{
     const{error}=await sb.from('notes').insert([{title,content,mode,note_date:popupDate}]);
     if(error)throw error;
+    // Salva esempio approvato nel profilo
+    try {
+      const feedback = popupRefineInput ? popupRefineInput.value.trim() : '';
+      const rules = feedback ? await ProfileManager.analyzeFeedback(feedback, GROQ) : null;
+      await ProfileManager.saveApprovedExample(_popupOrigTxt, popupAiOutput.innerHTML, rules, feedback);
+    } catch(e) { console.warn('[ProfileManager] saveApprovedExample error:', e); }
     popupSaveAi.textContent='Salvato!';
     setTimeout(()=>{popupSaveAi.textContent='Salva rielaborazione AI';popupSaveAi.disabled=false;},2000);
     await loadNotes();

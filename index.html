@@ -11,7 +11,6 @@
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400;1,600&family=EB+Garamond:ital,wght@1,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
 <script src="rnnoise-sync.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="vv-profile.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root { --bg:#0a0a0f; --surface:#111118; --border:#1e1e2e; --accent:#f55036; --text:#e8e8f0; --muted:#5a5a7a; --live:#4ade80; --warn:#f59e0b; }
@@ -361,6 +360,9 @@ const SUPABASE_URL = 'https://ezycobgovadcgvnyqcew.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_ASHxxToKJyMy4CpBAqseqA_mepXAAJ-';
 let sb = null;
 try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) {}
+
+// ── PROFILE MANAGER INIT (silenzioso, nessuna UI all'avvio) ──────────────────
+ProfileManager.init();
 
 // ── STATE ────────────────────────────────────────────────────────────────────
 let isRecording = false, wakeLock = null;
@@ -732,6 +734,17 @@ aiBtn.onclick = async () => {
   const txt = getEditorText();
   if (!txt || !GROQ_KEY) { showErr('Inserisci la chiave Groq e del testo.'); return; }
   if (isSummarizing) return;
+
+  // Prima elaborazione: mostra onboarding stile se non ancora scelto
+  if (ProfileManager.needsOnboarding()) {
+    const outputSection = $('outputBox').parentElement;
+    ProfileManager.renderOnboarding(outputSection, async (styleKey) => {
+      // Dopo la scelta, procedi con l'elaborazione
+      aiBtn.onclick();
+    });
+    return;
+  }
+
   _originalTxt = txt;
   isSummarizing = true; aiBtn.disabled = true;
   outputLabelText.textContent = 'Elaborazione AI';
@@ -789,6 +802,10 @@ refineBtn.onclick = async () => {
   refineBtn.disabled = true; refineBtn.textContent = '...';
   outputOverlay.classList.add('show'); overlayText.textContent = 'Raffinamento in corso...';
   const currentHtml = outputText.innerHTML;
+
+  // Analizza feedback per preferenze permanenti (in parallelo)
+  const rulesPromise = ProfileManager.analyzeFeedback(feedback, GROQ_KEY);
+
   try {
     const raw = await callLlama([
       {role:'system', content: ProfileManager.buildSystemPrompt(AI_SYSTEM_PROMPT)},
@@ -798,6 +815,12 @@ refineBtn.onclick = async () => {
     ]);
     const {mainHtml, moodContent} = parseAiOutput(raw);
     renderAiOutput(mainHtml, moodContent);
+
+    // Salva regole permanenti se presenti
+    const updatedRules = await rulesPromise;
+    if (updatedRules) {
+      await ProfileManager.updateRules(updatedRules);
+    }
   } catch(e) {
     showErr('Errore raffinamento: '+(e?.message||String(e)));
     outputOverlay.classList.remove('show');

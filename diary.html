@@ -7,7 +7,6 @@
 <meta name="theme-color" content="#0a0a0f">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400;1,600&family=EB+Garamond:ital,wght@1,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="vv-profile.js"></script>
 <script src="rnnoise-sync.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -383,15 +382,8 @@ const SUPABASE_KEY = 'sb_publishable_ASHxxToKJyMy4CpBAqseqA_mepXAAJ-';
 let sb = null;
 try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) {}
 
-// ── PROFILE MANAGER INIT ──────────────────────────────────────────────────────
-(async () => {
-  await ProfileManager.init();
-  if (ProfileManager.needsOnboarding()) {
-    ProfileManager.renderOnboarding(document.body, (styleKey) => {
-      console.log('[VoceViva] Stile scelto:', styleKey);
-    });
-  }
-})();
+// ── PROFILE MANAGER INIT (silenzioso, nessuna UI all'avvio) ──────────────────
+ProfileManager.init();
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
 let allNotes = [], currentYear, currentMonth;
@@ -478,6 +470,15 @@ editAiBtn.onclick = async () => {
   if(!GROQ_D){showErr('Chiave Groq non trovata.');return;}
   const plainText = (editContent.innerText || '').trim();
   if (!plainText) return;
+
+  // Prima elaborazione: mostra onboarding stile se non ancora scelto
+  if (ProfileManager.needsOnboarding()) {
+    ProfileManager.renderOnboarding(document.querySelector('.modal-card') || document.body, async () => {
+      editAiBtn.onclick();
+    });
+    return;
+  }
+
   _editOrigTxt = plainText;
   editIsSummarizing = true; editAiBtn.disabled = true;
   editAiSection.style.display = 'flex'; editAiSection.style.flexDirection = 'column'; editAiSection.style.gap = '.6rem';
@@ -523,6 +524,7 @@ editRefineBtn.onclick = async () => {
   if (!GROQ_D) { showErr('Chiave Groq non trovata.'); return; }
   editRefineBtn.disabled = true; editRefineBtn.textContent = '...';
   const currentHtml = editAiOutput.innerHTML;
+  const rulesPromise = ProfileManager.analyzeFeedback(feedback, GROQ_D);
   try {
     for (let a=1; a<=3; a++) {
       if (a>1) await sleep(Math.min(1000*Math.pow(2,a-1),8000));
@@ -546,6 +548,8 @@ editRefineBtn.onclick = async () => {
       editAiOutput.innerHTML=mainHtml||'<p>Nessun risultato.</p>';
       if(moodContent){editAiMood.textContent='Stato d\'animo: '+moodContent;editAiMood.classList.add('show');}
       editRefineInput.value='';
+      const updatedRules = await rulesPromise;
+      if (updatedRules) await ProfileManager.updateRules(updatedRules);
       break;
     }
   } catch(e) { showErr('Errore raffinamento: '+(e?.message||String(e))); }
@@ -1138,6 +1142,15 @@ popupAiBtn.onclick=async()=>{
   if(!GROQ_P){showErr('Chiave Groq non trovata.');return;}
   const plainText=(annotPopupEditor.innerText||'').trim();
   if(!plainText)return;
+
+  // Prima elaborazione: mostra onboarding stile se non ancora scelto
+  if (ProfileManager.needsOnboarding()) {
+    ProfileManager.renderOnboarding(document.querySelector('.annot-popup-body') || document.body, async () => {
+      popupAiBtn.onclick();
+    });
+    return;
+  }
+
   _popupOrigTxt = plainText;
   popupIsSummarizing=true;popupAiBtn.disabled=true;
   popupAiSection.style.display='flex';popupAiSection.style.flexDirection='column';popupAiSection.style.gap='.6rem';
@@ -1184,6 +1197,7 @@ popupRefineBtn.onclick = async () => {
   if (!GROQ_P) { showErr('Chiave Groq non trovata.'); return; }
   popupRefineBtn.disabled = true; popupRefineBtn.textContent = '...';
   const currentHtml = popupAiOutput.innerHTML;
+  const rulesPromise = ProfileManager.analyzeFeedback(feedback, GROQ_P);
   try {
     for (let a=1; a<=3; a++) {
       if (a>1) await sleep(Math.min(1000*Math.pow(2,a-1),8000));
@@ -1207,6 +1221,8 @@ popupRefineBtn.onclick = async () => {
       popupAiOutput.innerHTML=mainHtml||'<p>Nessun risultato.</p>';
       if(moodContent){popupMoodEl.textContent='Stato d\'animo: '+moodContent;popupMoodEl.classList.add('show');}
       popupRefineInput.value='';
+      const updatedRules = await rulesPromise;
+      if (updatedRules) await ProfileManager.updateRules(updatedRules);
       break;
     }
   } catch(e) { showErr('Errore raffinamento: '+(e?.message||String(e))); }

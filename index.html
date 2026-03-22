@@ -260,6 +260,12 @@ h1 em { font-style:italic; color:var(--accent); }
           <button class="btn-save-direct" id="saveDirectBtn" disabled>Salva</button>
         </div>
       </div>
+      <!-- FEEDBACK TRASCRIZIONE FOTO (appare dopo analisi immagine) -->
+      <div class="photo-feedback-section" id="photoFeedbackSection">
+        <div style="font-size:.55rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);">Correzioni trascrizione</div>
+        <textarea id="photoFeedbackInput" style="width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:.5rem;color:var(--text);font-family:'Crimson Pro',Georgia,serif;font-size:.9rem;line-height:1.6;padding:.5rem .7rem;resize:none;outline:none;min-height:52px;box-sizing:border-box;" placeholder="Correzioni… es. &quot;le frecce → non sono LO&quot;, &quot;il titolo principale è…&quot;"></textarea>
+        <button id="photoRefineBtn" class="btn-ai" style="display:block;width:100%;margin-top:.1rem;">&#10227; Rianalizza trascrizione</button>
+      </div>
     </div>
   </div>
 
@@ -293,16 +299,6 @@ h1 em { font-style:italic; color:var(--accent); }
     <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none">
     <div class="photo-proc" id="photoProcPill"><span class="dot"></span> analizzo foto...</div>
     <div class="status-row"><span class="status-dot" id="statusDot"></span><span id="statusText">Inserisci la chiave API</span></div>
-  </div>
-
-  <!-- FEEDBACK TRASCRIZIONE FOTO -->
-  <div class="photo-feedback-section" id="photoFeedbackSection">
-    <div style="font-size:.55rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted,#5a5a7a);">Correzioni trascrizione</div>
-    <textarea id="photoFeedbackInput" style="width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border,#1e1e2e);border-radius:.5rem;color:var(--text,#e8e8f0);font-family:'Crimson Pro',Georgia,serif;font-size:.9rem;line-height:1.6;padding:.5rem .7rem;resize:none;outline:none;min-height:52px;box-sizing:border-box;" placeholder="Correzioni… es. &quot;le frecce → non sono LO&quot;, &quot;il titolo principale è…&quot;"></textarea>
-    <div style="display:flex;gap:.3rem;">
-      <button id="photoRefineBtn" class="btn-ghost" style="flex:1;">&#10227; Rianalizza</button>
-      <button id="photoApplyBtn" class="btn-save-direct" style="flex:2;">Applica nell&#39;editor</button>
-    </div>
   </div>
 
   <!-- OUTPUT AI -->
@@ -1174,8 +1170,7 @@ modalConfirm.onclick = async () => {
     let _imgUrl = null;
     if (_photoBase64 && _photoHasSchema) _imgUrl = await uploadPhotoToStorage(_photoBase64);
     const _mode = _saveMode === 'ai' ? 'AI'
-      : (_photoBase64 ? (_hasRec ? 'rec+photo' : 'photo')
-      : (_hasRec && _hasWrite ? 'rec+write' : _hasRec ? 'rec' : 'write'));
+      : (_hasRec && (_hasWrite || _photoBase64) ? 'rec+write' : _hasRec ? 'rec' : 'write');
     const _rec = { title, content, note_date: date, mode: _mode };
     if (_imgUrl) _rec.image_url = _imgUrl;
     const { error } = await sb.from('notes').insert([_rec]);
@@ -1323,7 +1318,6 @@ const cameraIcon          = $('cameraIcon');
 const photoFeedbackSection= $('photoFeedbackSection');
 const photoFeedbackInput  = $('photoFeedbackInput');
 const photoRefineBtn      = $('photoRefineBtn');
-const photoApplyBtn       = $('photoApplyBtn');
 
 function setInputMode(mode) {
   _inputMode = mode;
@@ -1476,9 +1470,7 @@ photoRefineBtn.onclick = async () => {
   photoRefineBtn.disabled = false;
 };
 
-photoApplyBtn.onclick = () => {
-  photoFeedbackSection.classList.remove('show');
-};
+
 
 // ── COMPRIMI IMMAGINE ─────────────────────────────────────────────────────────
 function compressImageB64(file, maxPx, quality) {

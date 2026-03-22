@@ -427,6 +427,17 @@ h1 em { font-style:italic; color:var(--accent); }
       </div>
     </div>
 
+    <!-- Sezione feedback trascrizione foto (visibile dopo analisi foto) -->
+    <div class="popup-ai-section" id="popupPhotoFeedbackSection" style="display:none">
+      <div style="font-size:.58rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);">Correzione trascrizione</div>
+      <div class="popup-ai-output" id="popupPhotoTranscript" contenteditable="true" spellcheck="true" style="min-height:80px;"></div>
+      <textarea class="refine-input" id="popupPhotoFeedbackInput" style="width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:.5rem;color:var(--text);font-family:'Crimson Pro',Georgia,serif;font-size:.9rem;line-height:1.6;padding:.5rem .7rem;resize:none;outline:none;min-height:50px;box-sizing:border-box;margin-top:.4rem;" placeholder="Correzioni… es. &quot;le frecce indicate con LO sono →&quot;, &quot;i titoli con # sono sezioni&quot;"></textarea>
+      <div style="display:flex;gap:.2rem;margin-top:.3rem;width:100%;">
+        <button class="btn-refine" id="popupPhotoRefineBtn" style="flex:1;background:rgba(245,80,54,.12);border:1px solid rgba(245,80,54,.3);border-radius:.5rem;color:var(--accent);font-size:.75rem;padding:.4rem .6rem;cursor:pointer;">&#10227; Rianalizza</button>
+        <button class="btn-save-ai-sm" id="popupPhotoApplyBtn" style="flex:2;">Applica trascrizione</button>
+      </div>
+    </div>
+
     <!-- Sezione AI output (sotto l'editor) -->
     <div class="popup-ai-section" id="popupAiSection" style="display:none">
       <div style="font-size:.58rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);">Elaborazione AI</div>
@@ -1069,6 +1080,11 @@ const popupSaveAi         = $('popupSaveAi');
 const popupLiveDot        = $('popupLiveDot');
 const popupProcPill       = $('popupProcPill');
 const popupMicBtn         = $('popupMicBtn');
+let popupPhotoBase64 = null;
+let popupPhotoHasSchema = false;
+const popupPhotoBtn   = $('popupPhotoBtn');
+const popupPhotoInput = $('popupPhotoInput');
+const popupPhotoPill  = $('popupPhotoPill');
 const popupMicIcon        = $('popupMicIcon');
 const popupStopIcon       = $('popupStopIcon');
 
@@ -1429,7 +1445,8 @@ function closeAnnotPopup(){
   annotPopup.classList.remove('show');
   annotPopupEditor.innerHTML='';annotPopupTitleInput.value='';
   popupAiSection.style.display='none';
-  popupPhotoBase64=null;popupPhotoHasSchema=false;
+  if($('popupPhotoFeedbackSection'))$('popupPhotoFeedbackSection').style.display='none';
+  popupPhotoBase64=null;popupPhotoHasSchema=false;_lastPhotoRawText='';
   if(popupPhotoPill)popupPhotoPill.classList.remove('show');
 }
 
@@ -1694,13 +1711,6 @@ if('serviceWorker' in navigator){
 
 loadNotes();
 // ── FOTO APPUNTO ──────────────────────────────────────────────────────────────
-let popupPhotoBase64 = null;
-let popupPhotoHasSchema = false;
-
-const popupPhotoBtn   = $('popupPhotoBtn');
-const popupPhotoInput = $('popupPhotoInput');
-const popupPhotoPill  = $('popupPhotoPill');
-
 popupPhotoBtn.onclick = () => popupPhotoInput.click();
 
 popupPhotoInput.onchange = async (e) => {
@@ -1743,15 +1753,27 @@ popupPhotoInput.onchange = async (e) => {
     popupPhotoHasSchema = /SCHEMA:\s*sì/i.test(rawText);
     const cleanText = rawText.replace(/SCHEMA:\s*(sì|no)/i, '').trim();
 
-    // Inserisci testo nell'editor come HTML (paragrafi per ogni riga)
-    const html = cleanText.split('
-')
-      .map(l => l.trim())
-      .filter(l => l.length > 0)
-      .map(l => '<p>' + l + '</p>')
-      .join('');
-
-    annotPopupEditor.innerHTML = html;
+    // Converti markdown → HTML per l'editor
+    function mdToHtml(md) {
+      const lines = md.split('\n');
+      let html = '', inUl = false, inOl = false;
+      const inline = t => t.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/__(.*?)__/g,'<strong>$1</strong>').replace(/\*(.*?)\*/g,'<em>$1</em>').replace(/_(.*?)_/g,'<em>$1</em>');
+      lines.forEach(line => {
+        const h1=line.match(/^#\s+(.*)/),h2=line.match(/^##\s+(.*)/),h3=line.match(/^###\s+(.*)/);
+        const ul=line.match(/^[-*]\s+(.*)/),ol=line.match(/^\d+\.\s+(.*)/);
+        if(inUl&&!ul){html+='</ul>';inUl=false;}
+        if(inOl&&!ol){html+='</ol>';inOl=false;}
+        if(h3)html+='<h3>'+inline(h3[1])+'</h3>';
+        else if(h2)html+='<h2>'+inline(h2[1])+'</h2>';
+        else if(h1)html+='<h1>'+inline(h1[1])+'</h1>';
+        else if(ul){if(!inUl){html+='<ul>';inUl=true;}html+='<li>'+inline(ul[1])+'</li>';}
+        else if(ol){if(!inOl){html+='<ol>';inOl=true;}html+='<li>'+inline(ol[1])+'</li>';}
+        else if(line.trim())html+='<p>'+inline(line)+'</p>';
+      });
+      if(inUl)html+='</ul>';if(inOl)html+='</ol>';
+      return html;
+    }
+    annotPopupEditor.innerHTML = mdToHtml(cleanText);
     annotPopupEditor.dataset.written = '1';
 
     // Aggiorna conteggio parole
@@ -1760,12 +1782,92 @@ popupPhotoInput.onchange = async (e) => {
     annotPopupSave.disabled = false;
     popupAiBtn.disabled = false;
 
+    // Mostra sezione feedback trascrizione
+    popupPhotoTranscriptEl.innerHTML = mdToHtml(cleanText);
+    popupPhotoFeedbackSection.style.display = 'block';
+    _lastPhotoRawText = cleanText;
+
   } catch(err) {
     showErr('Errore analisi foto: ' + (err.message || err));
     popupPhotoBase64 = null;
   }
 
   popupPhotoPill.classList.remove('show');
+};
+
+// ── FEEDBACK TRASCRIZIONE FOTO ─────────────────────────────────────────────────
+let _lastPhotoRawText = '';
+const popupPhotoFeedbackSection = $('popupPhotoFeedbackSection');
+const popupPhotoTranscriptEl    = $('popupPhotoTranscript');
+const popupPhotoFeedbackInput   = $('popupPhotoFeedbackInput');
+const popupPhotoRefineBtn       = $('popupPhotoRefineBtn');
+const popupPhotoApplyBtn        = $('popupPhotoApplyBtn');
+
+// Rianalizza con feedback
+popupPhotoRefineBtn.onclick = async () => {
+  const feedback = popupPhotoFeedbackInput.value.trim();
+  if (!feedback || !popupPhotoBase64) return;
+  const GROQ = localStorage.getItem('vv_groq') || '';
+  if (!GROQ) { showErr('Chiave Groq non trovata.'); return; }
+
+  popupPhotoRefineBtn.disabled = true;
+  popupPhotoPill.classList.add('show');
+
+  // Salva regole importanti se contengono parole chiave forti
+  const keywords = /\bsempre\b|\bmai\b|\bogni volta\b|\btutti\b|\bmai più\b/i;
+  if (keywords.test(feedback)) {
+    try {
+      const rules = await ProfileManager.analyzeFeedback(feedback, GROQ);
+      if (rules) await ProfileManager.updateRules(rules);
+    } catch(e) { console.warn('[ProfileManager] photo feedback rules:', e); }
+  }
+
+  try {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST', cache: 'no-store',
+      headers: { 'Authorization': 'Bearer ' + GROQ, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+        max_tokens: 1500, temperature: 0.1,
+        messages: [
+          { role: 'user', content: [
+            { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + popupPhotoBase64 } },
+            { type: 'text', text: 'Analizza questo appunto scritto a mano in italiano. Se contiene solo testo scritto, trascrivilo fedelmente rispettando la struttura (a capo, rientri, elenchi). Se contiene schemi, frecce, mappe concettuali o diagrammi, trascrivi tutto il testo visibile e descrivi semanticamente lo schema: nodi, connessioni, direzione delle frecce, struttura generale. Alla fine indica obbligatoriamente su una riga separata: SCHEMA: sì oppure SCHEMA: no' }
+          ]},
+          { role: 'assistant', content: _lastPhotoRawText },
+          { role: 'user', content: 'Correzioni da applicare alla trascrizione:\n\n' + feedback + '\n\nRitrascrivi tenendo conto di queste correzioni.' }
+        ]
+      })
+    });
+    if (!res.ok) throw new Error('Errore API');
+    const data = await res.json();
+    const rawText = data?.choices?.[0]?.message?.content?.trim() || '';
+    popupPhotoHasSchema = /SCHEMA:\s*sì/i.test(rawText);
+    const cleanText = rawText.replace(/SCHEMA:\s*(sì|no)/i, '').trim();
+    _lastPhotoRawText = cleanText;
+    popupPhotoTranscriptEl.innerHTML = mdToHtml(cleanText);
+    annotPopupEditor.innerHTML = mdToHtml(cleanText);
+    const words = (annotPopupEditor.innerText||'').trim().split(/\s+/).filter(Boolean).length;
+    annotPopupWords.textContent = words + (words===1?' parola':' parole');
+  } catch(err) {
+    showErr('Errore rianalisi: ' + (err.message || err));
+  }
+
+  popupPhotoPill.classList.remove('show');
+  popupPhotoRefineBtn.disabled = false;
+};
+
+// Applica trascrizione corretta manualmente dall'editor feedback
+popupPhotoApplyBtn.onclick = () => {
+  const corrected = popupPhotoTranscriptEl.innerHTML.trim();
+  if (!corrected) return;
+  annotPopupEditor.innerHTML = corrected;
+  annotPopupEditor.dataset.written = '1';
+  const words = (annotPopupEditor.innerText||'').trim().split(/\s+/).filter(Boolean).length;
+  annotPopupWords.textContent = words + (words===1?' parola':' parole');
+  annotPopupSave.disabled = false;
+  popupAiBtn.disabled = false;
+  popupPhotoFeedbackSection.style.display = 'none';
 };
 
 // Salva immagine su Supabase Storage e restituisce URL pubblico

@@ -71,7 +71,6 @@ h1 em { font-style:italic; color:var(--accent); }
 .note-tag { font-size:.5rem; text-transform:uppercase; letter-spacing:.08em; padding:.1rem .35rem; border-radius:.25rem; background:rgba(245,80,54,.12); color:var(--accent); border:1px solid rgba(245,80,54,.25); }
 .note-tag.tag-write { background:rgba(74,222,128,.08); color:var(--live); border-color:rgba(74,222,128,.2); }
 .note-tag.tag-ai { background:rgba(147,112,219,.1); color:#a78bfa; border-color:rgba(147,112,219,.2); }
-.note-tag.tag-photo { background:rgba(56,189,248,.08); color:#38bdf8; border-color:rgba(56,189,248,.2); }
 .note-card-actions { display:flex; gap:.3rem; flex-shrink:0; }
 .note-card-btn { background:none; border:1px solid var(--border); color:var(--muted); padding:.3rem .6rem; border-radius:.4rem; font-family:'JetBrains Mono',monospace; font-size:.58rem; cursor:pointer; touch-action:manipulation; transition:border-color .2s,color .2s; white-space:nowrap; }
 .note-card-btn:hover { border-color:var(--accent); color:var(--accent); }
@@ -174,9 +173,6 @@ h1 em { font-style:italic; color:var(--accent); }
 .mic-btn-sm:active { transform:scale(.92); }
 .mic-btn-sm.recording { background:#c0392b; animation:pulse 1.4s ease-in-out infinite; }
 .mic-btn-sm svg { width:18px; height:18px; }
-.photo-proc-pill { display:none; font-size:.58rem; color:var(--accent); letter-spacing:.08em; align-items:center; gap:.3rem; }
-.photo-proc-pill.show { display:flex; }
-.photo-proc-pill .pill-dot { width:6px;height:6px;border-radius:50%;background:var(--accent);animation:pulse 1.2s ease-in-out infinite; }
 .live-dot-sm { width:5px; height:5px; border-radius:50%; background:var(--muted); flex-shrink:0; }
 .live-dot-sm.on { background:#f06a6a; animation:blink .8s ease-in-out infinite; }
 .live-dot-sm.done { background:var(--live); animation:none; }
@@ -324,13 +320,26 @@ h1 em { font-style:italic; color:var(--accent); }
 .processing-pill-sm { display:none; background:rgba(245,80,54,.12); border:1px solid rgba(245,80,54,.25); border-radius:2rem; padding:.2rem .5rem; font-size:.55rem; color:var(--accent); text-transform:uppercase; letter-spacing:.1em; align-items:center; gap:.3rem; }
 .processing-pill-sm.show { display:flex; }
 .pill-dot-sm { width:4px; height:4px; border-radius:50%; background:var(--accent); animation:blink .6s ease-in-out infinite; }
-.btn-ghost-sm { background:none; border:1px solid var(--border); color:var(--muted); padding:.35rem 0; border-radius:.5rem; font-family:'JetBrains Mono',monospace; font-size:.6rem; cursor:pointer; text-transform:uppercase; letter-spacing:.1em; touch-action:manipulation; white-space:nowrap; flex:1; text-align:center; }
-.btn-ghost-sm:disabled { opacity:.4; cursor:not-allowed; }
-.btn-ai-sm { background:none; border:1px solid rgba(245,80,54,.5); color:var(--accent); padding:.35rem 0; border-radius:.5rem; font-family:'JetBrains Mono',monospace; font-size:.6rem; cursor:pointer; text-transform:uppercase; letter-spacing:.1em; touch-action:manipulation; white-space:nowrap; transition:background .15s; flex:2; text-align:center; }
-.btn-ai-sm:hover { background:rgba(245,80,54,.1); }
+.btn-ghost-sm { background:none; border:1px solid var(--border); color:var(--muted); padding:.38rem 0; border-radius:.5rem; font-family:'JetBrains Mono',monospace; font-size:.62rem; cursor:pointer; text-transform:uppercase; letter-spacing:.1em; touch-action:manipulation; white-space:nowrap; flex:1; text-align:center; }
+.btn-ghost-sm:disabled { opacity:.3; cursor:not-allowed; }
+.btn-ai-sm { background:var(--accent); color:#fff; border:1px solid var(--accent); padding:.38rem 0; border-radius:.5rem; font-family:'JetBrains Mono',monospace; font-size:.62rem; cursor:pointer; text-transform:uppercase; letter-spacing:.06em; touch-action:manipulation; white-space:nowrap; transition:opacity .15s; flex:2; text-align:center; }
+.btn-ai-sm:hover { opacity:.85; }
 .btn-ai-sm:disabled { opacity:.4; cursor:not-allowed; }
-.btn-save-sm { background:var(--live); color:#0a0a0f; border:none; padding:.35rem 0; border-radius:.5rem; font-family:'JetBrains Mono',monospace; font-size:.6rem; cursor:pointer; text-transform:uppercase; letter-spacing:.1em; touch-action:manipulation; font-weight:500; white-space:nowrap; flex:1; text-align:center; }
-.btn-save-sm:disabled { opacity:.4; cursor:not-allowed; }
+.btn-save-sm { background:rgba(74,222,128,.15); color:var(--live); border:1px solid rgba(74,222,128,.3); padding:.38rem 0; border-radius:.5rem; font-family:'JetBrains Mono',monospace; font-size:.62rem; cursor:pointer; text-transform:uppercase; letter-spacing:.1em; touch-action:manipulation; font-weight:500; white-space:nowrap; flex:1; text-align:center; }
+.btn-save-sm:disabled { opacity:.3; cursor:not-allowed; }
+.btn-save-ai-sm { background:rgba(74,222,128,.15); color:var(--live); border:1px solid rgba(74,222,128,.3); padding:.38rem 0; border-radius:.5rem; font-family:'JetBrains Mono',monospace; font-size:.62rem; cursor:pointer; text-transform:uppercase; letter-spacing:.1em; touch-action:manipulation; font-weight:500; white-space:nowrap; flex:2; text-align:center; }
+.btn-save-ai-sm:disabled { opacity:.3; cursor:not-allowed; }
+.input-mode-toggle-sm { display:flex; gap:.2rem; background:var(--surface); border:1px solid var(--border); border-radius:2rem; padding:.2rem; }
+.mode-toggle-btn-sm { display:flex; align-items:center; gap:.25rem; background:none; border:none; border-radius:1.5rem; color:var(--muted); font-family:'JetBrains Mono',monospace; font-size:.55rem; letter-spacing:.08em; text-transform:uppercase; padding:.3rem .65rem; cursor:pointer; transition:background .15s,color .15s; }
+.mode-toggle-btn-sm svg { width:11px; height:11px; flex-shrink:0; }
+.mode-toggle-btn-sm.active { background:var(--accent); color:#fff; }
+.mic-btn-sm.photo-mode { background:var(--surface); border:1.5px solid var(--accent); color:var(--accent); box-shadow:0 3px 10px rgba(245,80,54,.2); }
+.photo-proc-pill { display:none; font-size:.58rem; color:var(--accent); letter-spacing:.08em; align-items:center; gap:.3rem; }
+.photo-proc-pill.show { display:flex; }
+.photo-proc-pill .pill-dot { width:6px;height:6px;border-radius:50%;background:var(--accent);animation:pulse 1.2s ease-in-out infinite; }
+.tag-photo { background:rgba(56,189,248,.08); color:#38bdf8; border-color:rgba(56,189,248,.2); }
+.popup-photo-feedback { display:none; flex-direction:column; gap:.4rem; margin-top:.5rem; padding-top:.5rem; border-top:1px solid var(--border); }
+.popup-photo-feedback.show { display:flex; }
 .btn-save-ai-sm { background:rgba(147,112,219,.15); color:#a78bfa; border:1px solid rgba(147,112,219,.35); padding:.35rem 0; border-radius:.5rem; font-family:'JetBrains Mono',monospace; font-size:.6rem; cursor:pointer; text-transform:uppercase; letter-spacing:.1em; touch-action:manipulation; white-space:nowrap; flex:1; text-align:center; }
 .btn-save-ai-sm:disabled { opacity:.4; cursor:not-allowed; }
 </style>
@@ -394,7 +403,6 @@ h1 em { font-style:italic; color:var(--accent); }
         <span class="live-dot-sm" id="popupLiveDot"></span>
         <span class="annot-popup-words" id="annotPopupWords">0 parole</span>
         <div class="processing-pill-sm" id="popupProcPill"><span class="pill-dot-sm"></span> trascrivo</div>
-        <div class="photo-proc-pill" id="popupPhotoPill"><span class="pill-dot"></span> analizzo foto</div>
       </div>
       <!-- Riga 2: toolbar formattazione -->
       <div class="fmt-toolbar">
@@ -414,27 +422,36 @@ h1 em { font-style:italic; color:var(--accent); }
         <button class="btn-ghost-sm" id="annotPopupCancel">Annulla</button>
         <button class="btn-save-sm" id="annotPopupSave" disabled>Salva nota</button>
       </div>
-      <!-- Riga 4: bottone microfono + bottone foto -->
-      <div class="popup-row-mic" style="gap:.75rem;">
+      <!-- Riga 4: bottone mic/foto + toggle -->
+      <div class="popup-row-mic" style="flex-direction:column;gap:.4rem;">
         <button class="mic-btn-sm" id="popupMicBtn">
           <svg id="popupMicIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
           <svg id="popupStopIcon" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+          <svg id="popupCameraIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
         </button>
-        <button class="mic-btn-sm" id="popupPhotoBtn" title="Fotografa appunto" style="background:var(--surface);border:1px solid var(--border);">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-        </button>
+        <div class="input-mode-toggle-sm">
+          <button class="mode-toggle-btn-sm active" id="popupModeVoiceBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+            Voce
+          </button>
+          <button class="mode-toggle-btn-sm" id="popupModePhotoBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            Foto
+          </button>
+        </div>
         <input type="file" id="popupPhotoInput" accept="image/*" capture="environment" style="display:none">
+        <div class="photo-proc-pill" id="popupPhotoPill"><span class="pill-dot"></span> analizzo foto...</div>
       </div>
     </div>
 
-    <!-- Sezione feedback trascrizione foto (visibile dopo analisi foto) -->
-    <div class="popup-ai-section" id="popupPhotoFeedbackSection" style="display:none">
-      <div style="font-size:.58rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);">Correzione trascrizione</div>
-      <div class="popup-ai-output" id="popupPhotoTranscript" contenteditable="true" spellcheck="true" style="min-height:80px;"></div>
-      <textarea class="refine-input" id="popupPhotoFeedbackInput" style="width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:.5rem;color:var(--text);font-family:'Crimson Pro',Georgia,serif;font-size:.9rem;line-height:1.6;padding:.5rem .7rem;resize:none;outline:none;min-height:50px;box-sizing:border-box;margin-top:.4rem;" placeholder="Correzioni… es. &quot;le frecce indicate con LO sono →&quot;, &quot;i titoli con # sono sezioni&quot;"></textarea>
-      <div style="display:flex;gap:.2rem;margin-top:.3rem;width:100%;">
-        <button class="btn-refine" id="popupPhotoRefineBtn" style="flex:1;background:rgba(245,80,54,.12);border:1px solid rgba(245,80,54,.3);border-radius:.5rem;color:var(--accent);font-size:.75rem;padding:.4rem .6rem;cursor:pointer;">&#10227; Rianalizza</button>
-        <button class="btn-save-ai-sm" id="popupPhotoApplyBtn" style="flex:2;">Applica trascrizione</button>
+    <!-- Sezione feedback trascrizione foto -->
+    <div class="popup-photo-feedback" id="popupPhotoFeedback">
+      <div style="font-size:.55rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);">Trascrizione — verifica e correggi</div>
+      <div id="popupPhotoTranscript" contenteditable="true" spellcheck="true" style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:.5rem;color:var(--text);font-family:'Crimson Pro',Georgia,serif;font-size:.9rem;line-height:1.7;padding:.6rem .75rem;min-height:60px;outline:none;caret-color:var(--accent);"></div>
+      <textarea id="popupPhotoFeedbackInput" style="width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:.5rem;color:var(--text);font-family:'Crimson Pro',Georgia,serif;font-size:.85rem;line-height:1.6;padding:.5rem .7rem;resize:none;outline:none;min-height:44px;box-sizing:border-box;" placeholder="Correzioni… es. &quot;le frecce → non sono LO&quot;, &quot;il titolo principale è Sistema trenante&quot;"></textarea>
+      <div style="display:flex;gap:.2rem;width:100%;">
+        <button id="popupPhotoRefineBtn" style="flex:1;background:rgba(245,80,54,.12);border:1px solid rgba(245,80,54,.3);border-radius:.5rem;color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:.6rem;text-transform:uppercase;letter-spacing:.08em;padding:.38rem .5rem;cursor:pointer;">&#10227; Rianalizza</button>
+        <button id="popupPhotoApplyBtn" style="flex:2;background:rgba(74,222,128,.15);color:var(--live);border:1px solid rgba(74,222,128,.3);border-radius:.5rem;font-family:'JetBrains Mono',monospace;font-size:.6rem;text-transform:uppercase;letter-spacing:.08em;padding:.38rem .5rem;cursor:pointer;">Applica nell'editor</button>
       </div>
     </div>
 
@@ -966,7 +983,7 @@ function tagsHtml(mode) {
   if(!mode) return '';
   const tags=(mode||'').split('+').map(t=>t.trim()).filter(Boolean);
   return tags.map(t=>{
-    const cls=t==='write'?'note-tag tag-write':t==='AI'?'note-tag tag-ai':t==='photo'?'note-tag tag-photo':'note-tag';
+    const cls=t==='write'?'note-tag tag-write':t==='AI'?'note-tag tag-ai':t&&t.includes('photo')?'note-tag tag-photo':'note-tag';
     return '<span class="'+cls+'">'+esc(t)+'</span>';
   }).join('');
 }
@@ -1080,11 +1097,21 @@ const popupSaveAi         = $('popupSaveAi');
 const popupLiveDot        = $('popupLiveDot');
 const popupProcPill       = $('popupProcPill');
 const popupMicBtn         = $('popupMicBtn');
-let popupPhotoBase64 = null;
-let popupPhotoHasSchema = false;
-const popupPhotoBtn   = $('popupPhotoBtn');
-const popupPhotoInput = $('popupPhotoInput');
-const popupPhotoPill  = $('popupPhotoPill');
+// ── FOTO / TOGGLE ─────────────────────────────────────────────────────────────
+let _popupInputMode    = 'voice';
+let _photoBase64       = null;
+let _photoHasSchema    = false;
+let _lastPhotoText     = '';
+const popupPhotoInput        = $('popupPhotoInput');
+const popupPhotoPill         = $('popupPhotoPill');
+const popupModeVoiceBtn      = $('popupModeVoiceBtn');
+const popupModePhotoBtn      = $('popupModePhotoBtn');
+const popupCameraIcon        = $('popupCameraIcon');
+const popupPhotoFeedback     = $('popupPhotoFeedback');
+const popupPhotoTranscript   = $('popupPhotoTranscript');
+const popupPhotoFeedbackInput= $('popupPhotoFeedbackInput');
+const popupPhotoRefineBtn    = $('popupPhotoRefineBtn');
+const popupPhotoApplyBtn     = $('popupPhotoApplyBtn');
 const popupMicIcon        = $('popupMicIcon');
 const popupStopIcon       = $('popupStopIcon');
 
@@ -1434,8 +1461,12 @@ function openAnnotPopup(dateStr){
   popupAiBtn.disabled=true;popupSaveAi.disabled=true;
   pActiveFormats={bold:false,italic:false};pLastRange=null;
   eActiveFormats={bold:false,italic:false};eLastRange=null;
-  popupPhotoBase64=null;popupPhotoHasSchema=false;
+  // Reset photo state
+  _photoBase64=null;_photoHasSchema=false;_lastPhotoText='';
+  if(typeof _photoFeedbackHistory!=='undefined')_photoFeedbackHistory.length=0;
+  if(popupPhotoFeedback)popupPhotoFeedback.classList.remove('show');
   if(popupPhotoPill)popupPhotoPill.classList.remove('show');
+  setPopupInputMode('voice');
   annotPopup.classList.add('show');
   setTimeout(()=>annotPopupTitleInput.focus(),200);
 }
@@ -1445,9 +1476,9 @@ function closeAnnotPopup(){
   annotPopup.classList.remove('show');
   annotPopupEditor.innerHTML='';annotPopupTitleInput.value='';
   popupAiSection.style.display='none';
-  if($('popupPhotoFeedbackSection'))$('popupPhotoFeedbackSection').style.display='none';
-  popupPhotoBase64=null;popupPhotoHasSchema=false;_lastPhotoRawText='';
-  if(popupPhotoPill)popupPhotoPill.classList.remove('show');
+  if(popupPhotoFeedback)popupPhotoFeedback.classList.remove('show');
+  _photoBase64=null;_photoHasSchema=false;
+  if(typeof _photoFeedbackHistory!=='undefined')_photoFeedbackHistory.length=0;
 }
 
 $('annotPopupClose').onclick=closeAnnotPopup;
@@ -1484,21 +1515,19 @@ annotPopupSave.onclick=async()=>{
   const modeTags=[];
   if(popupHasRec)modeTags.push('rec');
   if(annotPopupEditor.dataset.written==='1')modeTags.push('write');
-  if(popupPhotoBase64)modeTags.push('photo');
+  if(_photoBase64)modeTags.push('photo');
   const mode=modeTags.length?modeTags.join('+'):'write';
 
-  // Carica foto su Storage se presente
-  let imageUrl = null;
-  if(popupPhotoBase64 && popupPhotoHasSchema){
-    imageUrl = await uploadPhotoToStorage(popupPhotoBase64);
-  }
+  // Upload foto se presente e ha schema
+  let _imgUrl = null;
+  if(_photoBase64 && _photoHasSchema) _imgUrl = await uploadPhotoToStorage(_photoBase64);
 
   try{
-    const record={title,content,mode,note_date:popupDate};
-    if(imageUrl)record.image_url=imageUrl;
-    const{error}=await sb.from('notes').insert([record]);
+    const rec={title,content,mode,note_date:popupDate};
+    if(_imgUrl)rec.image_url=_imgUrl;
+    const{error}=await sb.from('notes').insert([rec]);
     if(error)throw error;
-    popupPhotoBase64=null;popupPhotoHasSchema=false;
+    _photoBase64=null;_photoHasSchema=false;_photoFeedbackHistory.length=0;
     closeAnnotPopup();await loadNotes();
   }catch(e){showErr('Errore salvataggio: '+(e.message||e));}
   annotPopupSave.innerHTML='Salva nota';annotPopupSave.disabled=false;
@@ -1710,208 +1739,257 @@ if('serviceWorker' in navigator){
 }
 
 loadNotes();
-// ── FOTO APPUNTO ──────────────────────────────────────────────────────────────
-popupPhotoBtn.onclick = () => popupPhotoInput.click();
+// ── MARKDOWN → HTML ───────────────────────────────────────────────────────────
+function mdToHtml(md) {
+  const lines = md.split('\n');
+  let html = '', inUl = false, inOl = false;
+  const esc = t => t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const inline = t => esc(t)
+    .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
+    .replace(/__(.*?)__/g,'<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g,'<em>$1</em>')
+    .replace(/_(.*?)_/g,'<em>$1</em>')
+    .replace(/`(.*?)`/g,'<code>$1</code>');
+  lines.forEach(raw => {
+    const line = raw.replace(/\r/g,'');
+    // close lists before non-list lines
+    const isUl = /^[-*+]\s+/.test(line);
+    const isOl = /^\d+\.\s+/.test(line);
+    if (inUl && !isUl) { html += '</ul>'; inUl = false; }
+    if (inOl && !isOl) { html += '</ol>'; inOl = false; }
+    const h3 = line.match(/^###\s+(.*)/);
+    const h2 = line.match(/^##\s+(.*)/);
+    const h1 = line.match(/^#\s+(.*)/);
+    const ul = line.match(/^[-*+]\s+(.*)/);
+    const ol = line.match(/^\d+\.\s+(.*)/);
+    if      (h3) html += '<h3>' + inline(h3[1]) + '</h3>';
+    else if (h2) html += '<h2>' + inline(h2[1]) + '</h2>';
+    else if (h1) html += '<h1>' + inline(h1[1]) + '</h1>';
+    else if (ul) { if (!inUl) { html += '<ul>'; inUl = true; } html += '<li>' + inline(ul[1]) + '</li>'; }
+    else if (ol) { if (!inOl) { html += '<ol>'; inOl = true; } html += '<li>' + inline(ol[1]) + '</li>'; }
+    else if (line.trim()) html += '<p>' + inline(line) + '</p>';
+  });
+  if (inUl) html += '</ul>';
+  if (inOl) html += '</ol>';
+  return html;
+}
 
-popupPhotoInput.onchange = async (e) => {
+// ── TOGGLE MODALITÀ INPUT ─────────────────────────────────────────────────────
+function setPopupInputMode(mode) {
+  _popupInputMode = mode;
+  if (mode === 'photo') {
+    popupModeVoiceBtn.classList.remove('active');
+    popupModePhotoBtn.classList.add('active');
+    popupMicIcon.style.display    = 'none';
+    popupCameraIcon.style.display = 'block';
+    popupStopIcon.style.display   = 'none';
+    popupMicBtn.classList.add('photo-mode');
+  } else {
+    popupModePhotoBtn.classList.remove('active');
+    popupModeVoiceBtn.classList.add('active');
+    popupMicIcon.style.display    = 'block';
+    popupCameraIcon.style.display = 'none';
+    popupMicBtn.classList.remove('photo-mode');
+  }
+}
+
+popupModeVoiceBtn.onclick = () => { if (!popupIsRecording) setPopupInputMode('voice'); };
+popupModePhotoBtn.onclick = () => { if (!popupIsRecording) setPopupInputMode('photo'); };
+
+// Override mic btn: in photo mode opens file picker
+popupMicBtn.addEventListener('click', e => {
+  if (_popupInputMode === 'photo') {
+    e.stopImmediatePropagation();
+    popupPhotoInput.click();
+  }
+}, true);
+
+// ── ANALISI FOTO ──────────────────────────────────────────────────────────────
+async function analyzePhoto(base64, feedbackHistory) {
+  const GROQ = localStorage.getItem('vv_groq') || '';
+  if (!GROQ) throw new Error('Chiave Groq non trovata.');
+
+  const systemPrompt = `Sei un trascrittore preciso di appunti scritti a mano in italiano.
+Il tuo unico compito è trascrivere fedelmente il contenuto visibile nella foto.
+
+REGOLE ASSOLUTE:
+1. Trascrivi TUTTO il testo visibile esattamente come scritto, rispettando gerarchia e struttura
+2. Usa markdown: # per titoli principali, ## per sottotitoli, ### per sezioni minori
+3. Usa - per elenchi puntati, 1. 2. 3. per elenchi numerati
+4. Per schemi con frecce: descrivi i nodi e le connessioni in modo semantico con →
+5. Mantieni rientri e gerarchia visiva dell'originale
+6. NON interpretare, NON riassumere, NON aggiungere nulla che non sia scritto
+7. Alla fine indica su riga separata: SCHEMA: sì oppure SCHEMA: no`;
+
+  const messages = [
+    { role: 'user', content: [
+      { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + base64 } },
+      { type: 'text', text: 'Trascrivi questo appunto.' }
+    ]}
+  ];
+
+  // Aggiungi storia del feedback per guidare la rianalisi
+  if (feedbackHistory && feedbackHistory.length > 0) {
+    messages.push({ role: 'assistant', content: feedbackHistory[0].transcription });
+    feedbackHistory.forEach(fb => {
+      messages.push({ role: 'user', content: 'Correzione: ' + fb.feedback });
+      if (fb.response) messages.push({ role: 'assistant', content: fb.response });
+    });
+    messages.push({ role: 'user', content: 'Rianalizza la foto applicando tutte le correzioni indicate.' });
+  }
+
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST', cache: 'no-store',
+    headers: { 'Authorization': 'Bearer ' + GROQ, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+      max_tokens: 2000, temperature: 0.05,
+      messages: [{ role: 'system', content: systemPrompt }, ...messages]
+    })
+  });
+  if (!res.ok) throw new Error('Errore API Groq: ' + res.status);
+  const data = await res.json();
+  return data?.choices?.[0]?.message?.content?.trim() || '';
+}
+
+const _photoFeedbackHistory = [];
+
+popupPhotoInput.onchange = async e => {
   const file = e.target.files[0];
   if (!file) return;
   popupPhotoInput.value = '';
+  _photoFeedbackHistory.length = 0;
 
-  // Comprimi immagine (max 1200px, quality 0.75)
-  popupPhotoBase64 = await compressImageB64(file, 1200, 0.75);
-
-  // Mostra pill
+  // Comprimi
+  _photoBase64 = await compressImageB64(file, 1200, 0.78);
   popupPhotoPill.classList.add('show');
 
-  const GROQ = localStorage.getItem('vv_groq') || '';
-  if (!GROQ) { showErr('Chiave Groq non trovata.'); popupPhotoPill.classList.remove('show'); return; }
-
   try {
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      cache: 'no-store',
-      headers: { 'Authorization': 'Bearer ' + GROQ, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-        max_tokens: 1500,
-        temperature: 0.1,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + popupPhotoBase64 } },
-            { type: 'text', text: 'Analizza questo appunto scritto a mano in italiano. Se contiene solo testo scritto, trascrivilo fedelmente rispettando la struttura (a capo, rientri, elenchi). Se contiene schemi, frecce, mappe concettuali o diagrammi, trascrivi tutto il testo visibile e descrivi semanticamente lo schema: nodi, connessioni, direzione delle frecce, struttura generale. Alla fine indica obbligatoriamente su una riga separata: SCHEMA: sì oppure SCHEMA: no' }
-          ]
-        }]
-      })
-    });
+    const raw = await analyzePhoto(_photoBase64, []);
+    _photoHasSchema = /SCHEMA:\s*s[iì]/i.test(raw);
+    const clean = raw.replace(/SCHEMA:\s*(s[iì]|no)/i,'').trim();
+    _lastPhotoText = clean;
+    _photoFeedbackHistory.push({ transcription: clean, feedback: null, response: null });
 
-    if (!res.ok) throw new Error('Errore API Groq');
-    const data = await res.json();
-    const rawText = data?.choices?.[0]?.message?.content?.trim() || '';
-
-    popupPhotoHasSchema = /SCHEMA:\s*sì/i.test(rawText);
-    const cleanText = rawText.replace(/SCHEMA:\s*(sì|no)/i, '').trim();
-
-    // Converti markdown → HTML per l'editor
-    function mdToHtml(md) {
-      const lines = md.split('\n');
-      let html = '', inUl = false, inOl = false;
-      const inline = t => t.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/__(.*?)__/g,'<strong>$1</strong>').replace(/\*(.*?)\*/g,'<em>$1</em>').replace(/_(.*?)_/g,'<em>$1</em>');
-      lines.forEach(line => {
-        const h1=line.match(/^#\s+(.*)/),h2=line.match(/^##\s+(.*)/),h3=line.match(/^###\s+(.*)/);
-        const ul=line.match(/^[-*]\s+(.*)/),ol=line.match(/^\d+\.\s+(.*)/);
-        if(inUl&&!ul){html+='</ul>';inUl=false;}
-        if(inOl&&!ol){html+='</ol>';inOl=false;}
-        if(h3)html+='<h3>'+inline(h3[1])+'</h3>';
-        else if(h2)html+='<h2>'+inline(h2[1])+'</h2>';
-        else if(h1)html+='<h1>'+inline(h1[1])+'</h1>';
-        else if(ul){if(!inUl){html+='<ul>';inUl=true;}html+='<li>'+inline(ul[1])+'</li>';}
-        else if(ol){if(!inOl){html+='<ol>';inOl=true;}html+='<li>'+inline(ol[1])+'</li>';}
-        else if(line.trim())html+='<p>'+inline(line)+'</p>';
-      });
-      if(inUl)html+='</ul>';if(inOl)html+='</ol>';
-      return html;
-    }
-    annotPopupEditor.innerHTML = mdToHtml(cleanText);
+    // Mostra nell'editor principale
+    annotPopupEditor.innerHTML = mdToHtml(clean);
     annotPopupEditor.dataset.written = '1';
-
-    // Aggiorna conteggio parole
-    const words = (annotPopupEditor.innerText || '').trim().split(/\s+/).filter(Boolean).length;
-    annotPopupWords.textContent = words + (words === 1 ? ' parola' : ' parole');
+    const wc = (annotPopupEditor.innerText||'').trim().split(/\s+/).filter(Boolean).length;
+    annotPopupWords.textContent = wc + (wc===1?' parola':' parole');
     annotPopupSave.disabled = false;
     popupAiBtn.disabled = false;
 
-    // Mostra sezione feedback trascrizione
-    popupPhotoTranscriptEl.innerHTML = mdToHtml(cleanText);
-    popupPhotoFeedbackSection.style.display = 'block';
-    _lastPhotoRawText = cleanText;
+    // Mostra sezione feedback
+    popupPhotoTranscript.innerHTML = mdToHtml(clean);
+    popupPhotoFeedback.classList.add('show');
+    popupPhotoFeedbackInput.value = '';
 
   } catch(err) {
-    showErr('Errore analisi foto: ' + (err.message || err));
-    popupPhotoBase64 = null;
+    showErr('Errore analisi foto: ' + (err.message||err));
+    _photoBase64 = null;
   }
-
   popupPhotoPill.classList.remove('show');
 };
 
-// ── FEEDBACK TRASCRIZIONE FOTO ─────────────────────────────────────────────────
-let _lastPhotoRawText = '';
-const popupPhotoFeedbackSection = $('popupPhotoFeedbackSection');
-const popupPhotoTranscriptEl    = $('popupPhotoTranscript');
-const popupPhotoFeedbackInput   = $('popupPhotoFeedbackInput');
-const popupPhotoRefineBtn       = $('popupPhotoRefineBtn');
-const popupPhotoApplyBtn        = $('popupPhotoApplyBtn');
-
-// Rianalizza con feedback
+// ── RIANALIZZA CON FEEDBACK ───────────────────────────────────────────────────
 popupPhotoRefineBtn.onclick = async () => {
   const feedback = popupPhotoFeedbackInput.value.trim();
-  if (!feedback || !popupPhotoBase64) return;
-  const GROQ = localStorage.getItem('vv_groq') || '';
-  if (!GROQ) { showErr('Chiave Groq non trovata.'); return; }
+  if (!feedback || !_photoBase64) return;
 
   popupPhotoRefineBtn.disabled = true;
   popupPhotoPill.classList.add('show');
 
-  // Salva regole importanti se contengono parole chiave forti
-  const keywords = /\bsempre\b|\bmai\b|\bogni volta\b|\btutti\b|\bmai più\b/i;
-  if (keywords.test(feedback)) {
+  // Salva regole importanti se il feedback contiene parole forti
+  if (/\bsempre\b|\bmai\b|\bogni volta\b|\btutti\b/i.test(feedback)) {
+    const GROQ = localStorage.getItem('vv_groq') || '';
     try {
       const rules = await ProfileManager.analyzeFeedback(feedback, GROQ);
       if (rules) await ProfileManager.updateRules(rules);
-    } catch(e) { console.warn('[ProfileManager] photo feedback rules:', e); }
+    } catch(e) { console.warn('[ProfileManager] photo rules:', e); }
   }
 
+  // Aggiorna storia feedback
+  const lastEntry = _photoFeedbackHistory[_photoFeedbackHistory.length - 1];
+  if (lastEntry) lastEntry.feedback = feedback;
+
   try {
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST', cache: 'no-store',
-      headers: { 'Authorization': 'Bearer ' + GROQ, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-        max_tokens: 1500, temperature: 0.1,
-        messages: [
-          { role: 'user', content: [
-            { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + popupPhotoBase64 } },
-            { type: 'text', text: 'Analizza questo appunto scritto a mano in italiano. Se contiene solo testo scritto, trascrivilo fedelmente rispettando la struttura (a capo, rientri, elenchi). Se contiene schemi, frecce, mappe concettuali o diagrammi, trascrivi tutto il testo visibile e descrivi semanticamente lo schema: nodi, connessioni, direzione delle frecce, struttura generale. Alla fine indica obbligatoriamente su una riga separata: SCHEMA: sì oppure SCHEMA: no' }
-          ]},
-          { role: 'assistant', content: _lastPhotoRawText },
-          { role: 'user', content: 'Correzioni da applicare alla trascrizione:\n\n' + feedback + '\n\nRitrascrivi tenendo conto di queste correzioni.' }
-        ]
-      })
-    });
-    if (!res.ok) throw new Error('Errore API');
-    const data = await res.json();
-    const rawText = data?.choices?.[0]?.message?.content?.trim() || '';
-    popupPhotoHasSchema = /SCHEMA:\s*sì/i.test(rawText);
-    const cleanText = rawText.replace(/SCHEMA:\s*(sì|no)/i, '').trim();
-    _lastPhotoRawText = cleanText;
-    popupPhotoTranscriptEl.innerHTML = mdToHtml(cleanText);
-    annotPopupEditor.innerHTML = mdToHtml(cleanText);
-    const words = (annotPopupEditor.innerText||'').trim().split(/\s+/).filter(Boolean).length;
-    annotPopupWords.textContent = words + (words===1?' parola':' parole');
-  } catch(err) {
-    showErr('Errore rianalisi: ' + (err.message || err));
-  }
+    const raw = await analyzePhoto(_photoBase64, _photoFeedbackHistory);
+    _photoHasSchema = /SCHEMA:\s*s[iì]/i.test(raw);
+    const clean = raw.replace(/SCHEMA:\s*(s[iì]|no)/i,'').trim();
+
+    // Aggiorna storia
+    if (lastEntry) lastEntry.response = clean;
+    _photoFeedbackHistory.push({ transcription: clean, feedback: null, response: null });
+    _lastPhotoText = clean;
+
+    popupPhotoTranscript.innerHTML = mdToHtml(clean);
+    popupPhotoFeedbackInput.value = '';
+
+    // Aggiorna anche editor principale
+    annotPopupEditor.innerHTML = mdToHtml(clean);
+    const wc = (annotPopupEditor.innerText||'').trim().split(/\s+/).filter(Boolean).length;
+    annotPopupWords.textContent = wc + (wc===1?' parola':' parole');
+
+  } catch(err) { showErr('Errore rianalisi: ' + (err.message||err)); }
 
   popupPhotoPill.classList.remove('show');
   popupPhotoRefineBtn.disabled = false;
 };
 
-// Applica trascrizione corretta manualmente dall'editor feedback
+// ── APPLICA TRASCRIZIONE ──────────────────────────────────────────────────────
 popupPhotoApplyBtn.onclick = () => {
-  const corrected = popupPhotoTranscriptEl.innerHTML.trim();
-  if (!corrected) return;
-  annotPopupEditor.innerHTML = corrected;
+  const html = popupPhotoTranscript.innerHTML.trim();
+  if (!html) return;
+  annotPopupEditor.innerHTML = html;
   annotPopupEditor.dataset.written = '1';
-  const words = (annotPopupEditor.innerText||'').trim().split(/\s+/).filter(Boolean).length;
-  annotPopupWords.textContent = words + (words===1?' parola':' parole');
+  const wc = (annotPopupEditor.innerText||'').trim().split(/\s+/).filter(Boolean).length;
+  annotPopupWords.textContent = wc + (wc===1?' parola':' parole');
   annotPopupSave.disabled = false;
   popupAiBtn.disabled = false;
-  popupPhotoFeedbackSection.style.display = 'none';
 };
 
-// Salva immagine su Supabase Storage e restituisce URL pubblico
-async function uploadPhotoToStorage(base64) {
-  if (!sb || !base64) return null;
-  try {
-    const byteString = atob(base64);
-    const ab = new ArrayBuffer(byteString.length);
-    const ia = new Uint8Array(ab);
-    for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
-    const blob = new Blob([ab], { type: 'image/jpeg' });
-    const fileName = 'note-' + Date.now() + '.jpg';
-    const { error } = await sb.storage.from('note-images').upload(fileName, blob, { contentType: 'image/jpeg', upsert: false });
-    if (error) throw error;
-    const { data } = sb.storage.from('note-images').getPublicUrl(fileName);
-    return data?.publicUrl || null;
-  } catch(e) {
-    console.warn('[Photo upload]', e);
-    return null;
-  }
-}
-
-// Comprimi immagine lato client
+// ── COMPRIMI IMMAGINE ─────────────────────────────────────────────────────────
 function compressImageB64(file, maxPx, quality) {
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = e => {
       const img = new Image();
       img.onload = () => {
         let w = img.width, h = img.height;
         if (w > maxPx || h > maxPx) {
           if (w > h) { h = Math.round(h * maxPx / w); w = maxPx; }
-          else { w = Math.round(w * maxPx / h); h = maxPx; }
+          else       { w = Math.round(w * maxPx / h); h = maxPx; }
         }
-        const canvas = document.createElement('canvas');
-        canvas.width = w; canvas.height = h;
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL('image/jpeg', quality).split(',')[1]);
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        c.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(c.toDataURL('image/jpeg', quality).split(',')[1]);
       };
       img.src = e.target.result;
     };
     reader.readAsDataURL(file);
   });
 }
+
+// ── SALVATAGGIO CON IMAGE_URL ─────────────────────────────────────────────────
+async function uploadPhotoToStorage(base64) {
+  if (!sb || !base64) return null;
+  try {
+    const bytes = atob(base64);
+    const ab = new ArrayBuffer(bytes.length);
+    const ia = new Uint8Array(ab);
+    for (let i = 0; i < bytes.length; i++) ia[i] = bytes.charCodeAt(i);
+    const blob = new Blob([ab], { type: 'image/jpeg' });
+    const name = 'note-' + Date.now() + '.jpg';
+    const { error } = await sb.storage.from('note-images').upload(name, blob, { contentType: 'image/jpeg', upsert: false });
+    if (error) throw error;
+    const { data } = sb.storage.from('note-images').getPublicUrl(name);
+    return data?.publicUrl || null;
+  } catch(e) { console.warn('[Photo upload]', e); return null; }
+}
+
+// ── RESET POPUP ───────────────────────────────────────────────────────────────
+const _origOpenAnnotPopup = openAnnotPopup;
 
 </script>
 </body>

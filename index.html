@@ -107,14 +107,16 @@ h1 em { font-style:italic; color:var(--accent); }
 .mic-btn.recording { background:#c0392b; animation:pulse 1.4s ease-in-out infinite; }
 @keyframes pulse { 0%,100%{box-shadow:0 6px 36px rgba(192,57,43,.55)} 50%{box-shadow:0 6px 50px rgba(192,57,43,.85),0 0 0 10px rgba(192,57,43,.1)} }
 .mic-btn svg { width:34px; height:34px; }
-.input-mode-toggle { display:flex; gap:.25rem; background:var(--surface,#111); border:1px solid var(--border,#1e1e2e); border-radius:2rem; padding:.25rem; margin-top:.6rem; }
-.mode-toggle-btn { display:flex; align-items:center; gap:.3rem; background:none; border:none; border-radius:1.5rem; color:var(--muted,#5a5a7a); font-family:'JetBrains Mono',monospace; font-size:.6rem; letter-spacing:.08em; text-transform:uppercase; padding:.35rem .75rem; cursor:pointer; transition:background .15s,color .15s; }
+.mic-btn.photo-mode { background:var(--surface,#111); border:2px solid var(--accent); color:var(--accent); box-shadow:0 4px 20px rgba(245,80,54,.2); }
+.input-mode-toggle { display:flex; gap:.2rem; background:var(--surface,#111); border:1px solid var(--border,#1e1e2e); border-radius:2rem; padding:.2rem; margin-top:.55rem; }
+.mode-toggle-btn { display:flex; align-items:center; gap:.3rem; background:none; border:none; border-radius:1.5rem; color:var(--muted,#5a5a7a); font-family:'JetBrains Mono',monospace; font-size:.6rem; letter-spacing:.08em; text-transform:uppercase; padding:.32rem .7rem; cursor:pointer; transition:background .15s,color .15s; }
 .mode-toggle-btn svg { width:13px; height:13px; flex-shrink:0; }
-.mode-toggle-btn.active { background:var(--accent,#f55036); color:#fff; }
-.mic-btn.photo-mode { background:var(--surface,#111); border:1.5px solid var(--accent,#f55036); color:var(--accent,#f55036); box-shadow:0 4px 20px rgba(245,80,54,.2); }
-.photo-proc { display:none; font-size:.65rem; color:var(--accent,#f55036); letter-spacing:.08em; align-items:center; gap:.4rem; margin-top:.4rem; }
+.mode-toggle-btn.active { background:var(--accent); color:#fff; }
+.photo-proc { display:none; font-size:.65rem; color:var(--accent); letter-spacing:.08em; align-items:center; gap:.4rem; margin-top:.35rem; }
 .photo-proc.show { display:flex; }
-.photo-proc .dot { width:7px;height:7px;border-radius:50%;background:var(--accent,#f55036);animation:pulse 1.2s ease-in-out infinite; }
+.photo-proc .dot { width:7px;height:7px;border-radius:50%;background:var(--accent);animation:pulse 1.2s ease-in-out infinite; }
+.photo-feedback-section { display:none; flex-direction:column; gap:.4rem; margin-top:.6rem; padding:.75rem; background:var(--surface,#111); border:1px solid var(--border,#1e1e2e); border-radius:.6rem; }
+.photo-feedback-section.show { display:flex; }
 .tag-photo { background:rgba(56,189,248,.08); color:#38bdf8; border-color:rgba(56,189,248,.2); }
 .status-row { display:flex; align-items:center; gap:.45rem; font-size:.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:.12em; }
 .status-dot { width:6px; height:6px; border-radius:50%; background:var(--muted); transition:background .3s; }
@@ -269,19 +271,15 @@ h1 em { font-style:italic; color:var(--accent); }
       <div class="bar"></div><div class="bar"></div><div class="bar"></div>
     </div>
     <button class="mic-btn" id="micBtn" data-testid="mic-btn">
-      <!-- Icona microfono (modalità voce) -->
       <svg id="micIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
         <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
         <line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
       </svg>
-      <!-- Icona stop -->
       <svg id="stopIcon" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
-      <!-- Icona fotocamera (modalità foto) -->
       <svg id="cameraIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
     </button>
-    <!-- Toggle modalità -->
-    <div class="input-mode-toggle">
+    <div class="input-mode-toggle" id="inputModeToggle">
       <button class="mode-toggle-btn active" id="modeVoiceBtn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
         Voce
@@ -294,6 +292,17 @@ h1 em { font-style:italic; color:var(--accent); }
     <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none">
     <div class="photo-proc" id="photoProcPill"><span class="dot"></span> analizzo foto...</div>
     <div class="status-row"><span class="status-dot" id="statusDot"></span><span id="statusText">Inserisci la chiave API</span></div>
+  </div>
+
+  <!-- FEEDBACK TRASCRIZIONE FOTO -->
+  <div class="photo-feedback-section" id="photoFeedbackSection">
+    <div style="font-size:.55rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted,#5a5a7a);">Trascrizione — verifica e correggi</div>
+    <div id="photoTranscript" contenteditable="true" spellcheck="true" style="background:rgba(255,255,255,.03);border:1px solid var(--border,#1e1e2e);border-radius:.5rem;color:var(--text,#e8e8f0);font-family:'Crimson Pro',Georgia,serif;font-size:.95rem;line-height:1.75;padding:.65rem .8rem;min-height:60px;outline:none;caret-color:var(--accent);"></div>
+    <textarea id="photoFeedbackInput" style="width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border,#1e1e2e);border-radius:.5rem;color:var(--text,#e8e8f0);font-family:'Crimson Pro',Georgia,serif;font-size:.9rem;line-height:1.6;padding:.5rem .7rem;resize:none;outline:none;min-height:44px;box-sizing:border-box;" placeholder="Correzioni… es. &quot;le frecce → non sono LO&quot;, &quot;il titolo principale è…&quot;"></textarea>
+    <div style="display:flex;gap:.3rem;">
+      <button id="photoRefineBtn" class="btn-ghost" style="flex:1;">&#10227; Rianalizza</button>
+      <button id="photoApplyBtn" class="btn-save-direct" style="flex:2;">Applica nell&#39;editor</button>
+    </div>
   </div>
 
   <!-- OUTPUT AI -->
@@ -1162,17 +1171,17 @@ modalConfirm.onclick = async () => {
   modalConfirm.disabled = true;
   modalConfirm.innerHTML = '<span class="modal-spinner"></span>Salvo...';
   try {
-    // Se c'è una foto con schema, caricala su Storage
     let _imgUrl = null;
-    if (_photoBase64 && _photoHasSchema) {
-      _imgUrl = await uploadPhotoToStorage(_photoBase64);
-    }
-    const _mode = _saveMode === 'ai' ? 'AI' : (_photoBase64 ? (_hasRec ? 'rec+photo' : 'photo') : (_hasRec && _hasWrite ? 'rec+write' : _hasRec ? 'rec' : 'write'));
-    const _record = { title, content, note_date: date, mode: _mode };
-    if (_imgUrl) _record.image_url = _imgUrl;
-    const { error } = await sb.from('notes').insert([_record]);
+    if (_photoBase64 && _photoHasSchema) _imgUrl = await uploadPhotoToStorage(_photoBase64);
+    const _mode = _saveMode === 'ai' ? 'AI'
+      : (_photoBase64 ? (_hasRec ? 'rec+photo' : 'photo')
+      : (_hasRec && _hasWrite ? 'rec+write' : _hasRec ? 'rec' : 'write'));
+    const _rec = { title, content, note_date: date, mode: _mode };
+    if (_imgUrl) _rec.image_url = _imgUrl;
+    const { error } = await sb.from('notes').insert([_rec]);
     if (error) throw error;
-    _photoBase64 = null; _photoHasSchema = false;
+    _photoBase64 = null; _photoHasSchema = false; _photoFeedbackHistory.length = 0;
+    photoFeedbackSection.classList.remove('show');
 
     // Mostra successo senza toccare il DOM del form
     // Salva esempio approvato nel profilo
@@ -1269,16 +1278,53 @@ function htmlToMarkdown(html){
   }
   return w(d).replace(/\n{3,}/g,'\n\n').trim();
 }
-// ── FOTO APPUNTO ──────────────────────────────────────────────────────────────
-let _photoBase64    = null;
-let _photoHasSchema = false;
-let _inputMode      = 'voice'; // 'voice' | 'photo'
+// ── MARKDOWN → HTML ───────────────────────────────────────────────────────────
+function mdToHtml(md) {
+  const lines = md.split('\n');
+  let html = '', inUl = false, inOl = false;
+  const esc = t => t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const inline = t => esc(t)
+    .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
+    .replace(/__(.*?)__/g,'<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g,'<em>$1</em>')
+    .replace(/_(.*?)_/g,'<em>$1</em>')
+    .replace(/`(.*?)`/g,'<code>$1</code>');
+  lines.forEach(raw => {
+    const line = raw.replace(/\r/g,'');
+    const isUl = /^[-*+]\s+/.test(line);
+    const isOl = /^\d+\.\s+/.test(line);
+    if (inUl && !isUl) { html += '</ul>'; inUl = false; }
+    if (inOl && !isOl) { html += '</ol>'; inOl = false; }
+    const h3=line.match(/^###\s+(.*)/), h2=line.match(/^##\s+(.*)/), h1=line.match(/^#\s+(.*)/);
+    const ul=line.match(/^[-*+]\s+(.*)/), ol=line.match(/^\d+\.\s+(.*)/);
+    if      (h3) html += '<h3>' + inline(h3[1]) + '</h3>';
+    else if (h2) html += '<h2>' + inline(h2[1]) + '</h2>';
+    else if (h1) html += '<h1>' + inline(h1[1]) + '</h1>';
+    else if (ul) { if (!inUl) { html += '<ul>'; inUl=true; } html += '<li>' + inline(ul[1]) + '</li>'; }
+    else if (ol) { if (!inOl) { html += '<ol>'; inOl=true; } html += '<li>' + inline(ol[1]) + '</li>'; }
+    else if (line.trim()) html += '<p>' + inline(line) + '</p>';
+  });
+  if (inUl) html += '</ul>';
+  if (inOl) html += '</ol>';
+  return html;
+}
 
-const photoInput     = $('photoInput');
-const photoProcPill  = $('photoProcPill');
-const modeVoiceBtn   = $('modeVoiceBtn');
-const modePhotoBtn   = $('modePhotoBtn');
-const cameraIcon     = $('cameraIcon');
+// ── TOGGLE MODALITÀ INPUT ─────────────────────────────────────────────────────
+let _inputMode    = 'voice';
+let _photoBase64  = null;
+let _photoHasSchema = false;
+const _photoFeedbackHistory = [];
+
+const photoInput          = $('photoInput');
+const photoProcPill       = $('photoProcPill');
+const modeVoiceBtn        = $('modeVoiceBtn');
+const modePhotoBtn        = $('modePhotoBtn');
+const cameraIcon          = $('cameraIcon');
+const photoFeedbackSection= $('photoFeedbackSection');
+const photoTranscript     = $('photoTranscript');
+const photoFeedbackInput  = $('photoFeedbackInput');
+const photoRefineBtn      = $('photoRefineBtn');
+const photoApplyBtn       = $('photoApplyBtn');
 
 function setInputMode(mode) {
   _inputMode = mode;
@@ -1289,131 +1335,198 @@ function setInputMode(mode) {
     cameraIcon.style.display = 'block';
     stopIcon.style.display   = 'none';
     micBtn.classList.add('photo-mode');
-    micBtn.title = 'Scatta o carica foto appunto';
   } else {
     modePhotoBtn.classList.remove('active');
     modeVoiceBtn.classList.add('active');
     micIcon.style.display    = 'block';
     cameraIcon.style.display = 'none';
     micBtn.classList.remove('photo-mode');
-    micBtn.title = '';
   }
 }
 
 modeVoiceBtn.onclick = () => { if (!isRecording) setInputMode('voice'); };
 modePhotoBtn.onclick = () => { if (!isRecording) setInputMode('photo'); };
 
-// Override micBtn click: se modalità foto apre il file picker
-const _origMicClick = micBtn.onclick;
-micBtn.addEventListener('click', (e) => {
+micBtn.addEventListener('click', e => {
   if (_inputMode === 'photo') {
     e.stopImmediatePropagation();
     photoInput.click();
   }
 }, true);
 
-photoInput.onchange = async (e) => {
+// ── ANALISI FOTO ──────────────────────────────────────────────────────────────
+async function analyzePhoto(base64, feedbackHistory) {
+  const GROQ = localStorage.getItem('vv_groq') || '';
+  if (!GROQ) throw new Error('Chiave Groq non trovata.');
+
+  const systemPrompt = `Sei un trascrittore preciso di appunti scritti a mano in italiano.
+Il tuo unico compito è trascrivere fedelmente il contenuto visibile nella foto.
+
+REGOLE ASSOLUTE:
+1. Trascrivi TUTTO il testo visibile esattamente come scritto, rispettando gerarchia e struttura
+2. Usa markdown: # per titoli principali, ## per sottotitoli, ### per sezioni minori
+3. Usa - per elenchi puntati, 1. 2. 3. per elenchi numerati
+4. Per schemi con frecce: descrivi i nodi e le connessioni con →
+5. NON interpretare, NON riassumere, NON aggiungere nulla che non sia scritto
+6. Alla fine indica su riga separata: SCHEMA: sì oppure SCHEMA: no`;
+
+  const messages = [
+    { role: 'user', content: [
+      { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + base64 } },
+      { type: 'text', text: 'Trascrivi questo appunto.' }
+    ]}
+  ];
+
+  if (feedbackHistory && feedbackHistory.length > 0) {
+    const first = feedbackHistory[0];
+    if (first.transcription) messages.push({ role: 'assistant', content: first.transcription });
+    feedbackHistory.forEach((fb, i) => {
+      if (i === 0 && !fb.feedback) return;
+      if (fb.feedback) messages.push({ role: 'user', content: 'Correzione: ' + fb.feedback });
+      if (fb.response) messages.push({ role: 'assistant', content: fb.response });
+    });
+    messages.push({ role: 'user', content: 'Rianalizza la foto applicando tutte le correzioni indicate.' });
+  }
+
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST', cache: 'no-store',
+    headers: { 'Authorization': 'Bearer ' + GROQ, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+      max_tokens: 2000, temperature: 0.05,
+      messages: [{ role: 'system', content: systemPrompt }, ...messages]
+    })
+  });
+  if (!res.ok) throw new Error('Errore API Groq: ' + res.status);
+  const data = await res.json();
+  return data?.choices?.[0]?.message?.content?.trim() || '';
+}
+
+photoInput.onchange = async e => {
   const file = e.target.files[0];
   if (!file) return;
   photoInput.value = '';
+  _photoFeedbackHistory.length = 0;
 
-  _photoBase64 = await compressImageB64(file, 1200, 0.75);
+  _photoBase64 = await compressImageB64(file, 1200, 0.78);
   photoProcPill.classList.add('show');
 
-  const GROQ = localStorage.getItem('vv_groq') || '';
-  if (!GROQ) { showErr('Chiave Groq non trovata.'); photoProcPill.classList.remove('show'); return; }
-
   try {
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      cache: 'no-store',
-      headers: { 'Authorization': 'Bearer ' + GROQ, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-        max_tokens: 1500,
-        temperature: 0.1,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + _photoBase64 } },
-            { type: 'text', text: 'Analizza questo appunto scritto a mano in italiano. Se contiene solo testo scritto, trascrivilo fedelmente rispettando la struttura (a capo, rientri, elenchi). Se contiene schemi, frecce, mappe concettuali o diagrammi, trascrivi tutto il testo visibile e descrivi semanticamente lo schema: nodi, connessioni, direzione delle frecce, struttura generale. Alla fine indica obbligatoriamente su una riga separata: SCHEMA: si oppure SCHEMA: no' }
-          ]
-        }]
-      })
-    });
+    const raw = await analyzePhoto(_photoBase64, []);
+    _photoHasSchema = /SCHEMA:\s*s[iì]/i.test(raw);
+    const clean = raw.replace(/SCHEMA:\s*(s[iì]|no)/i,'').trim();
+    _photoFeedbackHistory.push({ transcription: clean, feedback: null, response: null });
 
-    if (!res.ok) throw new Error('Errore API Groq');
-    const data = await res.json();
-    const rawText = data?.choices?.[0]?.message?.content?.trim() || '';
+    // Inserisci nell'editor
+    const editor = $('annotEditor');
+    editor.innerHTML = mdToHtml(clean);
+    editor.dataset.written = '1';
+    _hasWrite = true;
+    const wc = (editor.innerText||'').trim().split(/\s+/).filter(Boolean).length;
+    const wcEl = $('wordCount');
+    if (wcEl) wcEl.textContent = wc + (wc===1?' parola':' parole');
 
-    _photoHasSchema = /SCHEMA:\s*s[iì]/i.test(rawText);
-    const cleanText = rawText.replace(/SCHEMA:\s*(s[iì]|no)/i, '').trim();
-
-    // Inserisci nell'editor principale
-    const editorEl = $('annotEditor') || $('editor') || document.querySelector('[contenteditable="true"]');
-    if (editorEl) {
-      const html = cleanText.split('\n')
-        .map(l => l.trim()).filter(l => l.length > 0)
-        .map(l => '<p>' + l + '</p>').join('');
-      editorEl.innerHTML = html;
-      editorEl.dataset.written = '1';
-      _hasWrite = true;
-      // Aggiorna conteggio parole se presente
-      const wc = document.getElementById('wordCount') || document.getElementById('annotWords');
-      if (wc) {
-        const words = (editorEl.innerText||'').trim().split(/\s+/).filter(Boolean).length;
-        wc.textContent = words + (words===1?' parola':' parole');
-      }
-    }
+    // Mostra sezione feedback
+    photoTranscript.innerHTML = mdToHtml(clean);
+    photoFeedbackSection.classList.add('show');
+    photoFeedbackInput.value = '';
 
   } catch(err) {
-    showErr('Errore analisi foto: ' + (err.message || err));
+    showErr('Errore analisi foto: ' + (err.message||err));
     _photoBase64 = null;
   }
-
   photoProcPill.classList.remove('show');
 };
 
-// Upload foto su Supabase Storage
-async function uploadPhotoToStorage(base64) {
-  if (!sb || !base64) return null;
-  try {
-    const byteString = atob(base64);
-    const ab = new ArrayBuffer(byteString.length);
-    const ia = new Uint8Array(ab);
-    for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
-    const blob = new Blob([ab], { type: 'image/jpeg' });
-    const fileName = 'note-' + Date.now() + '.jpg';
-    const { error } = await sb.storage.from('note-images').upload(fileName, blob, { contentType: 'image/jpeg', upsert: false });
-    if (error) throw error;
-    const { data } = sb.storage.from('note-images').getPublicUrl(fileName);
-    return data?.publicUrl || null;
-  } catch(e) {
-    console.warn('[Photo upload]', e);
-    return null;
-  }
-}
+// ── RIANALIZZA CON FEEDBACK ───────────────────────────────────────────────────
+photoRefineBtn.onclick = async () => {
+  const feedback = photoFeedbackInput.value.trim();
+  if (!feedback || !_photoBase64) return;
 
+  photoRefineBtn.disabled = true;
+  photoProcPill.classList.add('show');
+
+  if (/\bsempre\b|\bmai\b|\bogni volta\b|\btutti\b/i.test(feedback)) {
+    const GROQ = localStorage.getItem('vv_groq') || '';
+    try {
+      const rules = await ProfileManager.analyzeFeedback(feedback, GROQ);
+      if (rules) await ProfileManager.updateRules(rules);
+    } catch(e) { console.warn('[ProfileManager]', e); }
+  }
+
+  const lastEntry = _photoFeedbackHistory[_photoFeedbackHistory.length - 1];
+  if (lastEntry) lastEntry.feedback = feedback;
+
+  try {
+    const raw = await analyzePhoto(_photoBase64, _photoFeedbackHistory);
+    _photoHasSchema = /SCHEMA:\s*s[iì]/i.test(raw);
+    const clean = raw.replace(/SCHEMA:\s*(s[iì]|no)/i,'').trim();
+    if (lastEntry) lastEntry.response = clean;
+    _photoFeedbackHistory.push({ transcription: clean, feedback: null, response: null });
+
+    photoTranscript.innerHTML = mdToHtml(clean);
+    photoFeedbackInput.value = '';
+
+    const editor = $('annotEditor');
+    editor.innerHTML = mdToHtml(clean);
+    const wc = (editor.innerText||'').trim().split(/\s+/).filter(Boolean).length;
+    const wcEl = $('wordCount');
+    if (wcEl) wcEl.textContent = wc + (wc===1?' parola':' parole');
+
+  } catch(err) { showErr('Errore rianalisi: ' + (err.message||err)); }
+
+  photoProcPill.classList.remove('show');
+  photoRefineBtn.disabled = false;
+};
+
+photoApplyBtn.onclick = () => {
+  const html = photoTranscript.innerHTML.trim();
+  if (!html) return;
+  const editor = $('annotEditor');
+  editor.innerHTML = html;
+  editor.dataset.written = '1';
+  _hasWrite = true;
+  photoFeedbackSection.classList.remove('show');
+};
+
+// ── COMPRIMI IMMAGINE ─────────────────────────────────────────────────────────
 function compressImageB64(file, maxPx, quality) {
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = e => {
       const img = new Image();
       img.onload = () => {
         let w = img.width, h = img.height;
         if (w > maxPx || h > maxPx) {
           if (w > h) { h = Math.round(h * maxPx / w); w = maxPx; }
-          else { w = Math.round(w * maxPx / h); h = maxPx; }
+          else       { w = Math.round(w * maxPx / h); h = maxPx; }
         }
-        const canvas = document.createElement('canvas');
-        canvas.width = w; canvas.height = h;
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL('image/jpeg', quality).split(',')[1]);
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        c.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(c.toDataURL('image/jpeg', quality).split(',')[1]);
       };
       img.src = e.target.result;
     };
     reader.readAsDataURL(file);
   });
+}
+
+// ── UPLOAD FOTO SU STORAGE ────────────────────────────────────────────────────
+async function uploadPhotoToStorage(base64) {
+  if (!sb || !base64) return null;
+  try {
+    const bytes = atob(base64);
+    const ab = new ArrayBuffer(bytes.length);
+    const ia = new Uint8Array(ab);
+    for (let i = 0; i < bytes.length; i++) ia[i] = bytes.charCodeAt(i);
+    const blob = new Blob([ab], { type: 'image/jpeg' });
+    const name = 'note-' + Date.now() + '.jpg';
+    const { error } = await sb.storage.from('note-images').upload(name, blob, { contentType: 'image/jpeg', upsert: false });
+    if (error) throw error;
+    const { data } = sb.storage.from('note-images').getPublicUrl(name);
+    return data?.publicUrl || null;
+  } catch(e) { console.warn('[Photo upload]', e); return null; }
 }
 
 </script>

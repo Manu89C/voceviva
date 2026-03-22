@@ -71,6 +71,7 @@ h1 em { font-style:italic; color:var(--accent); }
 .note-tag { font-size:.5rem; text-transform:uppercase; letter-spacing:.08em; padding:.1rem .35rem; border-radius:.25rem; background:rgba(245,80,54,.12); color:var(--accent); border:1px solid rgba(245,80,54,.25); }
 .note-tag.tag-write { background:rgba(74,222,128,.08); color:var(--live); border-color:rgba(74,222,128,.2); }
 .note-tag.tag-ai { background:rgba(147,112,219,.1); color:#a78bfa; border-color:rgba(147,112,219,.2); }
+.note-tag.tag-photo { background:rgba(56,189,248,.08); color:#38bdf8; border-color:rgba(56,189,248,.2); }
 .note-card-actions { display:flex; gap:.3rem; flex-shrink:0; }
 .note-card-btn { background:none; border:1px solid var(--border); color:var(--muted); padding:.3rem .6rem; border-radius:.4rem; font-family:'JetBrains Mono',monospace; font-size:.58rem; cursor:pointer; touch-action:manipulation; transition:border-color .2s,color .2s; white-space:nowrap; }
 .note-card-btn:hover { border-color:var(--accent); color:var(--accent); }
@@ -173,6 +174,9 @@ h1 em { font-style:italic; color:var(--accent); }
 .mic-btn-sm:active { transform:scale(.92); }
 .mic-btn-sm.recording { background:#c0392b; animation:pulse 1.4s ease-in-out infinite; }
 .mic-btn-sm svg { width:18px; height:18px; }
+.photo-proc-pill { display:none; font-size:.58rem; color:var(--accent); letter-spacing:.08em; align-items:center; gap:.3rem; }
+.photo-proc-pill.show { display:flex; }
+.photo-proc-pill .pill-dot { width:6px;height:6px;border-radius:50%;background:var(--accent);animation:pulse 1.2s ease-in-out infinite; }
 .live-dot-sm { width:5px; height:5px; border-radius:50%; background:var(--muted); flex-shrink:0; }
 .live-dot-sm.on { background:#f06a6a; animation:blink .8s ease-in-out infinite; }
 .live-dot-sm.done { background:var(--live); animation:none; }
@@ -390,6 +394,7 @@ h1 em { font-style:italic; color:var(--accent); }
         <span class="live-dot-sm" id="popupLiveDot"></span>
         <span class="annot-popup-words" id="annotPopupWords">0 parole</span>
         <div class="processing-pill-sm" id="popupProcPill"><span class="pill-dot-sm"></span> trascrivo</div>
+        <div class="photo-proc-pill" id="popupPhotoPill"><span class="pill-dot"></span> analizzo foto</div>
       </div>
       <!-- Riga 2: toolbar formattazione -->
       <div class="fmt-toolbar">
@@ -409,12 +414,16 @@ h1 em { font-style:italic; color:var(--accent); }
         <button class="btn-ghost-sm" id="annotPopupCancel">Annulla</button>
         <button class="btn-save-sm" id="annotPopupSave" disabled>Salva nota</button>
       </div>
-      <!-- Riga 4: bottone microfono centrato -->
-      <div class="popup-row-mic">
+      <!-- Riga 4: bottone microfono + bottone foto -->
+      <div class="popup-row-mic" style="gap:.75rem;">
         <button class="mic-btn-sm" id="popupMicBtn">
           <svg id="popupMicIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
           <svg id="popupStopIcon" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
         </button>
+        <button class="mic-btn-sm" id="popupPhotoBtn" title="Fotografa appunto" style="background:var(--surface);border:1px solid var(--border);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        </button>
+        <input type="file" id="popupPhotoInput" accept="image/*" capture="environment" style="display:none">
       </div>
     </div>
 
@@ -946,7 +955,7 @@ function tagsHtml(mode) {
   if(!mode) return '';
   const tags=(mode||'').split('+').map(t=>t.trim()).filter(Boolean);
   return tags.map(t=>{
-    const cls=t==='write'?'note-tag tag-write':t==='AI'?'note-tag tag-ai':'note-tag';
+    const cls=t==='write'?'note-tag tag-write':t==='AI'?'note-tag tag-ai':t==='photo'?'note-tag tag-photo':'note-tag';
     return '<span class="'+cls+'">'+esc(t)+'</span>';
   }).join('');
 }
@@ -1409,6 +1418,8 @@ function openAnnotPopup(dateStr){
   popupAiBtn.disabled=true;popupSaveAi.disabled=true;
   pActiveFormats={bold:false,italic:false};pLastRange=null;
   eActiveFormats={bold:false,italic:false};eLastRange=null;
+  popupPhotoBase64=null;popupPhotoHasSchema=false;
+  if(popupPhotoPill)popupPhotoPill.classList.remove('show');
   annotPopup.classList.add('show');
   setTimeout(()=>annotPopupTitleInput.focus(),200);
 }
@@ -1418,6 +1429,8 @@ function closeAnnotPopup(){
   annotPopup.classList.remove('show');
   annotPopupEditor.innerHTML='';annotPopupTitleInput.value='';
   popupAiSection.style.display='none';
+  popupPhotoBase64=null;popupPhotoHasSchema=false;
+  if(popupPhotoPill)popupPhotoPill.classList.remove('show');
 }
 
 $('annotPopupClose').onclick=closeAnnotPopup;
@@ -1453,14 +1466,22 @@ annotPopupSave.onclick=async()=>{
   // Calcola mode tags
   const modeTags=[];
   if(popupHasRec)modeTags.push('rec');
-  // Se l'utente ha anche scritto a mano (non solo registrato)
-  // tracciamo questo tramite data-written sul editor
   if(annotPopupEditor.dataset.written==='1')modeTags.push('write');
+  if(popupPhotoBase64)modeTags.push('photo');
   const mode=modeTags.length?modeTags.join('+'):'write';
 
+  // Carica foto su Storage se presente
+  let imageUrl = null;
+  if(popupPhotoBase64 && popupPhotoHasSchema){
+    imageUrl = await uploadPhotoToStorage(popupPhotoBase64);
+  }
+
   try{
-    const{error}=await sb.from('notes').insert([{title,content,mode,note_date:popupDate}]);
+    const record={title,content,mode,note_date:popupDate};
+    if(imageUrl)record.image_url=imageUrl;
+    const{error}=await sb.from('notes').insert([record]);
     if(error)throw error;
+    popupPhotoBase64=null;popupPhotoHasSchema=false;
     closeAnnotPopup();await loadNotes();
   }catch(e){showErr('Errore salvataggio: '+(e.message||e));}
   annotPopupSave.innerHTML='Salva nota';annotPopupSave.disabled=false;
@@ -1672,6 +1693,124 @@ if('serviceWorker' in navigator){
 }
 
 loadNotes();
+// ── FOTO APPUNTO ──────────────────────────────────────────────────────────────
+let popupPhotoBase64 = null;
+let popupPhotoHasSchema = false;
+
+const popupPhotoBtn   = $('popupPhotoBtn');
+const popupPhotoInput = $('popupPhotoInput');
+const popupPhotoPill  = $('popupPhotoPill');
+
+popupPhotoBtn.onclick = () => popupPhotoInput.click();
+
+popupPhotoInput.onchange = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  popupPhotoInput.value = '';
+
+  // Comprimi immagine (max 1200px, quality 0.75)
+  popupPhotoBase64 = await compressImageB64(file, 1200, 0.75);
+
+  // Mostra pill
+  popupPhotoPill.classList.add('show');
+
+  const GROQ = localStorage.getItem('vv_groq') || '';
+  if (!GROQ) { showErr('Chiave Groq non trovata.'); popupPhotoPill.classList.remove('show'); return; }
+
+  try {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      cache: 'no-store',
+      headers: { 'Authorization': 'Bearer ' + GROQ, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+        max_tokens: 1500,
+        temperature: 0.1,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + popupPhotoBase64 } },
+            { type: 'text', text: 'Analizza questo appunto scritto a mano in italiano. Se contiene solo testo scritto, trascrivilo fedelmente rispettando la struttura (a capo, rientri, elenchi). Se contiene schemi, frecce, mappe concettuali o diagrammi, trascrivi tutto il testo visibile e descrivi semanticamente lo schema: nodi, connessioni, direzione delle frecce, struttura generale. Alla fine indica obbligatoriamente su una riga separata: SCHEMA: sì oppure SCHEMA: no' }
+          ]
+        }]
+      })
+    });
+
+    if (!res.ok) throw new Error('Errore API Groq');
+    const data = await res.json();
+    const rawText = data?.choices?.[0]?.message?.content?.trim() || '';
+
+    popupPhotoHasSchema = /SCHEMA:\s*sì/i.test(rawText);
+    const cleanText = rawText.replace(/SCHEMA:\s*(sì|no)/i, '').trim();
+
+    // Inserisci testo nell'editor come HTML (paragrafi per ogni riga)
+    const html = cleanText.split('
+')
+      .map(l => l.trim())
+      .filter(l => l.length > 0)
+      .map(l => '<p>' + l + '</p>')
+      .join('');
+
+    annotPopupEditor.innerHTML = html;
+    annotPopupEditor.dataset.written = '1';
+
+    // Aggiorna conteggio parole
+    const words = (annotPopupEditor.innerText || '').trim().split(/\s+/).filter(Boolean).length;
+    annotPopupWords.textContent = words + (words === 1 ? ' parola' : ' parole');
+    annotPopupSave.disabled = false;
+    popupAiBtn.disabled = false;
+
+  } catch(err) {
+    showErr('Errore analisi foto: ' + (err.message || err));
+    popupPhotoBase64 = null;
+  }
+
+  popupPhotoPill.classList.remove('show');
+};
+
+// Salva immagine su Supabase Storage e restituisce URL pubblico
+async function uploadPhotoToStorage(base64) {
+  if (!sb || !base64) return null;
+  try {
+    const byteString = atob(base64);
+    const ab = new ArrayBuffer(byteString.length);
+    const ia = new Uint8Array(ab);
+    for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
+    const blob = new Blob([ab], { type: 'image/jpeg' });
+    const fileName = 'note-' + Date.now() + '.jpg';
+    const { error } = await sb.storage.from('note-images').upload(fileName, blob, { contentType: 'image/jpeg', upsert: false });
+    if (error) throw error;
+    const { data } = sb.storage.from('note-images').getPublicUrl(fileName);
+    return data?.publicUrl || null;
+  } catch(e) {
+    console.warn('[Photo upload]', e);
+    return null;
+  }
+}
+
+// Comprimi immagine lato client
+function compressImageB64(file, maxPx, quality) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if (w > maxPx || h > maxPx) {
+          if (w > h) { h = Math.round(h * maxPx / w); w = maxPx; }
+          else { w = Math.round(w * maxPx / h); h = maxPx; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality).split(',')[1]);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 </script>
 </body>
 </html>

@@ -14,6 +14,7 @@
 <script src="vv-profile.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+[contenteditable] { background:transparent; }
 :root { --bg:#0a0a0f; --surface:#111118; --border:#1e1e2e; --accent:#f55036; --text:#e8e8f0; --muted:#5a5a7a; --live:#4ade80; --warn:#f59e0b; }
 body { min-height:100vh; background:var(--bg); color:var(--text); font-family:'JetBrains Mono',monospace; display:flex; flex-direction:column; align-items:center; padding:1.5rem 1rem 3rem; -webkit-tap-highlight-color:transparent; }
 body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:none; background:radial-gradient(ellipse 80% 50% at 5% 95%,rgba(245,80,54,.08) 0%,transparent 60%),radial-gradient(ellipse 50% 40% at 95% 5%,rgba(245,80,54,.05) 0%,transparent 60%); }
@@ -296,9 +297,8 @@ h1 em { font-style:italic; color:var(--accent); }
 
   <!-- FEEDBACK TRASCRIZIONE FOTO -->
   <div class="photo-feedback-section" id="photoFeedbackSection">
-    <div style="font-size:.55rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted,#5a5a7a);">Trascrizione — verifica e correggi</div>
-    <div id="photoTranscript" contenteditable="true" spellcheck="true" style="background:rgba(255,255,255,.03);border:1px solid var(--border,#1e1e2e);border-radius:.5rem;color:var(--text,#e8e8f0);font-family:'Crimson Pro',Georgia,serif;font-size:.95rem;line-height:1.75;padding:.65rem .8rem;min-height:60px;outline:none;caret-color:var(--accent);"></div>
-    <textarea id="photoFeedbackInput" style="width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border,#1e1e2e);border-radius:.5rem;color:var(--text,#e8e8f0);font-family:'Crimson Pro',Georgia,serif;font-size:.9rem;line-height:1.6;padding:.5rem .7rem;resize:none;outline:none;min-height:44px;box-sizing:border-box;" placeholder="Correzioni… es. &quot;le frecce → non sono LO&quot;, &quot;il titolo principale è…&quot;"></textarea>
+    <div style="font-size:.55rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted,#5a5a7a);">Correzioni trascrizione</div>
+    <textarea id="photoFeedbackInput" style="width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border,#1e1e2e);border-radius:.5rem;color:var(--text,#e8e8f0);font-family:'Crimson Pro',Georgia,serif;font-size:.9rem;line-height:1.6;padding:.5rem .7rem;resize:none;outline:none;min-height:52px;box-sizing:border-box;" placeholder="Correzioni… es. &quot;le frecce → non sono LO&quot;, &quot;il titolo principale è…&quot;"></textarea>
     <div style="display:flex;gap:.3rem;">
       <button id="photoRefineBtn" class="btn-ghost" style="flex:1;">&#10227; Rianalizza</button>
       <button id="photoApplyBtn" class="btn-save-direct" style="flex:2;">Applica nell&#39;editor</button>
@@ -1321,7 +1321,6 @@ const modeVoiceBtn        = $('modeVoiceBtn');
 const modePhotoBtn        = $('modePhotoBtn');
 const cameraIcon          = $('cameraIcon');
 const photoFeedbackSection= $('photoFeedbackSection');
-const photoTranscript     = $('photoTranscript');
 const photoFeedbackInput  = $('photoFeedbackInput');
 const photoRefineBtn      = $('photoRefineBtn');
 const photoApplyBtn       = $('photoApplyBtn');
@@ -1427,7 +1426,6 @@ photoInput.onchange = async e => {
     if (wcEl) wcEl.textContent = wc + (wc===1?' parola':' parole');
 
     // Mostra sezione feedback
-    photoTranscript.innerHTML = mdToHtml(clean);
     photoFeedbackSection.classList.add('show');
     photoFeedbackInput.value = '';
 
@@ -1464,7 +1462,6 @@ photoRefineBtn.onclick = async () => {
     if (lastEntry) lastEntry.response = clean;
     _photoFeedbackHistory.push({ transcription: clean, feedback: null, response: null });
 
-    photoTranscript.innerHTML = mdToHtml(clean);
     photoFeedbackInput.value = '';
 
     const editor = $('annotEditor');
@@ -1480,12 +1477,6 @@ photoRefineBtn.onclick = async () => {
 };
 
 photoApplyBtn.onclick = () => {
-  const html = photoTranscript.innerHTML.trim();
-  if (!html) return;
-  const editor = $('annotEditor');
-  editor.innerHTML = html;
-  editor.dataset.written = '1';
-  _hasWrite = true;
   photoFeedbackSection.classList.remove('show');
 };
 

@@ -396,6 +396,7 @@ try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) 
 
 // ── PROFILE MANAGER INIT (silenzioso, nessuna UI all'avvio) ──────────────────
 ProfileManager.init();
+MemoryManager.init();
 
 // ── STATE ────────────────────────────────────────────────────────────────────
 let isRecording = false, wakeLock = null;

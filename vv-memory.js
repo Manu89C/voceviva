@@ -74,6 +74,7 @@ const MemoryManager = (() => {
   const EMBED_DIMS     = 1024;
   const STORAGE_KEY_COHERE = 'vv_cohere';
   const STORAGE_KEY_INDEXED = 'vv_memory_indexed'; // flag: indicizzazione già fatta
+  const TABLE_PROFILE = 'vv_user_profile';
   const BATCH_SIZE     = 20; // note per batch (limite Cohere free: 96/min)
   const BATCH_DELAY_MS = 1200; // pausa tra batch per rispettare rate limit
 
@@ -93,9 +94,10 @@ const MemoryManager = (() => {
     _initialized = true;
 
     // Mostra banner se: chiave presente, mai indicizzato prima
-    if (_cohereKey && !localStorage.getItem(STORAGE_KEY_INDEXED)) {
-      _showIndexBanner();
-    }
+    if (_cohereKey) {
+      const indexed = await _isIndexedOnServer();
+      if (!indexed) _showIndexBanner();
+  }
     // Inietta UI per la chiave Cohere nell'api-card esistente
     _injectCohereKeyUI();
   }
@@ -225,7 +227,7 @@ const MemoryManager = (() => {
       if (!notes || notes.length === 0) {
         progressText.textContent = 'Tutte le note sono già indicizzate.';
         progressFill.style.width = '100%';
-        localStorage.setItem(STORAGE_KEY_INDEXED, '1');
+        await _setIndexedOnServer();
         setTimeout(() => banner.remove(), 2500);
         return;
       }
@@ -260,7 +262,7 @@ const MemoryManager = (() => {
       }
 
       // Completato
-      localStorage.setItem(STORAGE_KEY_INDEXED, '1');
+      await _setIndexedOnServer();
       progressText.textContent = `✓ ${total} note indicizzate. La memoria a lungo termine è attiva.`;
       progressFill.style.width = '100%';
       progressFill.style.background = '#4ade80';
@@ -449,7 +451,28 @@ Tono: come un amico intelligente che conosce la persona da tempo. Non consolator
       return '';
     }
   }
+  // ── FLAG INDICIZZAZIONE SU SERVER ───────────────────────────────────────────
+  // Controlla e salva lo stato di indicizzazione su Supabase invece che su
+  // localStorage, così il flag è condiviso tra tutti i dispositivi dell'utente.
+  async function _isIndexedOnServer() {
+  try {
+    const { data } = await _sb
+      .from(TABLE_PROFILE)
+      .select('memory_indexed_at')
+      .eq('user_id', 'default')
+      .single();
+    return !!data?.memory_indexed_at;
+  } catch(e) { return false; }
+}
 
+async function _setIndexedOnServer() {
+  try {
+    await _sb
+      .from(TABLE_PROFILE)
+      .upsert({ user_id: 'default', memory_indexed_at: new Date().toISOString() },
+        { onConflict: 'user_id' });
+  } catch(e) { console.warn('[MemoryManager] _setIndexedOnServer error:', e); }
+}
   // ── HELPER: EMBED TESTI VIA COHERE ──────────────────────────────────────────
   async function _embedTexts(texts) {
     if (!_cohereKey || !texts?.length) return [];

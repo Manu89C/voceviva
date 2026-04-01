@@ -1176,7 +1176,7 @@ modalConfirm.onclick = async () => {
     const _rec = { title, content, note_date: date, mode: _mode };
     if (_imgUrl) _rec.image_url = _imgUrl;
     const{data:savedNote,error}=await sb.from('notes').insert([_rec]).select().single();
-if(savedNote) MemoryManager.indexNote(savedNote);
+    if(savedNote) MemoryManager.indexNote(savedNote);
     if (error) throw error;
     _photoBase64 = null; _photoHasSchema = false; _photoFeedbackHistory.length = 0;
     photoFeedbackSection.classList.remove('show');

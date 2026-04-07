@@ -217,7 +217,10 @@ h1 em { font-style:italic; color:var(--accent); }
 .guided-btn svg { width:16px; height:16px; }
 .guided-overlay { display:none; position:fixed; inset:0; z-index:200; background:var(--bg); align-items:stretch; justify-content:center; }
 .guided-overlay.show { display:flex; }
-.guided-card { background:var(--surface); border:none; border-radius:0; width:100%; max-width:100%; display:flex; flex-direction:column; gap:.7rem; padding:1.2rem 1.2rem 1.5rem; animation:fadeIn .2s ease-out; height:100vh; overflow-y:auto; }
+.guided-card { background:var(--surface); border:none; border-radius:0; width:100%; max-width:100%; display:flex; flex-direction:column; animation:fadeIn .2s ease-out; height:100%; overflow:hidden; }
+.guided-fixed-top { flex-shrink:0; display:flex; flex-direction:column; gap:.55rem; padding:1rem 1.2rem .4rem; }
+.guided-body { flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; display:flex; flex-direction:column; gap:.55rem; padding:.2rem 1.2rem .3rem; }
+.guided-fixed-bottom { flex-shrink:0; display:flex; flex-direction:column; gap:.4rem; padding:.5rem 1.2rem; padding-bottom:max(1rem, env(safe-area-inset-bottom)); border-top:1px solid var(--border); background:var(--surface); }
 @keyframes fadeIn { from{opacity:0} to{opacity:1} }
 @keyframes slideUp { from{transform:translateY(100%);opacity:0} to{transform:translateY(0);opacity:1} }
 .guided-header { display:flex; justify-content:space-between; align-items:center; }
@@ -239,9 +242,9 @@ h1 em { font-style:italic; color:var(--accent); }
 .guided-mood-btn[data-mood="3"].selected { border-color:#94a3b8; background:rgba(148,163,184,.18); box-shadow:0 0 10px rgba(148,163,184,.35); }
 .guided-mood-btn[data-mood="4"].selected { border-color:#fbbf24; background:rgba(251,191,36,.18); box-shadow:0 0 10px rgba(251,191,36,.35); }
 .guided-mood-btn[data-mood="5"].selected { border-color:#4ade80; background:rgba(74,222,128,.18); box-shadow:0 0 10px rgba(74,222,128,.35); }
-.guided-editor-wrap { flex:1; display:flex; flex-direction:column; background:var(--bg); border:1px solid var(--border); border-radius:.8rem; padding:.8rem; transition:border-color .2s; overflow:hidden; }
+.guided-editor-wrap { flex:1; min-height:0; display:flex; flex-direction:column; background:var(--bg); border:1px solid var(--border); border-radius:.8rem; padding:.8rem; transition:border-color .2s; overflow:hidden; }
 .guided-editor-wrap:focus-within { border-color:rgba(245,80,54,.4); }
-.guided-editor { background:transparent; border:none; color:var(--text); font-family:'Crimson Pro',Georgia,serif; font-size:1.05rem; line-height:1.85; outline:none; width:100%; min-height:180px; flex:1; overflow-y:auto; caret-color:var(--accent); }
+.guided-editor { background:transparent; border:none; color:var(--text); font-family:'Crimson Pro',Georgia,serif; font-size:1.05rem; line-height:1.85; outline:none; width:100%; min-height:60px; flex:1; overflow-y:auto; caret-color:var(--accent); }
 .guided-editor:empty::before { content:attr(data-placeholder); color:var(--muted); pointer-events:none; display:block; }
 .guided-editor p { margin-bottom:.35rem; }
 .guided-editor strong { color:#fff; font-weight:600; }
@@ -490,6 +493,7 @@ h1 em { font-style:italic; color:var(--accent); }
 <!-- GUIDED DIARY POPUP -->
 <div class="guided-overlay" id="guidedOverlay">
   <div class="guided-card">
+    <div class="guided-fixed-top">
     <div class="guided-header">
       <div class="guided-header-left">
         <div class="guided-title">Diario <em style="color:var(--accent);font-style:italic;">Guidato</em></div>
@@ -502,6 +506,8 @@ h1 em { font-style:italic; color:var(--accent); }
       <button class="guided-close" id="guidedClose">&#x2715;</button>
     </div>
     <div class="guided-progress-bar"><div class="guided-progress-fill" id="guidedProgressFill" style="width:12.5%"></div></div>
+    </div>
+    <div class="guided-body">
     <div class="guided-question" id="guidedQuestion">Qual è il tuo umore oggi? <em>(1 a 5)</em></div>
     <div class="guided-mood-row" id="guidedMoodRow">
       <!-- Mood 1: Molto basso — indigo -->
@@ -575,6 +581,8 @@ h1 em { font-style:italic; color:var(--accent); }
       <button class="fmt-btn" id="gFmtUl"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:middle"><circle cx="2" cy="4" r="1.5"/><rect x="5" y="3" width="10" height="2" rx="1"/><circle cx="2" cy="8" r="1.5"/><rect x="5" y="7" width="10" height="2" rx="1"/><circle cx="2" cy="12" r="1.5"/><rect x="5" y="11" width="10" height="2" rx="1"/></svg></button>
       <button class="fmt-btn" id="gFmtOl"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:middle"><text x="0" y="5" font-size="5" font-family="monospace">1.</text><rect x="5" y="3" width="10" height="2" rx="1"/><text x="0" y="9" font-size="5" font-family="monospace">2.</text><rect x="5" y="7" width="10" height="2" rx="1"/><text x="0" y="13" font-size="5" font-family="monospace">3.</text><rect x="5" y="11" width="10" height="2" rx="1"/></svg></button>
     </div>
+    </div>
+    <div class="guided-fixed-bottom">
     <div class="guided-nav">
       <button class="guided-nav-btn guided-later" id="guidedLater">Rispondi dopo</button>
       <button class="guided-nav-btn guided-continue" id="guidedContinue">Continua <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;vertical-align:middle"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button>
@@ -585,6 +593,7 @@ h1 em { font-style:italic; color:var(--accent); }
         <svg id="guidedStopIcon" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
       </button>
       <div class="guided-mic-status" id="guidedMicStatus"></div>
+    </div>
     </div>
   </div>
 </div>
@@ -2489,6 +2498,28 @@ async function uploadPhotoToStorage(base64) {
 
   renderPendingSection();
 
+})();
+
+// ── Adatta overlay diario guidato alla tastiera mobile (Visual Viewport API) ──
+(function() {
+  var ov = document.getElementById('guidedOverlay');
+  if (!ov || !window.visualViewport) return;
+  function sync() {
+    var vv = window.visualViewport;
+    ov.style.top    = vv.offsetTop + 'px';
+    ov.style.height = vv.height + 'px';
+    ov.style.bottom = 'auto';
+  }
+  function reset() { ov.style.top=''; ov.style.height=''; ov.style.bottom=''; }
+  window.visualViewport.addEventListener('resize', function() {
+    if (ov.classList.contains('show')) sync(); else reset();
+  });
+  window.visualViewport.addEventListener('scroll', function() {
+    if (ov.classList.contains('show')) sync();
+  });
+  new MutationObserver(function() {
+    if (ov.classList.contains('show')) sync(); else reset();
+  }).observe(ov, { attributes:true, attributeFilter:['class'] });
 })();
 
 </script>

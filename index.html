@@ -228,12 +228,17 @@ h1 em { font-style:italic; color:var(--accent); }
 .guided-close:hover { border-color:var(--accent); color:var(--accent); }
 .guided-progress-bar { height:3px; background:var(--border); border-radius:2px; overflow:hidden; }
 .guided-progress-fill { height:100%; background:var(--accent); border-radius:2px; transition:width .4s ease; }
-.guided-question { font-family:'Crimson Pro',Georgia,serif; font-size:1.45rem; line-height:1.55; color:var(--text); padding:.6rem 0; min-height:2.5rem; font-weight:400; }
+.guided-question { font-family:'Crimson Pro',Georgia,serif; font-size:2.9rem; line-height:1.3; color:var(--text); padding:.6rem 0; min-height:2.5rem; font-weight:400; }
 .guided-question em { color:var(--accent); font-style:normal; font-weight:500; }
 .guided-mood-row { display:flex; gap:.5rem; justify-content:center; padding:.3rem 0; }
-.guided-mood-btn { width:48px; height:48px; border-radius:50%; border:2px solid var(--border); background:var(--bg); color:var(--muted); font-size:1.3rem; cursor:pointer; transition:all .2s; display:flex; align-items:center; justify-content:center; touch-action:manipulation; }
-.guided-mood-btn:hover { border-color:rgba(245,80,54,.4); }
-.guided-mood-btn.selected { border-color:var(--accent); background:rgba(245,80,54,.15); color:var(--accent); transform:scale(1.12); }
+.guided-mood-btn { width:64px; height:64px; border-radius:50%; border:2px solid var(--border); background:var(--bg); color:var(--muted); font-size:1.3rem; cursor:pointer; transition:all .2s; display:flex; align-items:center; justify-content:center; touch-action:manipulation; }
+.guided-mood-btn:hover { border-color:rgba(255,255,255,.25); }
+.guided-mood-btn.selected { transform:scale(1.15); }
+.guided-mood-btn[data-mood="1"].selected { border-color:#818cf8; background:rgba(129,140,248,.18); box-shadow:0 0 10px rgba(129,140,248,.35); }
+.guided-mood-btn[data-mood="2"].selected { border-color:#60a5fa; background:rgba(96,165,250,.18); box-shadow:0 0 10px rgba(96,165,250,.35); }
+.guided-mood-btn[data-mood="3"].selected { border-color:#94a3b8; background:rgba(148,163,184,.18); box-shadow:0 0 10px rgba(148,163,184,.35); }
+.guided-mood-btn[data-mood="4"].selected { border-color:#fbbf24; background:rgba(251,191,36,.18); box-shadow:0 0 10px rgba(251,191,36,.35); }
+.guided-mood-btn[data-mood="5"].selected { border-color:#4ade80; background:rgba(74,222,128,.18); box-shadow:0 0 10px rgba(74,222,128,.35); }
 .guided-editor-wrap { flex:1; display:flex; flex-direction:column; background:var(--bg); border:1px solid var(--border); border-radius:.8rem; padding:.8rem; transition:border-color .2s; overflow:hidden; }
 .guided-editor-wrap:focus-within { border-color:rgba(245,80,54,.4); }
 .guided-editor { background:transparent; border:none; color:var(--text); font-family:'Crimson Pro',Georgia,serif; font-size:1.05rem; line-height:1.85; outline:none; width:100%; min-height:180px; flex:1; overflow-y:auto; caret-color:var(--accent); }
@@ -256,9 +261,33 @@ h1 em { font-style:italic; color:var(--accent); }
 .guided-later { background:rgba(245,158,11,.12); border:1px solid rgba(245,158,11,.4); color:var(--warn); }
 .guided-later:hover { background:rgba(245,158,11,.2); }
 .guided-later:active { background:none; border-color:var(--border); color:var(--muted); }
-.guided-continue { background:var(--accent); border:1px solid var(--accent); color:#fff; flex:1; font-weight:500; }
+.guided-continue { background:var(--accent); border:1px solid var(--accent); color:#fff; flex:1; font-weight:500; display:flex; align-items:center; justify-content:center; gap:.4rem; }
 .guided-continue:hover { opacity:.9; }
 .guided-continue.complete { background:var(--live); border-color:var(--live); color:#0a0a0f; }
+.guided-editor-fmt { margin-top:.4rem; }
+.guided-editor-fmt .fmt-btn { color:#a8a8cc; border-color:#3c3c58; }
+.guided-editor-fmt .fmt-btn:hover:not(.active) { color:#d0d0e8; border-color:#5a5a80; background:rgba(255,255,255,.05); }
+.guided-editor-fmt .fmt-sep { background:#3c3c58; }
+/* ── IN SOSPESO INLINE SECTION ── */
+.pending-section { display:none; flex-direction:column; gap:.55rem; width:100%; max-width:640px; }
+.pending-section.show { display:flex; }
+.pending-section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:.1rem; }
+.pending-section-title { font-size:.55rem; text-transform:uppercase; letter-spacing:.14em; color:var(--muted); display:flex; align-items:center; gap:.4rem; }
+.pending-section-title svg { width:12px; height:12px; flex-shrink:0; }
+.pending-count-badge { background:rgba(245,158,11,.15); color:var(--warn); border:1px solid rgba(245,158,11,.3); border-radius:.3rem; padding:.1rem .4rem; font-size:.55rem; font-family:'JetBrains Mono',monospace; letter-spacing:.06em; }
+.pending-card { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--warn); border-radius:.8rem; padding:.75rem .9rem; display:flex; flex-direction:column; gap:.4rem; cursor:pointer; transition:background .15s,border-color .2s; }
+.pending-card:hover { background:rgba(245,158,11,.04); border-color:rgba(245,158,11,.55); }
+.pending-card-top { display:flex; align-items:center; justify-content:space-between; }
+.pending-card-meta { display:flex; align-items:center; gap:.5rem; }
+.pending-card-label { font-size:.52rem; text-transform:uppercase; letter-spacing:.13em; color:var(--warn); }
+.pending-card-date { font-size:.55rem; color:var(--muted); font-family:'JetBrains Mono',monospace; }
+.pending-card-dismiss { background:none; border:none; color:var(--muted); font-size:.7rem; cursor:pointer; padding:.15rem .3rem; border-radius:.25rem; transition:color .12s; line-height:1; }
+.pending-card-dismiss:hover { color:var(--accent); }
+.pending-card-title { font-family:'Crimson Pro',Georgia,serif; font-size:.95rem; color:var(--text); line-height:1.3; }
+.pending-card-chips { display:flex; flex-wrap:wrap; gap:.3rem; }
+.pending-card-chip { font-size:.52rem; background:rgba(245,158,11,.1); border:1px solid rgba(245,158,11,.22); color:var(--warn); border-radius:.25rem; padding:.12rem .4rem; font-family:'JetBrains Mono',monospace; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:160px; }
+.pending-card-cta { font-size:.55rem; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); display:flex; align-items:center; gap:.3rem; }
+.pending-card-cta svg { width:11px; height:11px; flex-shrink:0; }
 </style>
 </head>
 <body>
@@ -288,8 +317,8 @@ h1 em { font-style:italic; color:var(--accent); }
 
   <div style="margin-top:24px"></div>
 
-  <!-- FAB + BUTTON -->
-  <button class="fab-plus" id="fabPlus">+</button>
+  <!-- FAB + BUTTON (Nuova nota) -->
+  <button class="fab-plus" id="fabPlus" title="Nuova nota">+</button>
 
   <!-- ENTRY SWITCHER -->
   <div class="entry-switcher" id="entrySwitcher">
@@ -301,6 +330,18 @@ h1 em { font-style:italic; color:var(--accent); }
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="17" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="3" y2="18"/></svg>
       Nota Libera
     </button>
+  </div>
+
+  <!-- INLINE IN SOSPESO SECTION -->
+  <div class="pending-section" id="pendingSection">
+    <div class="pending-section-header">
+      <span class="pending-section-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        In sospeso
+      </span>
+      <span class="pending-count-badge" id="pendingCountBadge"></span>
+    </div>
+    <div id="pendingCardsList"></div>
   </div>
 
   <!-- NOTA LIBERA SECTION (hidden by default) -->
@@ -463,14 +504,80 @@ h1 em { font-style:italic; color:var(--accent); }
     <div class="guided-progress-bar"><div class="guided-progress-fill" id="guidedProgressFill" style="width:12.5%"></div></div>
     <div class="guided-question" id="guidedQuestion">Qual è il tuo umore oggi? <em>(1 a 5)</em></div>
     <div class="guided-mood-row" id="guidedMoodRow">
-      <button class="guided-mood-btn" data-mood="1">😔</button>
-      <button class="guided-mood-btn" data-mood="2">😕</button>
-      <button class="guided-mood-btn" data-mood="3">😐</button>
-      <button class="guided-mood-btn" data-mood="4">🙂</button>
-      <button class="guided-mood-btn" data-mood="5">😊</button>
+      <!-- Mood 1: Molto basso — indigo -->
+      <button class="guided-mood-btn" data-mood="1" title="Molto basso">
+        <svg viewBox="0 0 36 36" fill="none" width="52" height="52">
+          <circle cx="18" cy="18" r="16" stroke="#818cf8" stroke-width="2"/>
+          <line x1="9" y1="12" x2="13" y2="14" stroke="#818cf8" stroke-width="1.8" stroke-linecap="round"/>
+          <line x1="27" y1="12" x2="23" y2="14" stroke="#818cf8" stroke-width="1.8" stroke-linecap="round"/>
+          <ellipse cx="13" cy="17" rx="2" ry="1.5" fill="#818cf8"/>
+          <ellipse cx="23" cy="17" rx="2" ry="1.5" fill="#818cf8"/>
+          <path d="M11 27 Q18 21 25 27" stroke="#818cf8" stroke-width="2" stroke-linecap="round"/>
+          <path d="M13 20 C12.4 21.5 12.4 23 13 23 C13.6 23 13.6 21.5 13 20Z" fill="#818cf8"/>
+        </svg>
+      </button>
+      <!-- Mood 2: Basso — blue -->
+      <button class="guided-mood-btn" data-mood="2" title="Basso">
+        <svg viewBox="0 0 36 36" fill="none" width="52" height="52">
+          <circle cx="18" cy="18" r="16" stroke="#60a5fa" stroke-width="2"/>
+          <path d="M9.5 12.5 Q11.5 11 13.5 12.5" stroke="#60a5fa" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M22.5 12.5 Q24.5 11 26.5 12.5" stroke="#60a5fa" stroke-width="1.8" stroke-linecap="round"/>
+          <circle cx="13" cy="17" r="1.8" fill="#60a5fa"/>
+          <circle cx="23" cy="17" r="1.8" fill="#60a5fa"/>
+          <path d="M11 26 Q18 22 25 26" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <!-- Mood 3: Neutro — slate -->
+      <button class="guided-mood-btn" data-mood="3" title="Neutro">
+        <svg viewBox="0 0 36 36" fill="none" width="52" height="52">
+          <circle cx="18" cy="18" r="16" stroke="#94a3b8" stroke-width="2"/>
+          <line x1="10" y1="12" x2="14" y2="12" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round"/>
+          <line x1="22" y1="12" x2="26" y2="12" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round"/>
+          <circle cx="13" cy="17" r="1.8" fill="#94a3b8"/>
+          <circle cx="23" cy="17" r="1.8" fill="#94a3b8"/>
+          <line x1="11" y1="24" x2="25" y2="24" stroke="#94a3b8" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <!-- Mood 4: Buono — amber -->
+      <button class="guided-mood-btn" data-mood="4" title="Buono">
+        <svg viewBox="0 0 36 36" fill="none" width="52" height="52">
+          <circle cx="18" cy="18" r="16" stroke="#fbbf24" stroke-width="2"/>
+          <path d="M9.5 13.5 Q11.5 11.5 13.5 13.5" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M22.5 13.5 Q24.5 11.5 26.5 13.5" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/>
+          <circle cx="13" cy="17" r="1.8" fill="#fbbf24"/>
+          <circle cx="23" cy="17" r="1.8" fill="#fbbf24"/>
+          <path d="M11 23 Q18 28 25 23" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <!-- Mood 5: Ottimo — green -->
+      <button class="guided-mood-btn" data-mood="5" title="Ottimo">
+        <svg viewBox="0 0 36 36" fill="none" width="52" height="52">
+          <circle cx="18" cy="18" r="16" stroke="#4ade80" stroke-width="2"/>
+          <path d="M9 13 Q11 10.5 13 13" stroke="#4ade80" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M23 13 Q25 10.5 27 13" stroke="#4ade80" stroke-width="1.8" stroke-linecap="round"/>
+          <circle cx="13" cy="17" r="2" fill="#4ade80"/>
+          <circle cx="23" cy="17" r="2" fill="#4ade80"/>
+          <path d="M10 22 C10 30 26 30 26 22" stroke="#4ade80" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
     </div>
     <div class="guided-editor-wrap">
       <div class="guided-editor" id="guidedEditor" contenteditable="true" spellcheck="true" data-placeholder="Scrivi qui o usa il microfono per dettare..."></div>
+    </div>
+    <div class="fmt-toolbar guided-editor-fmt">
+      <button class="fmt-btn" id="gFmtH1">𝐓 H¹</button>
+      <button class="fmt-btn" id="gFmtH2">𝐓 H²</button>
+      <button class="fmt-btn" id="gFmtH3">𝐓 H³</button>
+      <span class="fmt-sep"></span>
+      <button class="fmt-btn" id="gFmtBold">𝐁</button>
+      <button class="fmt-btn" id="gFmtItalic">𝐼</button>
+      <span class="fmt-sep"></span>
+      <button class="fmt-btn" id="gFmtUl"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:middle"><circle cx="2" cy="4" r="1.5"/><rect x="5" y="3" width="10" height="2" rx="1"/><circle cx="2" cy="8" r="1.5"/><rect x="5" y="7" width="10" height="2" rx="1"/><circle cx="2" cy="12" r="1.5"/><rect x="5" y="11" width="10" height="2" rx="1"/></svg></button>
+      <button class="fmt-btn" id="gFmtOl"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:middle"><text x="0" y="5" font-size="5" font-family="monospace">1.</text><rect x="5" y="3" width="10" height="2" rx="1"/><text x="0" y="9" font-size="5" font-family="monospace">2.</text><rect x="5" y="7" width="10" height="2" rx="1"/><text x="0" y="13" font-size="5" font-family="monospace">3.</text><rect x="5" y="11" width="10" height="2" rx="1"/></svg></button>
+    </div>
+    <div class="guided-nav">
+      <button class="guided-nav-btn guided-later" id="guidedLater">Rispondi dopo</button>
+      <button class="guided-nav-btn guided-continue" id="guidedContinue">Continua <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;vertical-align:middle"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button>
     </div>
     <div class="guided-mic-row">
       <button class="guided-mic-btn" id="guidedMicBtn">
@@ -478,10 +585,6 @@ h1 em { font-style:italic; color:var(--accent); }
         <svg id="guidedStopIcon" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
       </button>
       <div class="guided-mic-status" id="guidedMicStatus"></div>
-    </div>
-    <div class="guided-nav">
-      <button class="guided-nav-btn guided-later" id="guidedLater">Rispondi dopo</button>
-      <button class="guided-nav-btn guided-continue" id="guidedContinue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;vertical-align:middle"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button>
     </div>
   </div>
 </div>
@@ -1696,6 +1799,12 @@ async function uploadPhotoToStorage(base64) {
   let gAnalyser = null;
   let gPendingChunks = [];
   let gIsTranscribing = false;
+  // In-sospeso tracking
+  let gSkippedNow = new Set();         // indices skipped in the current session
+  let gResumeMode = false;             // true when resuming a pending session
+  let gResumeContext = null;           // the pending item being resumed
+  // Guided questions shown in resume mode (only the skipped ones)
+  let gResumeIndices = [];             // original question indices to show in resume
   let gChunkTimer = null;
 
   // DOM
@@ -1722,23 +1831,50 @@ async function uploadPhotoToStorage(base64) {
       gCurrentIdx = 0;
       gAnswers = new Array(GUIDED_QUESTIONS.length).fill(null);
       gMoodValue = null;
+      gSkippedNow = new Set();
+      gResumeMode = false;
+      gResumeContext = null;
+      gResumeIndices = [];
     }
     $('guidedDateInput').value = new Date().toISOString().split('T')[0];
     gRenderQuestion();
     gOverlay.classList.add('show');
   };
 
+  // ── OPEN RESUME (from to_complete.html) ──
+  function gOpenResume(ctx) {
+    if (!GROQ_KEY) { showErr('Inserisci prima la chiave Groq API.'); return; }
+    gResumeMode = true;
+    gResumeContext = ctx;
+    gResumeIndices = ctx.skippedIndices || [];
+    // Restore all previously given answers
+    gAnswers = ctx.allAnswers ? [...ctx.allAnswers] : new Array(GUIDED_QUESTIONS.length).fill(null);
+    gMoodValue = ctx.moodValue || null;
+    gSkippedNow = new Set();
+    // Start at the first skipped question
+    gCurrentIdx = 0; // index into gResumeIndices array
+    $('guidedDateInput').value = ctx.noteDate || new Date().toISOString().split('T')[0];
+    $('guidedDateInput').disabled = true; // date locked to original entry
+    gRenderResumeQuestion();
+    gOverlay.classList.add('show');
+  }
+
   gCloseBtn.onclick = () => {
     // Cancel current answer (don't save editor content) but keep previous answers
     gCleanupRecording();
+    if (gResumeMode) {
+      $('guidedDateInput').disabled = false;
+      gResumeMode = false;
+    }
     gOverlay.classList.remove('show');
   };
 
-  const _arrowSVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>';
+  const _arrowSVG = 'Continua <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>';
   const _checkSVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><polyline points="20 6 9 17 4 12"/></svg>';
 
-  // ── RENDER QUESTION ──
+  // ── RENDER QUESTION (normal mode) ──
   function gRenderQuestion() {
+    if (gResumeMode) { gRenderResumeQuestion(); return; }
     const q = GUIDED_QUESTIONS[gCurrentIdx];
     const total = GUIDED_QUESTIONS.length;
     gProgress.textContent = `Domanda ${gCurrentIdx + 1} di ${total}`;
@@ -1767,6 +1903,41 @@ async function uploadPhotoToStorage(base64) {
     gEditor.focus();
   }
 
+  // ── RENDER QUESTION (resume mode — shows only skipped questions) ──
+  function gRenderResumeQuestion() {
+    const resumeStep = gCurrentIdx; // step within gResumeIndices
+    const origIdx = gResumeIndices[resumeStep];
+    const q = GUIDED_QUESTIONS[origIdx];
+    const total = gResumeIndices.length;
+    gProgress.textContent = `Domanda sospesa ${resumeStep + 1} di ${total}`;
+    gProgressFill.style.width = ((resumeStep + 1) / total * 100) + '%';
+    gQuestion.innerHTML = q.text;
+    gEditor.innerHTML = gAnswers[origIdx] || '';
+    gEditor.setAttribute('data-placeholder', q.placeholder);
+
+    gMoodRow.style.display = q.hasMood ? 'flex' : 'none';
+    if (q.hasMood) {
+      gMoodRow.querySelectorAll('.guided-mood-btn').forEach(btn => {
+        btn.classList.toggle('selected', parseInt(btn.dataset.mood) === gMoodValue);
+      });
+    }
+
+    if (resumeStep === total - 1) {
+      gContinueBtn.innerHTML = _checkSVG;
+      gContinueBtn.classList.add('complete');
+    } else {
+      gContinueBtn.innerHTML = _arrowSVG;
+      gContinueBtn.classList.remove('complete');
+    }
+
+    gEditor.focus();
+  }
+
+  // Helper: get current original question index depending on mode
+  function gCurrentOrigIdx() {
+    return gResumeMode ? gResumeIndices[gCurrentIdx] : gCurrentIdx;
+  }
+
   // ── MOOD BUTTONS ──
   gMoodRow.addEventListener('click', e => {
     const btn = e.target.closest('.guided-mood-btn');
@@ -1784,8 +1955,9 @@ async function uploadPhotoToStorage(base64) {
 
   function gSaveCurrentAnswer() {
     const content = gGetEditorContent();
+    const origIdx = gCurrentOrigIdx();
     if (content && content !== '<br>') {
-      gAnswers[gCurrentIdx] = content;
+      gAnswers[origIdx] = content;
     }
   }
 
@@ -1793,7 +1965,8 @@ async function uploadPhotoToStorage(base64) {
     gSaveCurrentAnswer();
     if (gIsRecording) await gStopRecording();
 
-    if (gCurrentIdx < GUIDED_QUESTIONS.length - 1) {
+    const limit = gResumeMode ? gResumeIndices.length - 1 : GUIDED_QUESTIONS.length - 1;
+    if (gCurrentIdx < limit) {
       gCurrentIdx++;
       gRenderQuestion();
     } else {
@@ -1804,8 +1977,12 @@ async function uploadPhotoToStorage(base64) {
 
   gLaterBtn.onclick = async () => {
     if (gIsRecording) await gStopRecording();
-    gAnswers[gCurrentIdx] = null; // not answered, deferred
-    if (gCurrentIdx < GUIDED_QUESTIONS.length - 1) {
+    const origIdx = gCurrentOrigIdx();
+    gAnswers[origIdx] = null; // not answered, deferred
+    if (!gResumeMode) gSkippedNow.add(origIdx); // track only in fresh mode
+
+    const limit = gResumeMode ? gResumeIndices.length - 1 : GUIDED_QUESTIONS.length - 1;
+    if (gCurrentIdx < limit) {
       gCurrentIdx++;
       gRenderQuestion();
     } else {
@@ -1827,6 +2004,89 @@ async function uploadPhotoToStorage(base64) {
     const dateStr = $('guidedDateInput').value || new Date().toISOString().split('T')[0];
     const chosenDate = new Date(dateStr + 'T12:00:00');
     const MOOD_LABELS = ['', '😔 Molto basso', '😕 Basso', '😐 Neutro', '🙂 Buono', '😊 Ottimo'];
+
+    // ── RESUME MODE: update existing note inserting answers at correct positions ──
+    if (gResumeMode && gResumeContext && gResumeContext.noteId) {
+      try {
+        // Fetch the current note content from Supabase
+        const { data: existingNote, error: fetchErr } = await sb
+          .from('notes').select('content, title').eq('id', gResumeContext.noteId).single();
+        if (fetchErr) throw fetchErr;
+
+        // Parse existing HTML and rebuild inserting new answers at correct question positions
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(existingNote.content || '', 'text/html');
+        // Build a fresh ordered HTML with all 8 questions in sequence
+        const MOOD_L = ['', '😔 Molto basso', '😕 Basso', '😐 Neutro', '🙂 Buono', '😊 Ottimo'];
+        let newHtml = '<h2>Diario Guidato — ' + chosenDate.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }) + '</h2>';
+        if (gMoodValue) newHtml += '<p><strong>Umore: ' + MOOD_L[gMoodValue] + ' (' + gMoodValue + '/5)</strong></p>';
+        for (let i = 0; i < GUIDED_QUESTIONS.length; i++) {
+          const q = GUIDED_QUESTIONS[i];
+          if (gAnswers[i] && gAnswers[i].trim()) {
+            newHtml += '<h3>' + q.text + '</h3>';
+            newHtml += gAnswers[i];
+          }
+        }
+
+        // Determine how many questions are still unanswered after this resume
+        const stillSkipped = [];
+        for (let i = 0; i < GUIDED_QUESTIONS.length; i++) {
+          if (!gAnswers[i] || !gAnswers[i].trim()) stillSkipped.push(i);
+        }
+
+        // Update note in Supabase
+        const { error: updateErr } = await sb.from('notes')
+          .update({ content: newHtml, updated_at: new Date().toISOString() })
+          .eq('id', gResumeContext.noteId);
+        if (updateErr) throw updateErr;
+
+        // Remove or update the pending entry in localStorage
+        const PENDING_KEY = 'vv_pending_questions';
+        let pending = [];
+        try { pending = JSON.parse(localStorage.getItem(PENDING_KEY) || '[]'); } catch(e) {}
+        if (stillSkipped.length > 0) {
+          // Still some questions pending — update the entry
+          pending = pending.map(p => p.id === gResumeContext.id
+            ? { ...p, skippedIndices: stillSkipped, allAnswers: [...gAnswers] }
+            : p);
+        } else {
+          // All answered — remove the pending entry
+          pending = pending.filter(p => p.id !== gResumeContext.id);
+        }
+        try { localStorage.setItem(PENDING_KEY, JSON.stringify(pending)); } catch(e) {}
+
+        // Cleanup resume state
+        gOverlay.classList.remove('show');
+        $('guidedDateInput').disabled = false;
+        gResumeMode = false;
+        gResumeContext = null;
+        gResumeIndices = [];
+        gAnswers = new Array(GUIDED_QUESTIONS.length).fill(null);
+        gMoodValue = null;
+        gCurrentIdx = 0;
+        gSkippedNow = new Set();
+        hideErr();
+        // Clean up URL
+        if (window.history && window.history.replaceState) {
+          window.history.replaceState({}, '', window.location.pathname);
+        }
+        renderPendingSection();
+        // Brief success
+        const btn2 = $('guidedBtn');
+        const origTxt2 = btn2.innerHTML;
+        btn2.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><polyline points="20 6 9 17 4 12"/></svg> Salvato nel Diario!';
+        btn2.style.borderColor = 'rgba(74,222,128,.5)';
+        btn2.style.color = '#4ade80';
+        setTimeout(() => { btn2.innerHTML = origTxt2; btn2.style.borderColor = ''; btn2.style.color = ''; }, 2500);
+      } catch(e) {
+        showErr('Errore aggiornamento nota: ' + (e.message || e));
+      }
+      gContinueBtn.disabled = false;
+      gContinueBtn.innerHTML = _checkSVG;
+      return;
+    }
+
+    // ── NORMAL MODE: assemble and save new note ──
 
     // Assemble HTML
     let html = '<h2>Diario Guidato — ' + chosenDate.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }) + '</h2>';
@@ -1877,12 +2137,33 @@ async function uploadPhotoToStorage(base64) {
         // Vectorize
         if (savedNote) MemoryManager.indexNote(savedNote);
 
+        // If there are skipped questions, save to localStorage for to_complete.html
+        const skippedNowArr = [...gSkippedNow].filter(i => !gAnswers[i] || !gAnswers[i].trim());
+        if (skippedNowArr.length > 0 && savedNote) {
+          const PENDING_KEY = 'vv_pending_questions';
+          let pending = [];
+          try { pending = JSON.parse(localStorage.getItem(PENDING_KEY) || '[]'); } catch(e) {}
+          pending.push({
+            id: Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+            noteId: savedNote.id,
+            noteTitle: title,
+            noteDate: dateStr,
+            skippedIndices: skippedNowArr,
+            allAnswers: [...gAnswers],
+            moodValue: gMoodValue,
+            createdAt: new Date().toISOString()
+          });
+          try { localStorage.setItem(PENDING_KEY, JSON.stringify(pending)); } catch(e) {}
+        }
+        renderPendingSection();
+
         // Success
         gOverlay.classList.remove('show');
         // Reset session after successful save
         gAnswers = new Array(GUIDED_QUESTIONS.length).fill(null);
         gMoodValue = null;
         gCurrentIdx = 0;
+        gSkippedNow = new Set();
         showErr(''); hideErr();
         // Brief success indication
         const btn = $('guidedBtn');
@@ -2070,6 +2351,144 @@ async function uploadPhotoToStorage(base64) {
       gMicStatus.innerHTML = '';
     }
   }
+
+  // ── GUIDED FMT TOOLBAR ──
+  function gGetCurrentBlock() {
+    var sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return null;
+    var el = sel.anchorNode;
+    el = el && el.nodeType === 3 ? el.parentElement : el;
+    while (el && el !== gEditor) {
+      var t = el.tagName ? el.tagName.toLowerCase() : '';
+      if (['p','div','h1','h2','h3','li'].indexOf(t) !== -1) return el;
+      el = el.parentElement;
+    }
+    return null;
+  }
+
+  function gRefreshToolbar() {
+    var block = gGetCurrentBlock();
+    var tag = block ? block.tagName.toLowerCase() : '';
+    $('gFmtH1').classList.toggle('active', tag === 'h1');
+    $('gFmtH2').classList.toggle('active', tag === 'h2');
+    $('gFmtH3').classList.toggle('active', tag === 'h3');
+    $('gFmtBold').classList.toggle('active',   document.queryCommandState('bold'));
+    $('gFmtItalic').classList.toggle('active', document.queryCommandState('italic'));
+    $('gFmtUl').classList.toggle('active', document.queryCommandState('insertUnorderedList'));
+    $('gFmtOl').classList.toggle('active', document.queryCommandState('insertOrderedList'));
+  }
+
+  function gFmt(type) {
+    gEditor.focus();
+    if (type === 'bold') {
+      document.execCommand('bold', false, null);
+    } else if (type === 'italic') {
+      document.execCommand('italic', false, null);
+    } else if (type === 'ul') {
+      document.execCommand('insertUnorderedList', false, null);
+    } else if (type === 'ol') {
+      document.execCommand('insertOrderedList', false, null);
+    } else if (type === 'h1' || type === 'h2' || type === 'h3') {
+      var sel = window.getSelection();
+      if (!sel || !sel.rangeCount) return;
+      var block = gGetCurrentBlock();
+      if (block && block.tagName.toLowerCase() === type) {
+        document.execCommand('formatBlock', false, 'div');
+      } else {
+        document.execCommand('formatBlock', false, type);
+      }
+    }
+    gRefreshToolbar();
+  }
+
+  gEditor.addEventListener('keyup',   function() { gRefreshToolbar(); });
+  gEditor.addEventListener('mouseup', function() { gRefreshToolbar(); });
+
+  $('gFmtH1').addEventListener('mousedown',    function(e){ e.preventDefault(); gFmt('h1'); });
+  $('gFmtH2').addEventListener('mousedown',    function(e){ e.preventDefault(); gFmt('h2'); });
+  $('gFmtH3').addEventListener('mousedown',    function(e){ e.preventDefault(); gFmt('h3'); });
+  $('gFmtBold').addEventListener('mousedown',  function(e){ e.preventDefault(); gFmt('bold'); });
+  $('gFmtItalic').addEventListener('mousedown',function(e){ e.preventDefault(); gFmt('italic'); });
+  $('gFmtUl').addEventListener('mousedown',    function(e){ e.preventDefault(); gFmt('ul'); });
+  $('gFmtOl').addEventListener('mousedown',    function(e){ e.preventDefault(); gFmt('ol'); });
+  // Touch support for mobile
+  $('gFmtH1').addEventListener('touchstart',    function(e){ e.preventDefault(); gFmt('h1'); }, {passive:false});
+  $('gFmtH2').addEventListener('touchstart',    function(e){ e.preventDefault(); gFmt('h2'); }, {passive:false});
+  $('gFmtH3').addEventListener('touchstart',    function(e){ e.preventDefault(); gFmt('h3'); }, {passive:false});
+  $('gFmtBold').addEventListener('touchstart',  function(e){ e.preventDefault(); gFmt('bold'); }, {passive:false});
+  $('gFmtItalic').addEventListener('touchstart',function(e){ e.preventDefault(); gFmt('italic'); }, {passive:false});
+  $('gFmtUl').addEventListener('touchstart',    function(e){ e.preventDefault(); gFmt('ul'); }, {passive:false});
+  $('gFmtOl').addEventListener('touchstart',    function(e){ e.preventDefault(); gFmt('ol'); }, {passive:false});
+
+  // ── INLINE IN SOSPESO SECTION ──
+  function renderPendingSection() {
+    const PENDING_KEY = 'vv_pending_questions';
+    var pending = [];
+    try { pending = JSON.parse(localStorage.getItem(PENDING_KEY) || '[]'); } catch(e) {}
+    var section = document.getElementById('pendingSection');
+    var list    = document.getElementById('pendingCardsList');
+    var badge   = document.getElementById('pendingCountBadge');
+    if (!section || !list) return;
+
+    if (!pending.length) {
+      section.classList.remove('show');
+      list.innerHTML = '';
+      if (badge) badge.textContent = '';
+      return;
+    }
+
+    list.innerHTML = '';
+    pending.forEach(function(item) {
+      var card = document.createElement('div');
+      card.className = 'pending-card';
+      var d = new Date(item.noteDate + 'T12:00:00');
+      var dateStr = d.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
+      var chips = (item.skippedIndices || []).map(function(i) {
+        var q = GUIDED_QUESTIONS[i];
+        if (!q) return '';
+        var txt = q.text.replace(/<[^>]+>/g, '').slice(0, 28);
+        return '<span class="pending-card-chip">' + txt + (q.text.replace(/<[^>]+>/g,'').length > 28 ? '…' : '') + '</span>';
+      }).join('');
+
+      card.innerHTML =
+        '<div class="pending-card-top">' +
+          '<div class="pending-card-meta">' +
+            '<span class="pending-card-label">In sospeso</span>' +
+            '<span class="pending-card-date">' + dateStr + '</span>' +
+          '</div>' +
+          '<button class="pending-card-dismiss" title="Rimuovi">✕</button>' +
+        '</div>' +
+        '<div class="pending-card-title">' + (item.noteTitle || 'Diario Guidato') + '</div>' +
+        (chips ? '<div class="pending-card-chips">' + chips + '</div>' : '') +
+        '<div class="pending-card-cta">Continua a rispondere ' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>' +
+        '</div>';
+
+      (function(ctx) {
+        card.addEventListener('click', function(e) {
+          if (e.target.classList.contains('pending-card-dismiss') || e.target.closest('.pending-card-dismiss')) return;
+          gOpenResume(ctx);
+        });
+        card.querySelector('.pending-card-dismiss').addEventListener('click', function(e) {
+          e.stopPropagation();
+          if (!confirm('Rimuovere questa sessione in sospeso?')) return;
+          var p = [];
+          try { p = JSON.parse(localStorage.getItem(PENDING_KEY) || '[]'); } catch(e2) {}
+          p = p.filter(function(x) { return x.id !== ctx.id; });
+          try { localStorage.setItem(PENDING_KEY, JSON.stringify(p)); } catch(e2) {}
+          renderPendingSection();
+        });
+      })(item);
+
+      list.appendChild(card);
+    });
+
+    if (badge) badge.textContent = pending.length;
+    section.classList.add('show');
+  }
+
+  renderPendingSection();
+
 })();
 
 </script>

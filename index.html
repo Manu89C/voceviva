@@ -68,7 +68,7 @@ h1 em { font-style:italic; color:var(--accent); }
 .annot-wrap { background:var(--surface); border:1px solid var(--border); border-radius:1rem; padding:1.1rem; display:flex; flex-direction:column; gap:.75rem; transition:border-color .3s; }
 .annot-wrap.recording { border-color:rgba(240,106,106,.5); }
 .annot-wrap.done { border-color:rgba(74,222,128,.4); }
-.annot-editor { background:transparent; border:none; color:var(--text); font-family:'Crimson Pro',Georgia,serif; font-size:1.1rem; line-height:1.9; padding:0; outline:none; min-height:180px; max-height:40vh; overflow-y:auto; width:100%; font-synthesis:weight style; caret-color:var(--accent); }
+.annot-editor { background:transparent; border:none; color:var(--text); font-family:'Crimson Pro',Georgia,serif; font-size:1.1rem; line-height:1.9; padding:0; outline:none; min-height:120px; max-height:max(120px, min(240px, 40dvh)); overflow-y:auto; width:100%; font-synthesis:weight style; caret-color:var(--accent); }
 .annot-editor ::selection { background:rgba(245,80,54,.3); }
 .annot-editor ul, .annot-editor ol { margin:.3em 0 .3em 1.5em; padding:0; }
 .annot-editor li { margin:.15em 0; }
@@ -219,7 +219,7 @@ h1 em { font-style:italic; color:var(--accent); }
 .guided-overlay.show { display:flex; }
 .guided-card { background:var(--surface); border:none; border-radius:0; width:100%; max-width:100%; display:flex; flex-direction:column; animation:fadeIn .2s ease-out; height:100%; overflow:hidden; }
 .guided-fixed-top { flex-shrink:0; display:flex; flex-direction:column; gap:.55rem; padding:1rem 1.2rem .4rem; }
-.guided-body { flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; display:flex; flex-direction:column; gap:.55rem; padding:.2rem 1.2rem .3rem; }
+.guided-body { flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; display:flex; flex-direction:column; gap:.55rem; padding:.2rem 1.2rem max(.6rem, env(safe-area-inset-bottom)); }
 .guided-fixed-bottom { flex-shrink:0; display:flex; flex-direction:column; gap:.4rem; padding:.5rem 1.2rem; padding-bottom:max(1rem, env(safe-area-inset-bottom)); border-top:1px solid var(--border); background:var(--surface); }
 @keyframes fadeIn { from{opacity:0} to{opacity:1} }
 @keyframes slideUp { from{transform:translateY(100%);opacity:0} to{transform:translateY(0);opacity:1} }
@@ -242,7 +242,7 @@ h1 em { font-style:italic; color:var(--accent); }
 .guided-mood-btn[data-mood="3"].selected { border-color:#94a3b8; background:rgba(148,163,184,.18); box-shadow:0 0 10px rgba(148,163,184,.35); }
 .guided-mood-btn[data-mood="4"].selected { border-color:#fbbf24; background:rgba(251,191,36,.18); box-shadow:0 0 10px rgba(251,191,36,.35); }
 .guided-mood-btn[data-mood="5"].selected { border-color:#4ade80; background:rgba(74,222,128,.18); box-shadow:0 0 10px rgba(74,222,128,.35); }
-.guided-editor-wrap { flex:1; min-height:0; display:flex; flex-direction:column; background:var(--bg); border:1px solid var(--border); border-radius:.8rem; padding:.8rem; transition:border-color .2s; overflow:hidden; }
+.guided-editor-wrap { flex:1; min-height:100px; display:flex; flex-direction:column; background:var(--bg); border:1px solid var(--border); border-radius:.8rem; padding:.8rem; transition:border-color .2s; overflow:hidden; }
 .guided-editor-wrap:focus-within { border-color:rgba(245,80,54,.4); }
 .guided-editor { background:transparent; border:none; color:var(--text); font-family:'Crimson Pro',Georgia,serif; font-size:1.05rem; line-height:1.85; outline:none; width:100%; min-height:60px; flex:1; overflow-y:auto; caret-color:var(--accent); }
 .guided-editor:empty::before { content:attr(data-placeholder); color:var(--muted); pointer-events:none; display:block; }
@@ -581,7 +581,6 @@ h1 em { font-style:italic; color:var(--accent); }
       <button class="fmt-btn" id="gFmtUl"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:middle"><circle cx="2" cy="4" r="1.5"/><rect x="5" y="3" width="10" height="2" rx="1"/><circle cx="2" cy="8" r="1.5"/><rect x="5" y="7" width="10" height="2" rx="1"/><circle cx="2" cy="12" r="1.5"/><rect x="5" y="11" width="10" height="2" rx="1"/></svg></button>
       <button class="fmt-btn" id="gFmtOl"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:middle"><text x="0" y="5" font-size="5" font-family="monospace">1.</text><rect x="5" y="3" width="10" height="2" rx="1"/><text x="0" y="9" font-size="5" font-family="monospace">2.</text><rect x="5" y="7" width="10" height="2" rx="1"/><text x="0" y="13" font-size="5" font-family="monospace">3.</text><rect x="5" y="11" width="10" height="2" rx="1"/></svg></button>
     </div>
-    </div>
     <div class="guided-fixed-bottom">
     <div class="guided-nav">
       <button class="guided-nav-btn guided-later" id="guidedLater">Rispondi dopo</button>
@@ -593,6 +592,7 @@ h1 em { font-style:italic; color:var(--accent); }
         <svg id="guidedStopIcon" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
       </button>
       <div class="guided-mic-status" id="guidedMicStatus"></div>
+    </div>
     </div>
     </div>
   </div>
@@ -2520,6 +2520,41 @@ async function uploadPhotoToStorage(base64) {
   new MutationObserver(function() {
     if (ov.classList.contains('show')) sync(); else reset();
   }).observe(ov, { attributes:true, attributeFilter:['class'] });
+})();
+
+// ── Scroll toolbar in view when keyboard opens (mobile) ──────────────────────
+(function() {
+  // Nota Libera: when editor focused, ensure fmt-toolbar remains visible
+  var annotEd = document.getElementById('annotEditor');
+  if (annotEd) {
+    annotEd.addEventListener('focus', function() {
+      setTimeout(function() {
+        var footer = document.querySelector('.annot-footer');
+        if (!footer) return;
+        var vvH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+        var r = footer.getBoundingClientRect();
+        if (r.bottom > vvH) {
+          footer.scrollIntoView({ block: 'end', behavior: 'smooth' });
+        }
+      }, 350);
+    });
+  }
+  // Guided diary: when editor focused, scroll fmt-toolbar into guided-body view
+  var guidedEd = document.getElementById('guidedEditor');
+  if (guidedEd) {
+    guidedEd.addEventListener('focus', function() {
+      setTimeout(function() {
+        var toolbar = document.querySelector('.guided-editor-fmt');
+        var body = document.querySelector('.guided-body');
+        if (!toolbar || !body) return;
+        var tbBottom = toolbar.getBoundingClientRect().bottom;
+        var bdBottom = body.getBoundingClientRect().bottom;
+        if (tbBottom > bdBottom) {
+          body.scrollTop += (tbBottom - bdBottom) + 8;
+        }
+      }, 350);
+    });
+  }
 })();
 
 </script>

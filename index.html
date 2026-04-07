@@ -232,12 +232,17 @@ h1 em { font-style:italic; color:var(--accent); }
 .guided-progress-bar { height:3px; background:var(--border); border-radius:2px; overflow:hidden; }
 .guided-progress-fill { height:100%; background:var(--accent); border-radius:2px; transition:width .4s ease; }
 /* ── Keyboard-open compact mode ── */
-.guided-card.kbd .guided-fixed-top { padding:.35rem 1.2rem .25rem; gap:0; }
+.guided-card.kbd .guided-fixed-top { padding:.3rem 1.2rem .2rem; gap:0; }
 .guided-card.kbd .guided-header-left { gap:0; }
 .guided-card.kbd .guided-title { display:none; }
 .guided-card.kbd .guided-progress { display:none; }
 .guided-card.kbd .guided-progress-bar { display:none; }
 .guided-card.kbd .guided-mood-row { display:none; }
+.guided-card.kbd .guided-question { font-size:1.1rem; line-height:1.25; padding:.15rem 0 .25rem; min-height:0; }
+.guided-card.kbd .guided-body { gap:.25rem; padding-bottom:.25rem; }
+.guided-card.kbd .guided-editor-wrap { flex:none; height:96px; }
+.guided-card.kbd .guided-mic-row { display:none; }
+.guided-card.kbd .guided-fixed-bottom { padding:.35rem 1.2rem .35rem; }
 .guided-question { font-family:'Crimson Pro',Georgia,serif; font-size:1.45rem; line-height:1.3; color:var(--text); padding:.6rem 0; min-height:2.5rem; font-weight:400; }
 .guided-question em { color:var(--accent); font-style:normal; font-weight:500; }
 .guided-mood-row { display:flex; gap:.5rem; justify-content:center; padding:.3rem 0; }
@@ -2514,7 +2519,16 @@ async function uploadPhotoToStorage(base64) {
   if (!ov || !window.visualViewport) return;
   var baseH = window.visualViewport.height;
   var KBD_THR = 120; // px drop to consider keyboard open
-  function setKbd(on) { if (card) card.classList.toggle('kbd', on); }
+  function setKbd(on) {
+    if (!card) return;
+    var wasKbd = card.classList.contains('kbd');
+    card.classList.toggle('kbd', on);
+    if (on && !wasKbd) {
+      // scroll to top so question is the first thing visible
+      var body = ov.querySelector('.guided-body');
+      if (body) body.scrollTop = 0;
+    }
+  }
   function sync() {
     var vv = window.visualViewport;
     ov.style.top    = vv.offsetTop + 'px';

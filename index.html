@@ -241,7 +241,7 @@ h1 em { font-style:italic; color:var(--accent); }
 .guided-card.kbd .guided-question { font-size:1.1rem; line-height:1.25; padding:.15rem 0 .25rem; min-height:0; }
 .guided-card.kbd .guided-body { gap:.25rem; padding-bottom:.25rem; flex:1; min-height:0; }
 .guided-card.kbd .guided-editor-wrap { flex:1; min-height:80px; height:auto; }
-.guided-card.kbd .guided-mic-row { display:none; }
+.guided-card.kbd .guided-mic-status { display:none; }
 .guided-card.kbd .guided-fixed-bottom { padding:.35rem 1.2rem .35rem; }
 
 /* ── Floating REC button shown on scroll-down when kbd is open ── */
@@ -249,6 +249,14 @@ h1 em { font-style:italic; color:var(--accent); }
 .guided-fab-rec svg { width:20px; height:20px; }
 .guided-fab-rec.visible { display:flex; }
 .guided-fab-rec.recording { background:#c0392b; animation:pulse 1.4s ease-in-out infinite; }
+/* ── Inline mic button in guided-nav ── */
+.guided-mic-nav { border-radius:.45rem !important; width:auto !important; height:auto !important; padding:.42rem .7rem !important; box-shadow:0 2px 10px rgba(245,80,54,.3) !important; flex:0 0 auto !important; }
+/* ── Question navigation arrows ── */
+.guided-q-nav { display:flex; align-items:center; gap:.3rem; flex-shrink:0; }
+.guided-q-nav-btn { background:none; border:1px solid var(--border); color:var(--muted); width:32px; height:auto; padding:.55rem .3rem; border-radius:.35rem; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:.9rem; touch-action:manipulation; transition:border-color .15s,color .15s; line-height:1; box-sizing:border-box; }
+.guided-q-nav-btn:hover { border-color:var(--accent); color:var(--accent); }
+.guided-q-nav-btn:disabled { opacity:.3; cursor:not-allowed; pointer-events:none; }
+.guided-q-counter { font-size:.65rem; font-family:'JetBrains Mono',monospace; color:var(--muted); min-width:38px; text-align:center; letter-spacing:.05em; white-space:nowrap; }
 .guided-question { font-family:'Crimson Pro',Georgia,serif; font-size:1.45rem; line-height:1.3; color:var(--text); padding:.6rem 0; min-height:2.5rem; font-weight:400; }
 .guided-question em { color:var(--accent); font-style:normal; font-weight:500; }
 .guided-mood-row { display:flex; gap:.5rem; justify-content:center; padding:.3rem 0; }
@@ -516,9 +524,16 @@ h1 em { font-style:italic; color:var(--accent); }
       <div class="guided-header-left">
         <div class="guided-title">Diario <em style="color:var(--accent);font-style:italic;">Guidato</em></div>
         <div class="guided-progress" id="guidedProgress">Domanda 1 di 8</div>
-        <div style="margin-top:.3rem;">
-          <label style="font-size:.55rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);">Data</label>
-          <input type="date" id="guidedDateInput" class="modal-input" style="margin-top:.15rem;">
+        <div style="margin-top:.3rem;display:flex;align-items:flex-end;justify-content:space-between;gap:.5rem;">
+          <div>
+            <label style="font-size:.55rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);">Data</label>
+            <input type="date" id="guidedDateInput" class="modal-input" style="margin-top:.15rem;">
+          </div>
+          <div class="guided-q-nav" id="guidedQNav">
+            <button class="guided-q-nav-btn" id="guidedPrevBtn" title="Domanda precedente" disabled>&#8592;</button>
+            <span class="guided-q-counter" id="guidedQCounter">1 / 8</span>
+            <button class="guided-q-nav-btn" id="guidedNextBtn" title="Domanda successiva">&#8594;</button>
+          </div>
         </div>
       </div>
       <button class="guided-close" id="guidedClose">&#x2715;</button>
@@ -607,15 +622,13 @@ h1 em { font-style:italic; color:var(--accent); }
     <div class="guided-fixed-bottom" id="guidedFixedBottom">
     <div class="guided-nav">
       <button class="guided-nav-btn guided-later" id="guidedLater">Rispondi dopo</button>
-      <button class="guided-nav-btn guided-continue" id="guidedContinue">Continua <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;vertical-align:middle"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button>
-    </div>
-    <div class="guided-mic-row" id="guidedMicRow">
-      <button class="guided-mic-btn" id="guidedMicBtn">
+      <button class="guided-mic-btn guided-mic-nav" id="guidedMicBtn" title="Registra">
         <svg id="guidedMicIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
         <svg id="guidedStopIcon" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
       </button>
-      <div class="guided-mic-status" id="guidedMicStatus"></div>
+      <button class="guided-nav-btn guided-continue" id="guidedContinue">Salta <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;vertical-align:middle"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button>
     </div>
+    <div class="guided-mic-status" id="guidedMicStatus"></div>
     </div>
   </div>
 </div>
@@ -1900,8 +1913,43 @@ async function uploadPhotoToStorage(base64) {
     gOverlay.classList.remove('show');
   };
 
-  const _arrowSVG = 'Continua <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>';
-  const _checkSVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><polyline points="20 6 9 17 4 12"/></svg>';
+  const _svgArrow = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;vertical-align:middle"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>';
+  const _svgCheck = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg>';
+  // Keep legacy refs used elsewhere
+  const _arrowSVG = 'Salva e continua ' + _svgArrow;
+  const _checkSVG = 'Salva e completa ' + _svgCheck;
+  const _skipSVG          = 'Salta '          + _svgArrow;
+  const _skipCompleteSVG  = 'Salta e completa ' + _svgCheck;
+  const _saveContinueSVG  = 'Salva e continua ' + _svgArrow;
+  const _saveCompleteSVG  = 'Salva e completa ' + _svgCheck;
+
+  // ── Dynamic nav button labels ──
+  function gUpdateNavButtons() {
+    const hasContent = (gEditor.innerText || '').trim().length > 0;
+    const total = gResumeMode ? gResumeIndices.length : GUIDED_QUESTIONS.length;
+    const isLast = gCurrentIdx >= total - 1;
+    // Later button
+    gLaterBtn.textContent = hasContent ? 'Completa dopo' : 'Rispondi dopo';
+    // Continue button
+    if (isLast) {
+      gContinueBtn.classList.add('complete');
+      gContinueBtn.innerHTML = hasContent ? _saveCompleteSVG : _skipCompleteSVG;
+    } else {
+      gContinueBtn.classList.remove('complete');
+      gContinueBtn.innerHTML = hasContent ? _saveContinueSVG : _skipSVG;
+    }
+  }
+
+  // ── Question counter + prev/next arrow state ──
+  function gUpdateQNav() {
+    const total = gResumeMode ? gResumeIndices.length : GUIDED_QUESTIONS.length;
+    var counter = document.getElementById('guidedQCounter');
+    var prevBtn = document.getElementById('guidedPrevBtn');
+    var nextBtn = document.getElementById('guidedNextBtn');
+    if (counter) counter.textContent = (gCurrentIdx + 1) + ' / ' + total;
+    if (prevBtn) prevBtn.disabled = gCurrentIdx === 0;
+    if (nextBtn) nextBtn.disabled = gCurrentIdx >= total - 1;
+  }
 
   // ── RENDER QUESTION (normal mode) ──
   function gRenderQuestion() {
@@ -1922,15 +1970,8 @@ async function uploadPhotoToStorage(base64) {
       });
     }
 
-    // Continue/Completa
-    if (gCurrentIdx === total - 1) {
-      gContinueBtn.innerHTML = _checkSVG;
-      gContinueBtn.classList.add('complete');
-    } else {
-      gContinueBtn.innerHTML = _arrowSVG;
-      gContinueBtn.classList.remove('complete');
-    }
-
+    gUpdateNavButtons();
+    gUpdateQNav();
     gEditor.focus();
   }
 
@@ -1953,14 +1994,8 @@ async function uploadPhotoToStorage(base64) {
       });
     }
 
-    if (resumeStep === total - 1) {
-      gContinueBtn.innerHTML = _checkSVG;
-      gContinueBtn.classList.add('complete');
-    } else {
-      gContinueBtn.innerHTML = _arrowSVG;
-      gContinueBtn.classList.remove('complete');
-    }
-
+    gUpdateNavButtons();
+    gUpdateQNav();
     gEditor.focus();
   }
 
@@ -2009,8 +2044,15 @@ async function uploadPhotoToStorage(base64) {
   gLaterBtn.onclick = async () => {
     if (gIsRecording) await gStopRecording();
     const origIdx = gCurrentOrigIdx();
-    gAnswers[origIdx] = null; // not answered, deferred
-    if (!gResumeMode) gSkippedNow.add(origIdx); // track only in fresh mode
+    const content = gGetEditorContent();
+    if (content && content !== '<br>') {
+      // "Completa dopo": save partial text and mark as pending
+      gAnswers[origIdx] = content;
+    } else {
+      // "Rispondi dopo": no answer, fully deferred
+      gAnswers[origIdx] = null;
+    }
+    if (!gResumeMode) gSkippedNow.add(origIdx);
 
     const limit = gResumeMode ? gResumeIndices.length - 1 : GUIDED_QUESTIONS.length - 1;
     if (gCurrentIdx < limit) {
@@ -2169,7 +2211,7 @@ async function uploadPhotoToStorage(base64) {
         if (savedNote) MemoryManager.indexNote(savedNote);
 
         // If there are skipped questions, save to localStorage for to_complete.html
-        const skippedNowArr = [...gSkippedNow].filter(i => !gAnswers[i] || !gAnswers[i].trim());
+        const skippedNowArr = [...gSkippedNow];
         if (skippedNowArr.length > 0 && savedNote) {
           const PENDING_KEY = 'vv_pending_questions';
           let pending = [];
@@ -2344,6 +2386,7 @@ async function uploadPhotoToStorage(base64) {
             range.insertNode(tn); range.setStartAfter(tn); range.collapse(true);
             sel.removeAllRanges(); sel.addRange(range);
             gEditor.scrollTop = gEditor.scrollHeight;
+            gUpdateNavButtons();
           }
         }
         return;
@@ -2432,8 +2475,34 @@ async function uploadPhotoToStorage(base64) {
     gRefreshToolbar();
   }
 
-  gEditor.addEventListener('keyup',   function() { gRefreshToolbar(); });
+  gEditor.addEventListener('keyup',   function() { gRefreshToolbar(); gUpdateNavButtons(); });
   gEditor.addEventListener('mouseup', function() { gRefreshToolbar(); });
+  gEditor.addEventListener('input',   function() { gUpdateNavButtons(); });
+
+  // ── Prev / Next question navigation ──
+  (function() {
+    var prevBtn = document.getElementById('guidedPrevBtn');
+    var nextBtn = document.getElementById('guidedNextBtn');
+    if (prevBtn) {
+      prevBtn.addEventListener('click', function() {
+        if (gCurrentIdx <= 0) return;
+        gSaveCurrentAnswer();
+        if (gIsRecording) gStopRecording();
+        gCurrentIdx--;
+        gRenderQuestion();
+      });
+    }
+    if (nextBtn) {
+      nextBtn.addEventListener('click', function() {
+        var total = gResumeMode ? gResumeIndices.length : GUIDED_QUESTIONS.length;
+        if (gCurrentIdx >= total - 1) return;
+        gSaveCurrentAnswer();
+        if (gIsRecording) gStopRecording();
+        gCurrentIdx++;
+        gRenderQuestion();
+      });
+    }
+  })();
 
   $('gFmtH1').addEventListener('mousedown',    function(e){ e.preventDefault(); gFmt('h1'); });
   $('gFmtH2').addEventListener('mousedown',    function(e){ e.preventDefault(); gFmt('h2'); });

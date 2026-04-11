@@ -297,6 +297,31 @@ h1 em { font-style:italic; color:var(--accent); }
 .guided-editor-fmt .fmt-btn { color:#a8a8cc; border-color:#3c3c58; }
 .guided-editor-fmt .fmt-btn:hover:not(.active) { color:#d0d0e8; border-color:#5a5a80; background:rgba(255,255,255,.05); }
 .guided-editor-fmt .fmt-sep { background:#3c3c58; }
+/* ── EDIT QUESTIONS BUTTON & PANEL ── */
+.guided-edit-btn { background:none; border:1px solid var(--border); color:var(--muted); padding:.32rem .6rem; border-radius:.4rem; font-family:'JetBrains Mono',monospace; font-size:.57rem; text-transform:uppercase; letter-spacing:.08em; cursor:pointer; touch-action:manipulation; transition:all .15s; white-space:nowrap; flex-shrink:0; }
+.guided-edit-btn:hover { border-color:var(--accent); color:var(--accent); }
+.guided-header-actions { display:flex; align-items:center; gap:.35rem; flex-shrink:0; }
+.guided-edit-panel { display:none; position:absolute; inset:0; z-index:20; background:var(--bg); flex-direction:column; overflow:hidden; }
+.guided-edit-panel.show { display:flex; }
+.guided-edit-panel-header { flex-shrink:0; display:flex; align-items:center; justify-content:space-between; padding:1rem 1.2rem .65rem; border-bottom:1px solid var(--border); }
+.guided-edit-panel-title { font-family:'DM Serif Display',serif; font-size:1.1rem; color:var(--text); }
+.guided-edit-list { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:.6rem 1.2rem; display:flex; flex-direction:column; gap:.45rem; }
+.guided-edit-item { display:flex; align-items:flex-start; gap:.45rem; background:var(--surface); border:1px solid var(--border); border-radius:.7rem; padding:.55rem .65rem; transition:border-color .15s; touch-action:none; }
+.guided-edit-item.dragging { opacity:.45; border-color:var(--accent); }
+.guided-edit-item.drag-target-above { border-top:2px solid var(--accent); }
+.guided-edit-item.drag-target-below { border-bottom:2px solid var(--accent); }
+.guided-edit-item-num { font-size:.58rem; font-family:'JetBrains Mono',monospace; color:var(--muted); padding-top:.25rem; min-width:16px; flex-shrink:0; }
+.guided-edit-item-drag { color:var(--muted); cursor:grab; flex-shrink:0; padding:.2rem .1rem; display:flex; align-items:center; touch-action:none; user-select:none; -webkit-user-select:none; }
+.guided-edit-item-drag:active { cursor:grabbing; }
+.guided-edit-item-input { flex:1; background:transparent; border:none; color:var(--text); font-family:'Crimson Pro',Georgia,serif; font-size:.97rem; line-height:1.5; outline:none; resize:none; min-height:36px; padding:0; overflow:hidden; }
+.guided-edit-item-input::placeholder { color:var(--muted); }
+.guided-edit-item-delete { background:none; border:none; color:var(--muted); cursor:pointer; font-size:.8rem; padding:.2rem .25rem; flex-shrink:0; transition:color .15s; line-height:1; }
+.guided-edit-item-delete:hover { color:var(--accent); }
+.guided-edit-add-btn { flex-shrink:0; margin:.1rem 1.2rem .4rem; background:none; border:1px dashed rgba(255,255,255,.12); border-radius:.6rem; color:var(--muted); font-family:'JetBrains Mono',monospace; font-size:.6rem; text-transform:uppercase; letter-spacing:.08em; padding:.5rem; cursor:pointer; transition:border-color .15s,color .15s; }
+.guided-edit-add-btn:hover { border-color:var(--accent); color:var(--accent); }
+.guided-edit-panel-footer { flex-shrink:0; padding:.65rem 1.2rem; padding-bottom:max(1rem, env(safe-area-inset-bottom)); border-top:1px solid var(--border); background:var(--surface); }
+.guided-edit-save-btn { width:100%; padding:.58rem; background:var(--live); border:none; border-radius:.6rem; color:#0a0a0f; font-family:'JetBrains Mono',monospace; font-size:.65rem; text-transform:uppercase; letter-spacing:.1em; cursor:pointer; font-weight:600; transition:opacity .15s; }
+.guided-edit-save-btn:hover { opacity:.88; }
 /* ── IN SOSPESO INLINE SECTION ── */
 .pending-section { display:none; flex-direction:column; gap:.55rem; width:100%; max-width:640px; }
 .pending-section.show { display:flex; }
@@ -536,7 +561,12 @@ h1 em { font-style:italic; color:var(--accent); }
           </div>
         </div>
       </div>
-      <button class="guided-close" id="guidedClose">&#x2715;</button>
+      <div class="guided-header-actions">
+        <button class="guided-edit-btn" id="guidedEditBtn" title="Modifica domande">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:middle;margin-right:.3em"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Modifica
+        </button>
+        <button class="guided-close" id="guidedClose">&#x2715;</button>
+      </div>
     </div>
     <div class="guided-progress-bar"><div class="guided-progress-fill" id="guidedProgressFill" style="width:12.5%"></div></div>
     </div>
@@ -630,6 +660,21 @@ h1 em { font-style:italic; color:var(--accent); }
     </div>
     <div class="guided-mic-status" id="guidedMicStatus"></div>
     </div>
+
+  <!-- EDIT QUESTIONS PANEL (overlays guided-card via position:absolute) -->
+  <div class="guided-edit-panel" id="guidedEditPanel">
+    <div class="guided-edit-panel-header">
+      <span class="guided-edit-panel-title">Modifica <em style="color:var(--accent);font-style:italic;">domande</em></span>
+      <button class="guided-close" id="guidedEditPanelClose">&#x2715;</button>
+    </div>
+    <div class="guided-edit-list" id="guidedEditList"></div>
+    <button class="guided-edit-add-btn" id="guidedEditAddBtn">+ Aggiungi domanda</button>
+    <div class="guided-edit-panel-footer">
+      <button class="guided-edit-save-btn" id="guidedEditSaveBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;vertical-align:middle;margin-right:.35em"><polyline points="20 6 9 17 4 12"/></svg>Salva impostazioni
+      </button>
+    </div>
+  </div>
   </div>
 </div>
 
@@ -1833,6 +1878,21 @@ async function uploadPhotoToStorage(base64) {
     { text: 'Cosa hai imparato oggi sia da ciò che puoi cambiare che da ciò che non puoi cambiare?', hasMood: false, placeholder: 'Rifletti su ciò che hai appreso...' }
   ];
 
+  // Load custom questions from localStorage if available
+  const GQ_STORAGE_KEY = 'vv_guided_questions';
+  (function() {
+    try {
+      const stored = localStorage.getItem(GQ_STORAGE_KEY);
+      if (stored) {
+        const arr = JSON.parse(stored);
+        if (Array.isArray(arr) && arr.length > 0) {
+          GUIDED_QUESTIONS.length = 0;
+          arr.forEach(q => GUIDED_QUESTIONS.push(q));
+        }
+      }
+    } catch(e) {}
+  })();
+
   let gCurrentIdx = 0;
   let gAnswers = new Array(GUIDED_QUESTIONS.length).fill(null);
   let gMoodValue = null;
@@ -1903,12 +1963,27 @@ async function uploadPhotoToStorage(base64) {
     gOverlay.classList.add('show');
   }
 
-  gCloseBtn.onclick = () => {
-    // Cancel current answer (don't save editor content) but keep previous answers
+  gCloseBtn.onclick = async () => {
     gCleanupRecording();
+    const wasResumeMode = gResumeMode;
     if (gResumeMode) {
       $('guidedDateInput').disabled = false;
       gResumeMode = false;
+    }
+    // In normal mode: if any answers exist, treat remaining unanswered (non-skipped) questions as "in sospeso"
+    if (!wasResumeMode) {
+      gSaveCurrentAnswer(); // capture whatever is in the editor now
+      const hasAny = gAnswers.some(a => a && a.trim()) || gMoodValue;
+      if (hasAny) {
+        // Add all unanswered, non-skipped questions to the skipped set so they become pending
+        for (let i = 0; i < GUIDED_QUESTIONS.length; i++) {
+          if ((!gAnswers[i] || !gAnswers[i].trim()) && !gSkippedNow.has(i)) {
+            gSkippedNow.add(i);
+          }
+        }
+        await gCompleteAndSave(); // saves to Supabase + creates pending entry, then closes overlay
+        return;
+      }
     }
     gOverlay.classList.remove('show');
   };
@@ -2588,6 +2663,213 @@ async function uploadPhotoToStorage(base64) {
   }
 
   renderPendingSection();
+
+  // ── EDIT QUESTIONS PANEL ─────────────────────────────────────────────────────
+
+  // Default questions snapshot (for placeholder fallback on new items)
+  const GQ_DEFAULTS = [
+    { text: 'Qual è il tuo umore oggi?', hasMood: true, placeholder: 'Aggiungi un commento sul tuo umore (opzionale)...' },
+    { text: 'Cosa ti è successo oggi?', hasMood: false, placeholder: 'Racconta cosa è accaduto...' },
+    { text: 'Quanto di ciò che ti è successo ha condizionato il tuo umore ed in che modo?', hasMood: false, placeholder: 'Descrivi l\'impatto sul tuo umore...' },
+    { text: 'Cosa di ciò che non ti è accaduto ha condizionato il tuo umore ed in che modo lo influenza?', hasMood: false, placeholder: 'Pensa a ciò che non è successo...' },
+    { text: 'Cosa degli avvenimenti o delle motivazioni sopra elencate dipende da te?', hasMood: false, placeholder: 'Cosa è sotto il tuo controllo...' },
+    { text: 'Cosa invece non dipende da te?', hasMood: false, placeholder: 'Cosa non puoi controllare...' },
+    { text: 'Quali azioni piccole potresti attuare per allinearti all\'idea di te che vuoi raggiungere?', hasMood: false, placeholder: 'Pensa ad azioni concrete e piccole...' },
+    { text: 'Cosa hai imparato oggi sia da ciò che puoi cambiare che da ciò che non puoi cambiare?', hasMood: false, placeholder: 'Rifletti su ciò che hai appreso...' }
+  ];
+
+  const gEditPanel    = document.getElementById('guidedEditPanel');
+  const gEditList     = document.getElementById('guidedEditList');
+  const gEditOpenBtn  = document.getElementById('guidedEditBtn');
+  const gEditCloseBtn = document.getElementById('guidedEditPanelClose');
+  const gEditAddBtn   = document.getElementById('guidedEditAddBtn');
+  const gEditSaveBtn  = document.getElementById('guidedEditSaveBtn');
+
+  // ── Drag-and-drop state ──
+  let _dragEl = null, _dragPlaceholder = null, _dragStartY = 0, _dragOffsetY = 0, _dragPointerId = null;
+
+  function _autoResizeTextarea(ta) {
+    ta.style.height = 'auto';
+    ta.style.height = ta.scrollHeight + 'px';
+  }
+
+  function _createEditItem(text, idx) {
+    const item = document.createElement('div');
+    item.className = 'guided-edit-item';
+    item.innerHTML =
+      '<span class="guided-edit-item-num">' + (idx + 1) + '</span>' +
+      '<span class="guided-edit-item-drag" title="Trascina per riordinare">' +
+        '<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">' +
+          '<line x1="4" y1="6" x2="16" y2="6"/>' +
+          '<line x1="4" y1="10" x2="16" y2="10"/>' +
+          '<line x1="4" y1="14" x2="16" y2="14"/>' +
+        '</svg>' +
+      '</span>' +
+      '<textarea class="guided-edit-item-input" rows="1" placeholder="Testo della domanda..." spellcheck="true"></textarea>' +
+      '<button class="guided-edit-item-delete" title="Elimina">✕</button>';
+    const ta = item.querySelector('textarea');
+    ta.value = text;
+    ta.addEventListener('input', function() { _autoResizeTextarea(this); });
+    setTimeout(function() { _autoResizeTextarea(ta); }, 0);
+    item.querySelector('.guided-edit-item-delete').addEventListener('click', function() {
+      if (gEditList.children.length <= 1) return;
+      item.remove();
+      _renumberItems();
+    });
+    // Drag handle — pointer events
+    const handle = item.querySelector('.guided-edit-item-drag');
+    handle.addEventListener('pointerdown', function(e) {
+      e.preventDefault();
+      _startDrag(e, item);
+    }, { passive: false });
+    return item;
+  }
+
+  function _renumberItems() {
+    Array.from(gEditList.children).forEach(function(el, i) {
+      const num = el.querySelector('.guided-edit-item-num');
+      if (num) num.textContent = (i + 1);
+    });
+  }
+
+  function _renderEditList() {
+    gEditList.innerHTML = '';
+    GUIDED_QUESTIONS.forEach(function(q, i) {
+      gEditList.appendChild(_createEditItem(q.text, i));
+    });
+  }
+
+  // ── Open / close ──
+  gEditOpenBtn.addEventListener('click', function() {
+    _renderEditList();
+    gEditPanel.classList.add('show');
+  });
+
+  gEditCloseBtn.addEventListener('click', function() {
+    gEditPanel.classList.remove('show');
+  });
+
+  // ── Add question ──
+  gEditAddBtn.addEventListener('click', function() {
+    const idx = gEditList.children.length;
+    const item = _createEditItem('', idx);
+    gEditList.appendChild(item);
+    item.querySelector('textarea').focus();
+    gEditList.scrollTop = gEditList.scrollHeight;
+  });
+
+  // ── Save ──
+  gEditSaveBtn.addEventListener('click', function() {
+    const items = Array.from(gEditList.children);
+    const newQuestions = [];
+    items.forEach(function(item, i) {
+      const text = (item.querySelector('textarea').value || '').trim();
+      if (!text) return;
+      // Keep hasMood:true only for the first question if the original first question had hasMood
+      const hasMood = i === 0 && GQ_DEFAULTS[0].hasMood ? true : false;
+      const defaultPla = GQ_DEFAULTS[i] ? GQ_DEFAULTS[i].placeholder : 'Scrivi la tua risposta...';
+      newQuestions.push({ text: text, hasMood: hasMood, placeholder: defaultPla });
+    });
+    if (newQuestions.length === 0) return;
+
+    // Update GUIDED_QUESTIONS in place
+    GUIDED_QUESTIONS.length = 0;
+    newQuestions.forEach(function(q) { GUIDED_QUESTIONS.push(q); });
+
+    // Persist
+    try { localStorage.setItem(GQ_STORAGE_KEY, JSON.stringify(GUIDED_QUESTIONS)); } catch(e) {}
+
+    // Sync gAnswers length if no active session
+    const hasActiveSession = gAnswers.some(function(a) { return a && a.trim(); }) || gMoodValue;
+    if (!hasActiveSession) {
+      gAnswers = new Array(GUIDED_QUESTIONS.length).fill(null);
+      gCurrentIdx = 0;
+    } else {
+      // Extend/trim answers array to match new length
+      const newAns = new Array(GUIDED_QUESTIONS.length).fill(null);
+      for (let i = 0; i < Math.min(newAns.length, gAnswers.length); i++) newAns[i] = gAnswers[i];
+      gAnswers = newAns;
+      if (gCurrentIdx >= GUIDED_QUESTIONS.length) gCurrentIdx = GUIDED_QUESTIONS.length - 1;
+    }
+
+    gUpdateQNav();
+
+    // Success feedback
+    gEditSaveBtn.textContent = '✓ Salvato';
+    setTimeout(function() {
+      gEditSaveBtn.innerHTML =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;vertical-align:middle;margin-right:.35em"><polyline points="20 6 9 17 4 12"/></svg>Salva impostazioni';
+      gEditPanel.classList.remove('show');
+    }, 900);
+  });
+
+  // ── Drag-and-drop (pointer events — works on touch + mouse) ──
+  function _startDrag(e, item) {
+    if (_dragEl) return;
+    _dragEl = item;
+    _dragPointerId = e.pointerId;
+    _dragStartY = e.clientY;
+    _dragOffsetY = 0;
+
+    _dragPlaceholder = document.createElement('div');
+    _dragPlaceholder.className = 'guided-edit-item';
+    _dragPlaceholder.style.cssText = 'opacity:0;height:' + item.offsetHeight + 'px;pointer-events:none;flex-shrink:0;';
+    item.parentNode.insertBefore(_dragPlaceholder, item.nextSibling);
+
+    item.classList.add('dragging');
+    item.style.position = 'relative';
+    item.style.zIndex = '30';
+    item.style.transition = 'none';
+
+    document.addEventListener('pointermove', _onDragMove, { passive: false });
+    document.addEventListener('pointerup',   _onDragEnd,  { passive: false });
+    document.addEventListener('pointercancel', _onDragEnd, { passive: false });
+  }
+
+  function _onDragMove(e) {
+    if (!_dragEl || e.pointerId !== _dragPointerId) return;
+    e.preventDefault();
+    _dragOffsetY = e.clientY - _dragStartY;
+    _dragEl.style.transform = 'translateY(' + _dragOffsetY + 'px)';
+
+    // Find insertion point
+    const items = Array.from(gEditList.children).filter(function(el) { return el !== _dragEl && el !== _dragPlaceholder; });
+    let target = null, insertBefore = false;
+    for (const it of items) {
+      const r = it.getBoundingClientRect();
+      const mid = r.top + r.height / 2;
+      if (e.clientY < mid) { target = it; insertBefore = true; break; }
+      target = it; insertBefore = false;
+    }
+    if (target) {
+      if (insertBefore) {
+        gEditList.insertBefore(_dragPlaceholder, target);
+      } else {
+        gEditList.insertBefore(_dragPlaceholder, target.nextSibling);
+      }
+    }
+  }
+
+  function _onDragEnd(e) {
+    if (!_dragEl) return;
+    document.removeEventListener('pointermove', _onDragMove);
+    document.removeEventListener('pointerup',   _onDragEnd);
+    document.removeEventListener('pointercancel', _onDragEnd);
+
+    _dragEl.style.transform = '';
+    _dragEl.style.position = '';
+    _dragEl.style.zIndex = '';
+    _dragEl.style.transition = '';
+    _dragEl.classList.remove('dragging');
+
+    gEditList.insertBefore(_dragEl, _dragPlaceholder);
+    _dragPlaceholder.remove();
+    _dragPlaceholder = null;
+    _dragEl = null;
+    _dragPointerId = null;
+
+    _renumberItems();
+  }
 
 })();
 

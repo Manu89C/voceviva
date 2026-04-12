@@ -820,6 +820,7 @@ saveKeyBtn.onclick = () => {
   if (!genBtn) return;
 
   genBtn.onclick = async () => {
+    if (genBtn.disabled) return;
     genBtn.textContent = 'Generazione…';
     genBtn.disabled = true;
     try {
@@ -837,8 +838,7 @@ saveKeyBtn.onclick = () => {
       genBtn.textContent = 'Errore: ' + (e.message || e);
       console.error('[Report] errore generazione manuale:', e);
     }
-    genBtn.disabled = false;
-    setTimeout(() => { genBtn.textContent = 'Genera Report Settimanale'; }, 5000);
+    setTimeout(() => { genBtn.disabled = false; genBtn.textContent = 'Genera Report Settimanale'; }, 5000);
   };
 })();
 
@@ -1622,8 +1622,29 @@ modalConfirm.onclick = async () => {
 
 // ── PWA ───────────────────────────────────────────────────────────────────────
 let swReg=null;
+let _swRefreshing = false;
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('sw.js').then(r=>{swReg=r;}).catch(()=>{});
+  // Forza reload quando un nuovo SW prende il controllo
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (_swRefreshing) return;
+    _swRefreshing = true;
+    window.location.reload();
+  });
+  navigator.serviceWorker.register('sw.js').then(r=>{
+    swReg=r;
+    // Se c'è un SW in attesa, attivalo subito
+    if (r.waiting) r.waiting.postMessage({ type: 'SKIP_WAITING' });
+    r.addEventListener('updatefound', () => {
+      const newSW = r.installing;
+      if (!newSW) return;
+      newSW.addEventListener('statechange', () => {
+        if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+          // Nuovo SW pronto, attivalo
+          newSW.postMessage({ type: 'SKIP_WAITING' });
+        }
+      });
+    });
+  }).catch(()=>{});
   navigator.serviceWorker.addEventListener('message',e=>{if(e.data==='stopFromNotification')stopRec();});
 }
 
@@ -2037,24 +2058,13 @@ async function uploadPhotoToStorage(base64) {
               newHtml += gAnswers[i];
             }
           }
+          // Embed updated pending marker if still skipped, otherwise strip it
+          if (stillSkipped.length > 0) newHtml += '\n' + _pendingEncode(stillSkipped, [...gAnswers], gMoodValue);
           await sb.from('notes').update({ content: newHtml, updated_at: new Date().toISOString() }).eq('id', gResumeContext.noteId);
         } catch(e) {
           showErr('Errore aggiornamento: ' + (e.message || e));
         }
       }
-
-      // Update pending entry in localStorage (preserves "completa dopo" partial answers)
-      const PENDING_KEY_R = 'vv_pending_questions';
-      let pendingR = [];
-      try { pendingR = JSON.parse(localStorage.getItem(PENDING_KEY_R) || '[]'); } catch(e) {}
-      if (stillSkipped.length > 0) {
-        pendingR = pendingR.map(p => p.id === gResumeContext.id
-          ? { ...p, skippedIndices: stillSkipped, allAnswers: [...gAnswers] }
-          : p);
-      } else {
-        pendingR = pendingR.filter(p => p.id !== gResumeContext.id);
-      }
-      try { localStorage.setItem(PENDING_KEY_R, JSON.stringify(pendingR)); } catch(e) {}
 
       // Cleanup resume state
       gResumeMode = false;
@@ -2066,7 +2076,7 @@ async function uploadPhotoToStorage(base64) {
       gCurrentIdx = 0;
       gSkippedNow = new Set();
       gOverlay.classList.remove('show');
-      renderPendingSection();
+      await renderPendingSection();
       return;
     }
 
@@ -2281,26 +2291,14 @@ async function uploadPhotoToStorage(base64) {
           if (!gAnswers[i] || !gAnswers[i].trim()) stillSkipped.push(i);
         }
 
+        // Embed updated pending marker if questions remain, otherwise content is clean
+        if (stillSkipped.length > 0) newHtml += '\n' + _pendingEncode(stillSkipped, [...gAnswers], gMoodValue);
+
         // Update note in Supabase
         const { error: updateErr } = await sb.from('notes')
           .update({ content: newHtml, updated_at: new Date().toISOString() })
           .eq('id', gResumeContext.noteId);
         if (updateErr) throw updateErr;
-
-        // Remove or update the pending entry in localStorage
-        const PENDING_KEY = 'vv_pending_questions';
-        let pending = [];
-        try { pending = JSON.parse(localStorage.getItem(PENDING_KEY) || '[]'); } catch(e) {}
-        if (stillSkipped.length > 0) {
-          // Still some questions pending — update the entry
-          pending = pending.map(p => p.id === gResumeContext.id
-            ? { ...p, skippedIndices: stillSkipped, allAnswers: [...gAnswers] }
-            : p);
-        } else {
-          // All answered — remove the pending entry
-          pending = pending.filter(p => p.id !== gResumeContext.id);
-        }
-        try { localStorage.setItem(PENDING_KEY, JSON.stringify(pending)); } catch(e) {}
 
         // Cleanup resume state
         gOverlay.classList.remove('show');
@@ -2320,7 +2318,7 @@ async function uploadPhotoToStorage(base64) {
         if (window.history && window.history.replaceState) {
           window.history.replaceState({}, '', window.location.pathname);
         }
-        renderPendingSection();
+        await renderPendingSection();
         // Brief success
         const btn2 = $('guidedBtn');
         const origTxt2 = btn2.innerHTML;
@@ -2387,25 +2385,13 @@ async function uploadPhotoToStorage(base64) {
         // Vectorize
         if (savedNote) MemoryManager.indexNote(savedNote);
 
-        // If there are skipped questions, save to localStorage for to_complete.html
+        // If there are skipped questions, embed pending marker in note content (syncs via Supabase)
         const skippedNowArr = [...gSkippedNow];
         if (skippedNowArr.length > 0 && savedNote) {
-          const PENDING_KEY = 'vv_pending_questions';
-          let pending = [];
-          try { pending = JSON.parse(localStorage.getItem(PENDING_KEY) || '[]'); } catch(e) {}
-          pending.push({
-            id: Date.now() + '_' + Math.random().toString(36).slice(2, 7),
-            noteId: savedNote.id,
-            noteTitle: title,
-            noteDate: dateStr,
-            skippedIndices: skippedNowArr,
-            allAnswers: [...gAnswers],
-            moodValue: gMoodValue,
-            createdAt: new Date().toISOString()
-          });
-          try { localStorage.setItem(PENDING_KEY, JSON.stringify(pending)); } catch(e) {}
+          const marker = _pendingEncode(skippedNowArr, [...gAnswers], gMoodValue);
+          try { await sb.from('notes').update({ content: html + '\n' + marker }).eq('id', savedNote.id); } catch(e) {}
         }
-        renderPendingSection();
+        await renderPendingSection();
 
         // Success
         gOverlay.classList.remove('show');
@@ -2697,15 +2683,57 @@ async function uploadPhotoToStorage(base64) {
   $('gFmtUl').addEventListener('touchstart',    function(e){ e.preventDefault(); gFmt('ul'); }, {passive:false});
   $('gFmtOl').addEventListener('touchstart',    function(e){ e.preventDefault(); gFmt('ol'); }, {passive:false});
 
+  // ── PENDING HELPERS (Supabase-synced) ──
+  function _pendingEncode(skippedIndices, allAnswers, moodValue) {
+    var data = { s: skippedIndices, a: allAnswers, m: moodValue };
+    return '<!--VV_PENDING:' + btoa(unescape(encodeURIComponent(JSON.stringify(data)))) + '-->';
+  }
+  function _pendingDecode(content) {
+    if (!content) return null;
+    var match = content.match(/<!--VV_PENDING:(.*?)-->/);
+    if (!match) return null;
+    try { return JSON.parse(decodeURIComponent(escape(atob(match[1])))); } catch(e) { return null; }
+  }
+  function _pendingStrip(content) {
+    return (content || '').replace(/\s*<!--VV_PENDING:.*?-->/g, '');
+  }
+
   // ── INLINE IN SOSPESO SECTION ──
-  function renderPendingSection() {
-    const PENDING_KEY = 'vv_pending_questions';
-    var pending = [];
-    try { pending = JSON.parse(localStorage.getItem(PENDING_KEY) || '[]'); } catch(e) {}
+  async function renderPendingSection() {
     var section = document.getElementById('pendingSection');
     var list    = document.getElementById('pendingCardsList');
     var badge   = document.getElementById('pendingCountBadge');
     if (!section || !list) return;
+
+    var pending = [];
+    // Read from Supabase (cross-device sync)
+    if (sb) {
+      try {
+        var { data } = await sb.from('notes')
+          .select('id, title, content, note_date')
+          .like('content', '%VV_PENDING:%')
+          .order('note_date', { ascending: false });
+        if (data) {
+          pending = data.map(function(note) {
+            var decoded = _pendingDecode(note.content);
+            if (!decoded) return null;
+            return {
+              id: String(note.id),
+              noteId: note.id,
+              noteTitle: note.title,
+              noteDate: note.note_date,
+              skippedIndices: decoded.s || [],
+              allAnswers: decoded.a || [],
+              moodValue: decoded.m || null
+            };
+          }).filter(Boolean);
+        }
+      } catch(e) {}
+    }
+    // Fallback to localStorage if Supabase not available
+    if (!pending.length && !sb) {
+      try { pending = JSON.parse(localStorage.getItem('vv_pending_questions') || '[]'); } catch(e) {}
+    }
 
     if (!pending.length) {
       section.classList.remove('show');
@@ -2746,14 +2774,17 @@ async function uploadPhotoToStorage(base64) {
           if (e.target.classList.contains('pending-card-dismiss') || e.target.closest('.pending-card-dismiss')) return;
           gOpenResume(ctx);
         });
-        card.querySelector('.pending-card-dismiss').addEventListener('click', function(e) {
+        card.querySelector('.pending-card-dismiss').addEventListener('click', async function(e) {
           e.stopPropagation();
           if (!confirm('Rimuovere questa sessione in sospeso?')) return;
-          var p = [];
-          try { p = JSON.parse(localStorage.getItem(PENDING_KEY) || '[]'); } catch(e2) {}
-          p = p.filter(function(x) { return x.id !== ctx.id; });
-          try { localStorage.setItem(PENDING_KEY, JSON.stringify(p)); } catch(e2) {}
-          renderPendingSection();
+          // Remove pending marker from note in Supabase
+          if (sb && ctx.noteId) {
+            try {
+              var { data: nd } = await sb.from('notes').select('content').eq('id', ctx.noteId).single();
+              if (nd) await sb.from('notes').update({ content: _pendingStrip(nd.content) }).eq('id', ctx.noteId);
+            } catch(e2) {}
+          }
+          await renderPendingSection();
         });
       })(item);
 
@@ -2764,14 +2795,14 @@ async function uploadPhotoToStorage(base64) {
     section.classList.add('show');
   }
 
-  renderPendingSection();
+  await renderPendingSection();
   const _reportContainer = document.querySelector('.container');
   const _pendingSection  = document.getElementById('pendingSection');
   await ReportManager.renderReportCard(_reportContainer, _pendingSection);
 
   // Ri-renderizza la card report quando ne viene generato uno nuovo
   window.addEventListener('vv:reportReady', async () => {
-    renderPendingSection();
+    await renderPendingSection();
     const rc = document.querySelector('.container');
     const ps = document.getElementById('pendingSection');
     await ReportManager.renderReportCard(rc, ps);

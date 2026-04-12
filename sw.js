@@ -32,8 +32,12 @@ self.addEventListener('fetch', e => {
   );
 });
 
-// Notifica persistente durante registrazione
+// Notifica persistente durante registrazione + gestione aggiornamento
 self.addEventListener('message', e => {
+  if (e.data && e.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+    return;
+  }
   if (e.data === 'startRecording') {
     self.registration.showNotification('🔴 Voce Viva', {
       body: 'Registrazione in corso',

@@ -1,11 +1,18 @@
-const CACHE = 'voceviva-v3';
+const CACHE = 'voceviva-v4';
 
 self.addEventListener('install', e => {
   self.skipWaiting();
 });
 
 self.addEventListener('activate', e => {
-  e.waitUntil(clients.claim());
+  // Elimina cache vecchie per garantire che i file aggiornati vengano serviti
+  e.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(
+        keys.filter(k => k !== CACHE).map(k => caches.delete(k))
+      ))
+      .then(() => clients.claim())
+  );
 });
 
 // Intercetta solo file locali, lascia passare tutto il resto (Groq API)

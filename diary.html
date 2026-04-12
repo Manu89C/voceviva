@@ -1595,6 +1595,30 @@ if('serviceWorker' in navigator){
 }
 
 loadNotes();
+
+// ── REALTIME SYNC ────────────────────────────────────────────────────────────
+// Aggiorna la vista automaticamente quando un altro dispositivo salva/modifica/cancella una nota
+if (sb) {
+  sb.channel('vv-diary-realtime')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'notes' }, (payload) => {
+      if (payload.eventType === 'INSERT') {
+        if (!allNotes.find(n => n.id === payload.new.id)) {
+          allNotes.push(payload.new);
+          allNotes.sort((a, b) => a.note_date > b.note_date ? -1 : 1);
+        }
+      } else if (payload.eventType === 'UPDATE') {
+        const idx = allNotes.findIndex(n => n.id === payload.new.id);
+        if (idx !== -1) allNotes[idx] = payload.new;
+        else { allNotes.push(payload.new); allNotes.sort((a, b) => a.note_date > b.note_date ? -1 : 1); }
+      } else if (payload.eventType === 'DELETE') {
+        const delId = payload.old?.id;
+        if (delId) allNotes = allNotes.filter(n => n.id !== delId);
+      }
+      if (currentView === 'calendar') renderCalendar(); else renderList();
+    })
+    .subscribe();
+}
+
 // ── MARKDOWN → HTML ───────────────────────────────────────────────────────────
 function mdToHtml(md) {
   const lines = md.split('\n');

@@ -306,7 +306,7 @@ h1 em { font-style:italic; color:var(--accent); }
 .guided-edit-panel-header { flex-shrink:0; display:flex; align-items:center; justify-content:space-between; padding:1rem 1.2rem .65rem; border-bottom:1px solid var(--border); }
 .guided-edit-panel-title { font-family:'DM Serif Display',serif; font-size:1.1rem; color:var(--text); }
 .guided-edit-list { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:.6rem 1.2rem; display:flex; flex-direction:column; gap:.45rem; }
-.guided-edit-item { display:flex; align-items:flex-start; gap:.45rem; background:var(--surface); border:1px solid var(--border); border-radius:.7rem; padding:.55rem .65rem; transition:border-color .15s; touch-action:none; }
+.guided-edit-item { display:flex; align-items:flex-start; gap:.45rem; background:var(--surface); border:1px solid var(--border); border-radius:.7rem; padding:.55rem .65rem; transition:border-color .15s; touch-action:pan-y; }
 .guided-edit-item.dragging { opacity:.45; border-color:var(--accent); }
 .guided-edit-item.drag-target-above { border-top:2px solid var(--accent); }
 .guided-edit-item.drag-target-below { border-bottom:2px solid var(--accent); }
@@ -550,10 +550,11 @@ h1 em { font-style:italic; color:var(--accent); }
       <div class="guided-header-left">
         <div class="guided-title">Diario <em style="color:var(--accent);font-style:italic;">Guidato</em></div>
         <div class="guided-progress" id="guidedProgress">Domanda 1 di 8</div>
-        <div style="margin-top:.3rem;display:flex;align-items:flex-end;justify-content:space-between;gap:.5rem;">
+        <div style="margin-top:.3rem;display:flex;align-items:center;justify-content:space-between;gap:.5rem;">
           <div>
-            <label style="font-size:.55rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);">Data</label>
+            <label id="guidedDateLabel" style="font-size:.55rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);">Data</label>
             <input type="date" id="guidedDateInput" class="modal-input" style="margin-top:.15rem;">
+            <div id="guidedDateDisplay" style="display:none;font-size:.65rem;color:var(--muted);font-family:'JetBrains Mono',monospace;letter-spacing:.05em;padding:.55rem 0;"></div>
           </div>
           <div class="guided-q-nav" id="guidedQNav">
             <button class="guided-q-nav-btn" id="guidedPrevBtn" title="Domanda precedente" disabled>&#8592;</button>
@@ -1910,6 +1911,7 @@ async function uploadPhotoToStorage(base64) {
   let gResumeContext = null;           // the pending item being resumed
   // Guided questions shown in resume mode (only the skipped ones)
   let gResumeIndices = [];             // original question indices to show in resume
+  let gResumeConfirmedIndices = new Set(); // indices confirmed with "salva e continua" in resume mode
   let gChunkTimer = null;
 
   // DOM
@@ -1940,6 +1942,7 @@ async function uploadPhotoToStorage(base64) {
       gResumeMode = false;
       gResumeContext = null;
       gResumeIndices = [];
+      gResumeConfirmedIndices = new Set();
     }
     $('guidedDateInput').value = new Date().toISOString().split('T')[0];
     gRenderQuestion();
@@ -1956,10 +1959,16 @@ async function uploadPhotoToStorage(base64) {
     gAnswers = ctx.allAnswers ? [...ctx.allAnswers] : new Array(GUIDED_QUESTIONS.length).fill(null);
     gMoodValue = ctx.moodValue || null;
     gSkippedNow = new Set();
+    gResumeConfirmedIndices = new Set();
     // Start at the first skipped question
     gCurrentIdx = 0; // index into gResumeIndices array
-    $('guidedDateInput').value = ctx.noteDate || new Date().toISOString().split('T')[0];
-    $('guidedDateInput').disabled = true; // date locked to original entry
+    const _resumeDateStr = ctx.noteDate || new Date().toISOString().split('T')[0];
+    $('guidedDateInput').value = _resumeDateStr;
+    $('guidedDateInput').style.display = 'none';
+    $('guidedDateLabel').style.display = 'none';
+    const _dd = $('guidedDateDisplay');
+    _dd.textContent = new Date(_resumeDateStr + 'T12:00:00').toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
+    _dd.style.display = 'block';
     gRenderResumeQuestion();
     gOverlay.classList.add('show');
   }
@@ -1967,24 +1976,74 @@ async function uploadPhotoToStorage(base64) {
   gCloseBtn.onclick = async () => {
     gCleanupRecording();
     const wasResumeMode = gResumeMode;
-    if (gResumeMode) {
-      $('guidedDateInput').disabled = false;
-      gResumeMode = false;
-    }
-    // In normal mode: if any answers exist, treat remaining unanswered (non-skipped) questions as "in sospeso"
-    if (!wasResumeMode) {
-      gSaveCurrentAnswer(); // capture whatever is in the editor now
-      const hasAny = gAnswers.some(a => a && a.trim()) || gMoodValue;
-      if (hasAny) {
-        // Add all unanswered, non-skipped questions to the skipped set so they become pending
-        for (let i = 0; i < GUIDED_QUESTIONS.length; i++) {
-          if ((!gAnswers[i] || !gAnswers[i].trim()) && !gSkippedNow.has(i)) {
-            gSkippedNow.add(i);
+
+    if (wasResumeMode && gResumeContext) {
+      // ── RESUME MODE: save confirmed answers to DB + update pending entry ──
+      $('guidedDateInput').style.display = '';
+      $('guidedDateLabel').style.display = '';
+      $('guidedDateDisplay').style.display = 'none';
+
+      const stillSkipped = gResumeIndices.filter(origIdx => !gResumeConfirmedIndices.has(origIdx));
+
+      if (gResumeConfirmedIndices.size > 0 && gResumeContext.noteId && sb) {
+        try {
+          const dateStr = gResumeContext.noteDate || new Date().toISOString().split('T')[0];
+          const chosenDate = new Date(dateStr + 'T12:00:00');
+          const MOOD_L = ['', '\uD83D\uDE14 Molto basso', '\uD83D\uDE15 Basso', '\uD83D\uDE10 Neutro', '\uD83D\uDE42 Buono', '\uD83D\uDE0A Ottimo'];
+          let newHtml = '<h2>Diario Guidato \u2014 ' + chosenDate.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }) + '</h2>';
+          if (gMoodValue) newHtml += '<p><strong>Umore: ' + MOOD_L[gMoodValue] + ' (' + gMoodValue + '/5)</strong></p>';
+          for (let i = 0; i < GUIDED_QUESTIONS.length; i++) {
+            const q = GUIDED_QUESTIONS[i];
+            if (gAnswers[i] && gAnswers[i].trim() && !stillSkipped.includes(i)) {
+              newHtml += '<h3>' + q.text + '</h3>';
+              newHtml += gAnswers[i];
+            }
           }
+          await sb.from('notes').update({ content: newHtml, updated_at: new Date().toISOString() }).eq('id', gResumeContext.noteId);
+        } catch(e) {
+          showErr('Errore aggiornamento: ' + (e.message || e));
         }
-        await gCompleteAndSave(); // saves to Supabase + creates pending entry, then closes overlay
-        return;
       }
+
+      // Update pending entry in localStorage (preserves "completa dopo" partial answers)
+      const PENDING_KEY_R = 'vv_pending_questions';
+      let pendingR = [];
+      try { pendingR = JSON.parse(localStorage.getItem(PENDING_KEY_R) || '[]'); } catch(e) {}
+      if (stillSkipped.length > 0) {
+        pendingR = pendingR.map(p => p.id === gResumeContext.id
+          ? { ...p, skippedIndices: stillSkipped, allAnswers: [...gAnswers] }
+          : p);
+      } else {
+        pendingR = pendingR.filter(p => p.id !== gResumeContext.id);
+      }
+      try { localStorage.setItem(PENDING_KEY_R, JSON.stringify(pendingR)); } catch(e) {}
+
+      // Cleanup resume state
+      gResumeMode = false;
+      gResumeContext = null;
+      gResumeIndices = [];
+      gResumeConfirmedIndices = new Set();
+      gAnswers = new Array(GUIDED_QUESTIONS.length).fill(null);
+      gMoodValue = null;
+      gCurrentIdx = 0;
+      gSkippedNow = new Set();
+      gOverlay.classList.remove('show');
+      renderPendingSection();
+      return;
+    }
+
+    // ── NORMAL MODE ──
+    gSaveCurrentAnswer(); // capture whatever is in the editor now
+    const hasAny = gAnswers.some(a => a && a.trim()) || gMoodValue;
+    if (hasAny) {
+      // Add all unanswered, non-skipped questions to the skipped set so they become pending
+      for (let i = 0; i < GUIDED_QUESTIONS.length; i++) {
+        if ((!gAnswers[i] || !gAnswers[i].trim()) && !gSkippedNow.has(i)) {
+          gSkippedNow.add(i);
+        }
+      }
+      await gCompleteAndSave(); // saves to Supabase + creates pending entry, then closes overlay
+      return;
     }
     gOverlay.classList.remove('show');
   };
@@ -2109,6 +2168,7 @@ async function uploadPhotoToStorage(base64) {
 
     const limit = gResumeMode ? gResumeIndices.length - 1 : GUIDED_QUESTIONS.length - 1;
     if (gCurrentIdx < limit) {
+      if (gResumeMode) gResumeConfirmedIndices.add(gCurrentOrigIdx());
       gCurrentIdx++;
       gRenderQuestion();
     } else {
@@ -2206,10 +2266,13 @@ async function uploadPhotoToStorage(base64) {
 
         // Cleanup resume state
         gOverlay.classList.remove('show');
-        $('guidedDateInput').disabled = false;
+        $('guidedDateInput').style.display = '';
+        $('guidedDateLabel').style.display = '';
+        $('guidedDateDisplay').style.display = 'none';
         gResumeMode = false;
         gResumeContext = null;
         gResumeIndices = [];
+        gResumeConfirmedIndices = new Set();
         gAnswers = new Array(GUIDED_QUESTIONS.length).fill(null);
         gMoodValue = null;
         gCurrentIdx = 0;

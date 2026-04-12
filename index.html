@@ -2808,6 +2808,23 @@ async function uploadPhotoToStorage(base64) {
     await ReportManager.renderReportCard(rc, ps);
   });
 
+  // ── REALTIME SYNC ─────────────────────────────────────────────────────────
+  // Aggiorna pending e report card quando un altro dispositivo modifica le note
+  if (sb) {
+    let _rtDebounce = null;
+    sb.channel('vv-index-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notes' }, () => {
+        clearTimeout(_rtDebounce);
+        _rtDebounce = setTimeout(async () => {
+          await renderPendingSection();
+          const rc = document.querySelector('.container');
+          const ps = document.getElementById('pendingSection');
+          await ReportManager.renderReportCard(rc, ps);
+        }, 600);
+      })
+      .subscribe();
+  }
+
   // ── EDIT QUESTIONS PANEL ─────────────────────────────────────────────────────
 
   // Default questions snapshot (for placeholder fallback on new items)

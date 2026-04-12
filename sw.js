@@ -1,4 +1,4 @@
-const CACHE = 'voceviva-v4';
+const CACHE = 'voceviva-v5';
 
 self.addEventListener('install', e => {
   self.skipWaiting();
@@ -15,13 +15,20 @@ self.addEventListener('activate', e => {
   );
 });
 
-// Intercetta solo file locali, lascia passare tutto il resto (Groq API)
+// Network-first: prova dalla rete, se fallisce usa la cache
+// Intercetta solo file locali, lascia passare tutto il resto (Groq API, Supabase)
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
-  // Lascia passare le chiamate a Groq e qualsiasi dominio esterno
   if (url.origin !== location.origin) return;
   e.respondWith(
-    caches.match(e.request).then(r => r || fetch(e.request))
+    fetch(e.request)
+      .then(res => {
+        // Aggiorna la cache con la risposta fresca
+        const clone = res.clone();
+        caches.open(CACHE).then(c => c.put(e.request, clone));
+        return res;
+      })
+      .catch(() => caches.match(e.request))
   );
 });
 

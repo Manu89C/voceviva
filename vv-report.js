@@ -118,20 +118,20 @@ const ReportManager = (() => {
   async function generateReport() {
     if (!_sb) return { ok: false, reason: 'Supabase non inizializzato' };
     if (_generating) return { ok: false, reason: 'Generazione già in corso' };
-    // Se la chiave non è stata passata, prova a leggerla da localStorage
-    if (!_groqKey) _groqKey = localStorage.getItem('vv_groq') || '';
-    if (!_groqKey) return { ok: false, reason: 'Chiave Groq mancante — salvala nelle impostazioni' };
-
-    // Controlla se esiste già un report per questa settimana
-    const weekStart = _getWeekStart(new Date());
-    const alreadyExists = await _reportExistsForWeek(weekStart);
-    if (alreadyExists) {
-      console.log('[ReportManager] generateReport: report già esistente per questa settimana');
-      return { ok: false, reason: 'Esiste già un report per questa settimana' };
-    }
-
     _generating = true;
     try {
+      // Se la chiave non è stata passata, prova a leggerla da localStorage
+      if (!_groqKey) _groqKey = localStorage.getItem('vv_groq') || '';
+      if (!_groqKey) return { ok: false, reason: 'Chiave Groq mancante — salvala nelle impostazioni' };
+
+      // Controlla se esiste già un report per questa settimana
+      const weekStart = _getWeekStart(new Date());
+      const alreadyExists = await _reportExistsForWeek(weekStart);
+      if (alreadyExists) {
+        console.log('[ReportManager] generateReport: report già esistente per questa settimana');
+        return { ok: false, reason: 'Esiste già un report per questa settimana' };
+      }
+
       // 1. Recupera note della settimana
       const notes = await _fetchWeekNotes();
       if (!notes || notes.length === 0) {

@@ -13,6 +13,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="vv-profile.js"></script>
 <script src="vv-memory.js"></script>
+<script src="vv-report.js"></script> 
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 [contenteditable] { background:transparent; }
@@ -730,6 +731,7 @@ try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) 
 // ── PROFILE MANAGER INIT (silenzioso, nessuna UI all'avvio) ──────────────────
 ProfileManager.init();
 MemoryManager.init();
+ReportManager.init(sb, GROQ_KEY);
 
 // ── STATE ────────────────────────────────────────────────────────────────────
 let isRecording = false, wakeLock = null;
@@ -801,7 +803,8 @@ if (GROQ_KEY) { apiKeyInput.value=GROQ_KEY; applyKey(GROQ_KEY); }
 saveKeyBtn.onclick = () => {
   const k = apiKeyInput.value.trim();
   if (!k) { showErr('Incolla la chiave Groq.'); return; }
-  localStorage.setItem('vv_groq',k); applyKey(k); hideErr();
+  localStorage.setItem('vv_groq', k); applyKey(k); hideErr();
+  ReportManager.setGroqKey(k);   // ← aggiungere questa riga
 };
 
 // ── EDITOR CONTENTEDITABLE — conteggio parole ─────────────────────────────────
@@ -2727,6 +2730,9 @@ async function uploadPhotoToStorage(base64) {
   }
 
   renderPendingSection();
+  const _reportContainer = document.querySelector('.container');
+  const _pendingSection  = document.getElementById('pendingSection');
+  ReportManager.renderReportCard(_reportContainer, _pendingSection);
 
   // ── EDIT QUESTIONS PANEL ─────────────────────────────────────────────────────
 

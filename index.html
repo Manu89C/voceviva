@@ -369,8 +369,6 @@ h1 em { font-style:italic; color:var(--accent); }
     <p class="api-hint">Gratis su <a href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a></p>
   </div>
 
-  </div>
-
   <div style="margin-top:24px"></div>
 
   <!-- FAB + BUTTON (Nuova nota) -->
@@ -387,6 +385,9 @@ h1 em { font-style:italic; color:var(--accent); }
       Nota Libera
     </button>
   </div>
+
+  <!-- REPORT SETTIMANALE: pulsante manuale + card -->
+  <button class="btn-ghost" id="generateReportBtn" style="width:100%;max-width:640px;margin-bottom:.5rem;border-color:rgba(56,189,248,.3);color:#38bdf8;">Genera Report Settimanale</button>
 
   <!-- INLINE IN SOSPESO SECTION -->
   <div class="pending-section" id="pendingSection">
@@ -730,8 +731,14 @@ try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) 
 
 // ── PROFILE MANAGER INIT (silenzioso, nessuna UI all'avvio) ──────────────────
 ProfileManager.init();
-MemoryManager.init();
-ReportManager.init(sb, GROQ_KEY);
+(async () => {
+  await MemoryManager.init();
+  await ReportManager.init(sb, GROQ_KEY);
+  // Render report card dopo che init è completo (evita race condition)
+  const rc = document.querySelector('.container');
+  const ps = document.getElementById('pendingSection');
+  await ReportManager.renderReportCard(rc, ps);
+})();
 
 // ── STATE ────────────────────────────────────────────────────────────────────
 let isRecording = false, wakeLock = null;
@@ -806,6 +813,34 @@ saveKeyBtn.onclick = () => {
   localStorage.setItem('vv_groq', k); applyKey(k); hideErr();
   ReportManager.setGroqKey(k);   // ← aggiungere questa riga
 };
+
+// ── PULSANTE GENERA REPORT SETTIMANALE ────────────────────────────────────────
+(function() {
+  const genBtn = document.getElementById('generateReportBtn');
+  if (!genBtn) return;
+
+  genBtn.onclick = async () => {
+    genBtn.textContent = 'Generazione…';
+    genBtn.disabled = true;
+    try {
+      const result = await ReportManager.generateReport();
+      if (result && result.ok) {
+        genBtn.textContent = '✓ Report generato';
+        // Aggiorna la card
+        const rc = document.querySelector('.container');
+        const ps = document.getElementById('pendingSection');
+        await ReportManager.renderReportCard(rc, ps);
+      } else {
+        genBtn.textContent = (result && result.reason) || 'Errore sconosciuto';
+      }
+    } catch(e) {
+      genBtn.textContent = 'Errore: ' + (e.message || e);
+      console.error('[Report] errore generazione manuale:', e);
+    }
+    genBtn.disabled = false;
+    setTimeout(() => { genBtn.textContent = 'Genera Report Settimanale'; }, 5000);
+  };
+})();
 
 // ── EDITOR CONTENTEDITABLE — conteggio parole ─────────────────────────────────
 annotEditor.addEventListener('input', () => { updateWords(); });
@@ -1871,7 +1906,7 @@ async function uploadPhotoToStorage(base64) {
   } catch(e) { console.warn('[Photo upload]', e); return null; }
 }
 // ── DIARIO GUIDATO ────────────────────────────────────────────────────────────
-(() => {
+(async () => {
   const GUIDED_QUESTIONS = [
     { text: 'Qual è il tuo umore oggi?', hasMood: true, placeholder: 'Aggiungi un commento sul tuo umore (opzionale)...' },
     { text: 'Cosa ti è successo oggi?', hasMood: false, placeholder: 'Racconta cosa è accaduto...' },
@@ -2732,7 +2767,15 @@ async function uploadPhotoToStorage(base64) {
   renderPendingSection();
   const _reportContainer = document.querySelector('.container');
   const _pendingSection  = document.getElementById('pendingSection');
-  ReportManager.renderReportCard(_reportContainer, _pendingSection);
+  await ReportManager.renderReportCard(_reportContainer, _pendingSection);
+
+  // Ri-renderizza la card report quando ne viene generato uno nuovo
+  window.addEventListener('vv:reportReady', async () => {
+    renderPendingSection();
+    const rc = document.querySelector('.container');
+    const ps = document.getElementById('pendingSection');
+    await ReportManager.renderReportCard(rc, ps);
+  });
 
   // ── EDIT QUESTIONS PANEL ─────────────────────────────────────────────────────
 

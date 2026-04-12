@@ -34,7 +34,7 @@ const ReportManager = (() => {
 
   // ── COSTANTI ─────────────────────────────────────────────────────────────────
   const GROQ_URL       = 'https://api.groq.com/openai/v1/chat/completions';
-  const REPORT_MODEL   = 'llama-3.3-70b-versatile';
+  const REPORT_MODEL   = 'meta-llama/llama-4-scout-17b-16e-instruct';
   const REPORT_MODE    = 'report';
   const CHECK_INTERVAL = 60 * 60 * 1000; // controlla ogni ora
   const TRIGGER_HOUR   = 8;              // domenica mattina alle 08:00
@@ -45,6 +45,7 @@ const ReportManager = (() => {
   let _groqKey  = '';
   let _timer    = null;
   let _initialized = false;
+  let _generating  = false;
 
   // ── INIT ──────────────────────────────────────────────────────────────────────
   /**
@@ -52,7 +53,8 @@ const ReportManager = (() => {
    * @param {string} groqKey        - chiave Groq API
    */
   async function init(supabaseClient, groqKey) {
-    if (!supabaseClient || !groqKey) return;
+    if (!supabaseClient) { console.warn('[ReportManager] init: manca supabaseClient'); return; }
+    if (!groqKey) { console.warn('[ReportManager] init: manca groqKey — report disabilitato finché non salvi la chiave Groq'); }
     _sb      = supabaseClient;
     _groqKey = groqKey;
     _initialized = true;
@@ -69,28 +71,39 @@ const ReportManager = (() => {
 
   // ── LOGICA DI TRIGGER ─────────────────────────────────────────────────────────
   async function _checkAndGenerate() {
-    if (!_sb || !_groqKey) return;
+    if (!_sb || !_groqKey) {
+      console.log('[ReportManager] _checkAndGenerate skip:', !_sb ? 'no supabase' : 'no groqKey');
+      return;
+    }
 
     const now = new Date();
     const isSunday = now.getDay() === 0;
     const isAfterTrigger = now.getHours() >= TRIGGER_HOUR;
 
-    if (!isSunday || !isAfterTrigger) return;
+    if (!isSunday || !isAfterTrigger) {
+      console.log('[ReportManager] _checkAndGenerate: non è domenica >= 08:00 (day=' + now.getDay() + ', hour=' + now.getHours() + ')');
+      return;
+    }
 
     // Evita di generare più volte nella stessa domenica
     const lastCheck = localStorage.getItem(LAST_CHECK_KEY);
-    const todayStr  = now.toISOString().split('T')[0];
-    if (lastCheck === todayStr) return;
+    const todayStr  = _toLocalDateStr(now);
+    if (lastCheck === todayStr) {
+      console.log('[ReportManager] _checkAndGenerate: già controllato oggi (' + todayStr + ')');
+      return;
+    }
 
     // Controlla se esiste già un report per questa settimana in Supabase
     const weekStart = _getWeekStart(now);
     const alreadyExists = await _reportExistsForWeek(weekStart);
     if (alreadyExists) {
+      console.log('[ReportManager] _checkAndGenerate: report già esistente per questa settimana');
       localStorage.setItem(LAST_CHECK_KEY, todayStr);
       return;
     }
 
     // Genera
+    console.log('[ReportManager] _checkAndGenerate: genero report...');
     const success = await generateReport();
     if (success) {
       localStorage.setItem(LAST_CHECK_KEY, todayStr);
@@ -103,28 +116,50 @@ const ReportManager = (() => {
    * @returns {boolean} true se il report è stato generato e salvato
    */
   async function generateReport() {
-    if (!_sb || !_groqKey) return false;
+    if (!_sb) return { ok: false, reason: 'Supabase non inizializzato' };
+    if (_generating) return { ok: false, reason: 'Generazione già in corso' };
+    // Se la chiave non è stata passata, prova a leggerla da localStorage
+    if (!_groqKey) _groqKey = localStorage.getItem('vv_groq') || '';
+    if (!_groqKey) return { ok: false, reason: 'Chiave Groq mancante — salvala nelle impostazioni' };
 
+    // Controlla se esiste già un report per questa settimana
+    const weekStart = _getWeekStart(new Date());
+    const alreadyExists = await _reportExistsForWeek(weekStart);
+    if (alreadyExists) {
+      console.log('[ReportManager] generateReport: report già esistente per questa settimana');
+      return { ok: false, reason: 'Esiste già un report per questa settimana' };
+    }
+
+    _generating = true;
     try {
       // 1. Recupera note della settimana
       const notes = await _fetchWeekNotes();
-      if (!notes || notes.length === 0) return false;
+      if (!notes || notes.length === 0) {
+        console.warn('[ReportManager] generateReport: nessuna nota trovata questa settimana');
+        return { ok: false, reason: 'Nessuna nota trovata questa settimana' };
+      }
+      console.log('[ReportManager] generateReport: trovate', notes.length, 'note');
 
       // 2. Prepara testo per il prompt
       const notesText = _buildNotesText(notes);
 
       // 3. Chiama Groq per il report
-      const reportHtml = await _callGroqReport(notesText, notes);
-      if (!reportHtml) return false;
+      const { html: reportHtml, aiTitle } = await _callGroqReport(notesText, notes);
+      if (!reportHtml) {
+        return { ok: false, reason: 'Groq ha restituito una risposta vuota' };
+      }
+      console.log('[ReportManager] generateReport: report HTML ricevuto da Groq, lunghezza:', reportHtml.length);
 
       // 4. Salva in Supabase
-      const weekStart = _getWeekStart(new Date());
-      const saved = await _saveReport(reportHtml, weekStart);
-      return !!saved;
+      const saved = await _saveReport(reportHtml, weekStart, aiTitle);
+      console.log('[ReportManager] generateReport: report salvato con successo, id:', saved.id);
+      return { ok: true };
 
     } catch(e) {
       console.warn('[ReportManager] generateReport error:', e);
-      return false;
+      return { ok: false, reason: 'Errore: ' + (e.message || String(e)) };
+    } finally {
+      _generating = false;
     }
   }
 
@@ -134,21 +169,22 @@ const ReportManager = (() => {
     const start = _getWeekStart(now);
     const end   = _getWeekEnd(now);
 
-    const startStr = start.toISOString().split('T')[0];
-    const endStr   = end.toISOString().split('T')[0];
+    const startStr = _toLocalDateStr(start);
+    const endStr   = _toLocalDateStr(end);
 
     const { data, error } = await _sb
       .from('notes')
       .select('id, title, content, note_date, mode')
       .gte('note_date', startStr)
       .lte('note_date', endStr)
-      .in('mode', ['write', 'ai', 'rec'])  // esclude i report stessi
+      .not('mode', 'eq', REPORT_MODE)  // esclude solo i report
       .order('note_date', { ascending: true });
 
     if (error) {
       console.warn('[ReportManager] fetch error:', error);
       return [];
     }
+    console.log('[ReportManager] _fetchWeekNotes:', startStr, '→', endStr, '→', (data||[]).length, 'note, modes:', [...new Set((data||[]).map(n=>n.mode))]);
     return data || [];
   }
 
@@ -165,7 +201,7 @@ const ReportManager = (() => {
 
   function _modeLabel(mode) {
     return mode === 'rec' ? 'Registrazione vocale' :
-           mode === 'ai'  ? 'Nota elaborata AI'    :
+           mode === 'AI'  ? 'Nota elaborata AI'    :
                             'Nota scritta';
   }
 
@@ -189,6 +225,7 @@ PRINCIPI:
 - Il tono è quello di un amico che ti conosce da anni e ti dice le cose come stanno
 
 STRUTTURA DEL REPORT (in HTML):
+<report-title>Un titolo di massimo 6 parole che cattura l'essenza vera di questa settimana, mai generico</report-title>
 <h2>Settimana dal [data inizio] al [data fine]</h2>
 
 <h3>📊 Com'è andata</h3>
@@ -224,7 +261,7 @@ Genera il report settimanale seguendo esattamente la struttura indicata.`;
         },
         body: JSON.stringify({
           model: REPORT_MODEL,
-          max_tokens: 1000,
+          max_tokens: 2048,
           temperature: 0.4,
           messages: [
             { role: 'system', content: systemPrompt },
@@ -234,27 +271,39 @@ Genera il report settimanale seguendo esattamente la struttura indicata.`;
       });
 
       if (!res.ok) {
-        const err = await res.json();
-        console.warn('[ReportManager] Groq error:', err);
-        return null;
+        const err = await res.json().catch(() => ({}));
+        const msg = err?.error?.message || ('HTTP ' + res.status);
+        console.warn('[ReportManager] Groq error:', msg, err);
+        throw new Error('Groq: ' + msg);
       }
 
       const json = await res.json();
-      return json.choices?.[0]?.message?.content?.trim() || null;
+      const raw = json.choices?.[0]?.message?.content?.trim() || null;
+      if (!raw) return { html: null, aiTitle: null };
+      // Rimuovi eventuale wrapping markdown (```html ... ```)
+      const clean = raw.replace(/^```html?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+      // Estrai il titolo generato dall'AI
+      const titleMatch = clean.match(/<report-title>([\ \S]*?)<\/report-title>/i);
+      const aiTitle = titleMatch ? titleMatch[1].trim() : null;
+      const html = clean.replace(/<report-title>[\s\S]*?<\/report-title>\s*/i, '').trim();
+      return { html, aiTitle };
 
     } catch(e) {
       console.warn('[ReportManager] _callGroqReport error:', e);
-      return null;
+      throw e;  // propaga l'errore al chiamante
     }
   }
 
   // ── SALVA REPORT IN SUPABASE ──────────────────────────────────────────────────
-  async function _saveReport(html, weekStart) {
-    const weekStartStr = weekStart.toISOString().split('T')[0];
+  async function _saveReport(html, weekStart, aiTitle = null) {
+    const weekStartStr = _toLocalDateStr(weekStart);
     const weekEnd      = _getWeekEnd(weekStart);
-    const weekEndStr   = weekEnd.toISOString().split('T')[0];
+    const weekEndStr   = _toLocalDateStr(weekEnd);
 
-    const title = `Report Settimanale — ${_formatDateIt(weekStart)} / ${_formatDateIt(weekEnd)}`;
+    const dateRange = `${_formatDateIt(weekStart)} / ${_formatDateIt(weekEnd)}`;
+    const title = aiTitle
+      ? `${aiTitle} — ${dateRange}`
+      : `Report Settimanale — ${dateRange}`;
 
     const { data, error } = await _sb
       .from('notes')
@@ -262,14 +311,16 @@ Genera il report settimanale seguendo esattamente la struttura indicata.`;
         title,
         content: html,
         note_date: weekStartStr,
-        mode: REPORT_MODE
+        mode: REPORT_MODE,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       }])
       .select()
       .single();
 
     if (error) {
       console.warn('[ReportManager] save error:', error);
-      return null;
+      throw new Error('Supabase: ' + (error.message || error.details || error.hint || JSON.stringify(error)));
     }
 
     // Notifica l'app che è disponibile un nuovo report
@@ -279,8 +330,8 @@ Genera il report settimanale seguendo esattamente la struttura indicata.`;
 
   // ── CHECK REPORT ESISTENTE ────────────────────────────────────────────────────
   async function _reportExistsForWeek(weekStart) {
-    const startStr = weekStart.toISOString().split('T')[0];
-    const endStr   = _getWeekEnd(weekStart).toISOString().split('T')[0];
+    const startStr = _toLocalDateStr(weekStart);
+    const endStr   = _toLocalDateStr(_getWeekEnd(weekStart));
 
     const { data } = await _sb
       .from('notes')
@@ -295,7 +346,7 @@ Genera il report settimanale seguendo esattamente la struttura indicata.`;
 
   // ── FETCH ULTIMO REPORT ───────────────────────────────────────────────────────
   async function _fetchLatestReport() {
-    const { data } = await _sb
+    const { data, error } = await _sb
       .from('notes')
       .select('id, title, content, note_date, created_at')
       .eq('mode', REPORT_MODE)
@@ -303,6 +354,7 @@ Genera il report settimanale seguendo esattamente la struttura indicata.`;
       .limit(1)
       .single();
 
+    if (error) console.log('[ReportManager] _fetchLatestReport: nessun report trovato');
     return data || null;
   }
 
@@ -317,14 +369,14 @@ Genera il report settimanale seguendo esattamente la struttura indicata.`;
    *                                      (la card "In sospeso" se esiste, altrimenti null)
    */
   async function renderReportCard(container, referenceNode = null) {
-    if (!_sb) return;
+    if (!_sb) { console.log('[ReportManager] renderReportCard: _sb non inizializzato'); return; }
 
     // Rimuovi card esistente se presente
     const existing = document.getElementById('vv-report-card');
     if (existing) existing.remove();
 
     const report = await _fetchLatestReport();
-    if (!report) return;
+    if (!report) { console.log('[ReportManager] renderReportCard: nessun report da mostrare'); return; }
 
     // Mostra solo il report della settimana corrente o di quella appena passata
     const reportDate = new Date(report.note_date + 'T12:00:00');
@@ -332,6 +384,7 @@ Genera il report settimanale seguendo esattamente la struttura indicata.`;
     const daysDiff = Math.floor((now - reportDate) / (1000 * 60 * 60 * 24));
     if (daysDiff > 13) return; // non mostrare report più vecchi di 2 settimane
 
+    _ensureStyles();
     const card = _buildReportCard(report);
 
     // Inserisci SOPRA le card "In sospeso" ma SOTTO il pulsante +
@@ -343,100 +396,88 @@ Genera il report settimanale seguendo esattamente la struttura indicata.`;
     }
   }
 
+  // ── INIETTA CSS UNA VOLTA ──────────────────────────────────────────────────────
+  function _ensureStyles() {
+    if (document.getElementById('vv-report-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'vv-report-styles';
+    style.textContent = `
+      @keyframes vvModalIn { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+      .vv-report-card { background:var(--surface); border:1px solid var(--border); border-left:3px solid #38bdf8; border-radius:.8rem; padding:.94rem 1.13rem; display:flex; flex-direction:column; gap:.5rem; cursor:pointer; transition:background .15s,border-color .2s; margin-bottom:.5rem; }
+      .vv-report-card:hover { background:rgba(56,189,248,.04); border-color:rgba(56,189,248,.55); }
+      .vv-report-card-top { display:flex; align-items:center; justify-content:space-between; }
+      .vv-report-card-meta { display:flex; align-items:center; gap:.5rem; }
+      .vv-report-card-label { font-size:.65rem; text-transform:uppercase; letter-spacing:.13em; color:#38bdf8; }
+      .vv-report-card-date { font-size:.69rem; color:var(--muted); font-family:'JetBrains Mono',monospace; }
+      .vv-report-card-dismiss { background:none; border:none; color:var(--muted); font-size:.88rem; cursor:pointer; padding:.15rem .3rem; border-radius:.25rem; transition:color .12s; line-height:1; }
+      .vv-report-card-dismiss:hover { color:#38bdf8; }
+      .vv-report-card-title { font-family:'Crimson Pro',Georgia,serif; font-size:1.19rem; color:var(--text); line-height:1.3; }
+      .vv-report-card-preview { font-size:.72rem; color:var(--muted); line-height:1.6; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+      .vv-report-body h2 { font-family:'DM Serif Display',serif; font-size:1.3rem; color:#fff; margin:.8rem 0 .4rem; line-height:1.3; }
+      .vv-report-body h3 { font-family:'Crimson Pro',Georgia,serif; font-size:1.05rem; font-weight:500; color:#ddd; margin:.9rem 0 .3rem; }
+      .vv-report-body p  { font-size:.95rem; line-height:1.85; color:#e8e8f0; margin-bottom:.5rem; font-family:'Crimson Pro',Georgia,serif; }
+      .vv-report-body ul { padding-left:1.2rem; margin-bottom:.6rem; }
+      .vv-report-body li { font-size:.9rem; line-height:1.8; color:#e8e8f0; font-family:'Crimson Pro',Georgia,serif; margin-bottom:.2rem; }
+      .vv-report-body strong { color:#fff; }
+    `;
+    document.head.appendChild(style);
+  }
+
   // ── COSTRUISCE LA CARD HTML ───────────────────────────────────────────────────
   function _buildReportCard(report) {
     const card = document.createElement('div');
     card.id = 'vv-report-card';
     card.className = 'vv-report-card';
-    card.style.cssText = `
-      background: var(--surface, #111118);
-      border: 1px solid rgba(56,189,248,.3);
-      border-radius: 1rem;
-      padding: 1.1rem;
-      display: flex;
-      flex-direction: column;
-      gap: .7rem;
-      margin-bottom: .5rem;
-      cursor: pointer;
-      transition: border-color .2s;
-    `;
 
-    // Header
-    const header = document.createElement('div');
-    header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:.5rem;';
-
-    const leftGroup = document.createElement('div');
-    leftGroup.style.cssText = 'display:flex;align-items:center;gap:.5rem;';
-
-    // Etichetta azzurra
-    const badge = document.createElement('span');
-    badge.textContent = 'Report Settimanale';
-    badge.style.cssText = `
-      background: rgba(56,189,248,.12);
-      border: 1px solid rgba(56,189,248,.3);
-      color: #38bdf8;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: .55rem;
-      text-transform: uppercase;
-      letter-spacing: .12em;
-      padding: .1rem .5rem;
-      border-radius: .3rem;
-    `;
-
-    const dateLabel = document.createElement('span');
-    dateLabel.style.cssText = 'font-size:.58rem;color:var(--muted,#5a5a7a);font-family:"JetBrains Mono",monospace;letter-spacing:.05em;';
-    dateLabel.textContent = _formatDateIt(new Date(report.note_date + 'T12:00:00'));
-
-    leftGroup.appendChild(badge);
-    leftGroup.appendChild(dateLabel);
-
-    // Chevron
-    const chevron = document.createElement('span');
-    chevron.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;color:var(--muted,#5a5a7a)"><polyline points="9 18 15 12 9 6"/></svg>`;
-
-    header.appendChild(leftGroup);
-    header.appendChild(chevron);
-
-    // Titolo
-    const titleEl = document.createElement('div');
-    titleEl.style.cssText = `
-      font-family: 'Crimson Pro', Georgia, serif;
-      font-size: 1rem;
-      color: var(--text, #e8e8f0);
-      line-height: 1.4;
-    `;
-    titleEl.textContent = report.title || 'Report Settimanale';
-
-    // Preview — prima frase del contenuto
-    const preview = document.createElement('div');
-    preview.style.cssText = `
-      font-size: .72rem;
-      color: var(--muted, #5a5a7a);
-      line-height: 1.6;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    `;
+    const dateStr = _formatDateIt(new Date(report.note_date + 'T12:00:00'));
     const plainText = _stripHtml(report.content || '');
-    preview.textContent = plainText.slice(0, 120) + (plainText.length > 120 ? '…' : '');
+    const previewText = plainText.slice(0, 120) + (plainText.length > 120 ? '…' : '');
 
-    card.appendChild(header);
-    card.appendChild(titleEl);
-    card.appendChild(preview);
+    card.innerHTML =
+      '<div class="vv-report-card-top">' +
+        '<div class="vv-report-card-meta">' +
+          '<span class="vv-report-card-label">Report Settimanale</span>' +
+          '<span class="vv-report-card-date">' + dateStr + '</span>' +
+        '</div>' +
+        '<button class="vv-report-card-dismiss" title="Elimina report">✕</button>' +
+      '</div>' +
+      '<div class="vv-report-card-title">' + (report.title || 'Report Settimanale') + '</div>' +
+      '<div class="vv-report-card-preview">' + previewText + '</div>';
 
-    // Hover
-    card.addEventListener('mouseenter', () => {
-      card.style.borderColor = 'rgba(56,189,248,.6)';
+    // Click sul corpo — apre modal
+    card.addEventListener('click', (e) => {
+      if (e.target.classList.contains('vv-report-card-dismiss') || e.target.closest('.vv-report-card-dismiss')) return;
+      _openReportModal(report);
     });
-    card.addEventListener('mouseleave', () => {
-      card.style.borderColor = 'rgba(56,189,248,.3)';
-    });
 
-    // Click — apre modal con contenuto completo
-    card.addEventListener('click', () => _openReportModal(report));
+    // Click su ✕ — elimina report
+    card.querySelector('.vv-report-card-dismiss').addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!confirm('Eliminare questo report settimanale?')) return;
+      try {
+        await _deleteReport(report.note_date);
+        card.remove();
+      } catch(err) {
+        alert('Errore durante l\'eliminazione: ' + (err.message || err));
+      }
+    });
 
     return card;
+  }
+
+  // ── ELIMINA REPORT DA SUPABASE ────────────────────────────────────────────────
+  // Elimina TUTTI i report della settimana (gestisce eventuali duplicati)
+  async function _deleteReport(noteDate) {
+    const weekStart = _getWeekStart(new Date(noteDate + 'T12:00:00'));
+    const startStr  = _toLocalDateStr(weekStart);
+    const endStr    = _toLocalDateStr(_getWeekEnd(weekStart));
+    const { error } = await _sb.from('notes').delete()
+      .eq('mode', REPORT_MODE)
+      .gte('note_date', startStr)
+      .lte('note_date', endStr);
+    if (error) throw new Error('Supabase: ' + (error.message || JSON.stringify(error)));
+    // Resetta il localStorage così può essere rigenerato
+    localStorage.removeItem(LAST_CHECK_KEY);
   }
 
   // ── MODAL LETTURA REPORT ──────────────────────────────────────────────────────
@@ -460,21 +501,8 @@ Genera il report settimanale seguendo esattamente la struttura indicata.`;
       animation: vvModalIn .2s ease-out;
     `;
 
-    // Aggiungi keyframe se non esiste
-    if (!document.getElementById('vv-report-styles')) {
-      const style = document.createElement('style');
-      style.id = 'vv-report-styles';
-      style.textContent = `
-        @keyframes vvModalIn { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
-        .vv-report-body h2 { font-family:'DM Serif Display',serif; font-size:1.3rem; color:#fff; margin:.8rem 0 .4rem; line-height:1.3; }
-        .vv-report-body h3 { font-family:'Crimson Pro',Georgia,serif; font-size:1.05rem; font-weight:500; color:#ddd; margin:.9rem 0 .3rem; }
-        .vv-report-body p  { font-size:.95rem; line-height:1.85; color:#e8e8f0; margin-bottom:.5rem; font-family:'Crimson Pro',Georgia,serif; }
-        .vv-report-body ul { padding-left:1.2rem; margin-bottom:.6rem; }
-        .vv-report-body li { font-size:.9rem; line-height:1.8; color:#e8e8f0; font-family:'Crimson Pro',Georgia,serif; margin-bottom:.2rem; }
-        .vv-report-body strong { color:#fff; }
-      `;
-      document.head.appendChild(style);
-    }
+    // Inietta stili se non ancora presenti
+    _ensureStyles();
 
     const sheet = document.createElement('div');
     sheet.style.cssText = `
@@ -575,6 +603,14 @@ Genera il report settimanale seguendo esattamente la struttura indicata.`;
 
   function _formatDateIt(date) {
     return date.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
+  }
+
+  /** Converte una Date in stringa YYYY-MM-DD locale (evita shift UTC) */
+  function _toLocalDateStr(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
   }
 
   // ── HELPER HTML ───────────────────────────────────────────────────────────────

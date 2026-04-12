@@ -310,6 +310,7 @@ h1 em { font-style:italic; color:var(--accent); }
 .guided-edit-item.dragging { opacity:.45; border-color:var(--accent); }
 .guided-edit-item.drag-target-above { border-top:2px solid var(--accent); }
 .guided-edit-item.drag-target-below { border-bottom:2px solid var(--accent); }
+.drag-drop-indicator { height:2px; background:var(--accent); border-radius:2px; margin:.06rem 0; flex-shrink:0; box-shadow:0 0 8px rgba(245,80,54,.6); pointer-events:none; }
 .guided-edit-item-num { font-size:.58rem; font-family:'JetBrains Mono',monospace; color:var(--muted); padding-top:.25rem; min-width:16px; flex-shrink:0; }
 .guided-edit-item-drag { color:var(--muted); cursor:grab; flex-shrink:0; padding:.2rem .1rem; display:flex; align-items:center; touch-action:none; user-select:none; -webkit-user-select:none; }
 .guided-edit-item-drag:active { cursor:grabbing; }
@@ -562,8 +563,8 @@ h1 em { font-style:italic; color:var(--accent); }
         </div>
       </div>
       <div class="guided-header-actions">
-        <button class="guided-edit-btn" id="guidedEditBtn" title="Modifica domande">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:middle;margin-right:.3em"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Modifica
+        <button class="guided-edit-btn" id="guidedEditBtn" title="Impostazioni" style="padding:.32rem .45rem;display:flex;align-items:center;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;"><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/><circle cx="12" cy="12" r="3"/></svg>
         </button>
         <button class="guided-close" id="guidedClose">&#x2715;</button>
       </div>
@@ -664,7 +665,7 @@ h1 em { font-style:italic; color:var(--accent); }
   <!-- EDIT QUESTIONS PANEL (overlays guided-card via position:absolute) -->
   <div class="guided-edit-panel" id="guidedEditPanel">
     <div class="guided-edit-panel-header">
-      <span class="guided-edit-panel-title">Modifica <em style="color:var(--accent);font-style:italic;">domande</em></span>
+      <span class="guided-edit-panel-title">Impostazioni <em style="color:var(--accent);font-style:italic;">domande</em></span>
       <button class="guided-close" id="guidedEditPanelClose">&#x2715;</button>
     </div>
     <div class="guided-edit-list" id="guidedEditList"></div>
@@ -2686,7 +2687,7 @@ async function uploadPhotoToStorage(base64) {
   const gEditSaveBtn  = document.getElementById('guidedEditSaveBtn');
 
   // ── Drag-and-drop state ──
-  let _dragEl = null, _dragPlaceholder = null, _dragStartY = 0, _dragOffsetY = 0, _dragPointerId = null;
+  let _dragEl = null, _dropIndicator = null, _dragStartY = 0, _dragOffsetY = 0, _dragPointerId = null;
 
   function _autoResizeTextarea(ta) {
     ta.style.height = 'auto';
@@ -2811,10 +2812,9 @@ async function uploadPhotoToStorage(base64) {
     _dragStartY = e.clientY;
     _dragOffsetY = 0;
 
-    _dragPlaceholder = document.createElement('div');
-    _dragPlaceholder.className = 'guided-edit-item';
-    _dragPlaceholder.style.cssText = 'opacity:0;height:' + item.offsetHeight + 'px;pointer-events:none;flex-shrink:0;';
-    item.parentNode.insertBefore(_dragPlaceholder, item.nextSibling);
+    // Red line indicator for drop position
+    _dropIndicator = document.createElement('div');
+    _dropIndicator.className = 'drag-drop-indicator';
 
     item.classList.add('dragging');
     item.style.position = 'relative';
@@ -2832,22 +2832,19 @@ async function uploadPhotoToStorage(base64) {
     _dragOffsetY = e.clientY - _dragStartY;
     _dragEl.style.transform = 'translateY(' + _dragOffsetY + 'px)';
 
-    // Find insertion point
-    const items = Array.from(gEditList.children).filter(function(el) { return el !== _dragEl && el !== _dragPlaceholder; });
-    let target = null, insertBefore = false;
+    // Move the red line indicator to the insertion point (no live reordering)
+    const items = Array.from(gEditList.children).filter(function(el) { return el !== _dragEl && el !== _dropIndicator; });
+    if (_dropIndicator.parentNode) _dropIndicator.remove();
+    let inserted = false;
     for (const it of items) {
       const r = it.getBoundingClientRect();
-      const mid = r.top + r.height / 2;
-      if (e.clientY < mid) { target = it; insertBefore = true; break; }
-      target = it; insertBefore = false;
-    }
-    if (target) {
-      if (insertBefore) {
-        gEditList.insertBefore(_dragPlaceholder, target);
-      } else {
-        gEditList.insertBefore(_dragPlaceholder, target.nextSibling);
+      if (e.clientY < r.top + r.height / 2) {
+        gEditList.insertBefore(_dropIndicator, it);
+        inserted = true;
+        break;
       }
     }
+    if (!inserted) { gEditList.appendChild(_dropIndicator); }
   }
 
   function _onDragEnd(e) {
@@ -2862,9 +2859,12 @@ async function uploadPhotoToStorage(base64) {
     _dragEl.style.transition = '';
     _dragEl.classList.remove('dragging');
 
-    gEditList.insertBefore(_dragEl, _dragPlaceholder);
-    _dragPlaceholder.remove();
-    _dragPlaceholder = null;
+    // Insert dragged item at the indicator position
+    if (_dropIndicator && _dropIndicator.parentNode) {
+      gEditList.insertBefore(_dragEl, _dropIndicator);
+      _dropIndicator.remove();
+    }
+    _dropIndicator = null;
     _dragEl = null;
     _dragPointerId = null;
 

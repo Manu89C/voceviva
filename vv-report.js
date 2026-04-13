@@ -36,9 +36,13 @@ const ReportManager = (() => {
   const GROQ_URL       = 'https://api.groq.com/openai/v1/chat/completions';
   const REPORT_MODEL   = 'meta-llama/llama-4-scout-17b-16e-instruct';
   const REPORT_MODE    = 'report';
-  const CHECK_INTERVAL = 60 * 60 * 1000; // controlla ogni ora
-  const TRIGGER_HOUR   = 8;              // domenica mattina alle 08:00
-  const LAST_CHECK_KEY = 'vv_report_last_check';
+  const CHECK_INTERVAL     = 60 * 60 * 1000; // controlla ogni ora
+  const TRIGGER_HOUR       = 8;              // domenica mattina alle 08:00
+  const LAST_CHECK_KEY     = 'vv_report_last_check';
+  const GENERATING_LOCK_KEY = 'vv_report_lock';   // lock cross-tab
+  const LOCK_TIMEOUT_MS    = 90 * 1000;           // 90 s max lock duration
+  const RECENT_NOTES_COUNT = 7;                   // note da analizzare in dettaglio
+  const HISTORY_CAP        = 200;                 // max note storiche da passare al contesto
 
   // ── STATO INTERNO ─────────────────────────────────────────────────────────────
   let _sb       = null;
@@ -113,46 +117,66 @@ const ReportManager = (() => {
   // ── GENERA REPORT ─────────────────────────────────────────────────────────────
   /**
    * Può essere chiamato manualmente (pulsante nell'UI) o automaticamente.
-   * @returns {boolean} true se il report è stato generato e salvato
+   * Recupera TUTTE le note storiche come contesto, e analizza in dettaglio
+   * le ultime RECENT_NOTES_COUNT note.
+   * @returns {{ ok: boolean, reason?: string }}
    */
   async function generateReport() {
     if (!_sb) return { ok: false, reason: 'Supabase non inizializzato' };
     if (_generating) return { ok: false, reason: 'Generazione già in corso' };
+
+    // ── Lock cross-tab: impedisce doppia generazione da più finestre/dispositivi ──
+    const lockTs = parseInt(localStorage.getItem(GENERATING_LOCK_KEY) || '0', 10);
+    if (Date.now() - lockTs < LOCK_TIMEOUT_MS) {
+      return { ok: false, reason: 'Generazione già in corso su un altro tab o dispositivo' };
+    }
+
     _generating = true;
+    localStorage.setItem(GENERATING_LOCK_KEY, String(Date.now()));
     try {
-      // Se la chiave non è stata passata, prova a leggerla da localStorage
-      if (!_groqKey) _groqKey = localStorage.getItem('vv_groq') || '';
+      // Leggi chiave Groq
+      if (!_groqKey) _groqKey = (localStorage.getItem('vv_groq') || '').trim();
       if (!_groqKey) return { ok: false, reason: 'Chiave Groq mancante — salvala nelle impostazioni' };
 
-      // Controlla se esiste già un report per questa settimana
+      // 1. Controlla duplicato PRIMA della chiamata AI (fast check)
       const weekStart = _getWeekStart(new Date());
-      const alreadyExists = await _reportExistsForWeek(weekStart);
-      if (alreadyExists) {
-        console.log('[ReportManager] generateReport: report già esistente per questa settimana');
+      if (await _reportExistsForWeek(weekStart)) {
+        console.log('[ReportManager] generateReport: report già esistente');
         return { ok: false, reason: 'Esiste già un report per questa settimana' };
       }
 
-      // 1. Recupera note della settimana
-      const notes = await _fetchWeekNotes();
-      if (!notes || notes.length === 0) {
-        console.warn('[ReportManager] generateReport: nessuna nota trovata questa settimana');
-        return { ok: false, reason: 'Nessuna nota trovata questa settimana' };
+      // 2. Recupera TUTTE le note storiche
+      const allNotes = await _fetchAllNotes();
+      if (!allNotes || allNotes.length === 0) {
+        return { ok: false, reason: 'Nessuna nota trovata. Inizia a scrivere le tue prime note!' };
       }
-      console.log('[ReportManager] generateReport: trovate', notes.length, 'note');
+      console.log('[ReportManager] generateReport: totale note storiche:', allNotes.length);
 
-      // 2. Prepara testo per il prompt
-      const notesText = _buildNotesText(notes);
+      // 3. Ultime RECENT_NOTES_COUNT = focus dell'analisi dettagliata
+      const recentNotes     = allNotes.slice(-RECENT_NOTES_COUNT);
+      const historicalNotes = allNotes.slice(0, Math.max(0, allNotes.length - RECENT_NOTES_COUNT));
 
-      // 3. Chiama Groq per il report
-      const { html: reportHtml, aiTitle } = await _callGroqReport(notesText, notes);
+      const recentText  = _buildNotesText(recentNotes);
+      const historyText = historicalNotes.length > 0 ? _buildHistoryText(historicalNotes) : '';
+
+      // 4. Chiamata AI
+      const { html: reportHtml, aiTitle } = await _callGroqReport(
+        recentText, recentNotes, historyText, allNotes.length
+      );
       if (!reportHtml) {
         return { ok: false, reason: 'Groq ha restituito una risposta vuota' };
       }
-      console.log('[ReportManager] generateReport: report HTML ricevuto da Groq, lunghezza:', reportHtml.length);
+      console.log('[ReportManager] generateReport: HTML ricevuto, lunghezza:', reportHtml.length);
 
-      // 4. Salva in Supabase
+      // 5. Controllo TOCTOU: altro dispositivo potrebbe aver salvato nel frattempo
+      if (await _reportExistsForWeek(weekStart)) {
+        console.log('[ReportManager] generateReport: report già salvato da un altro dispositivo, annullo');
+        return { ok: false, reason: 'Un altro dispositivo ha già salvato il report' };
+      }
+
+      // 6. Salva
       const saved = await _saveReport(reportHtml, weekStart, aiTitle);
-      console.log('[ReportManager] generateReport: report salvato con successo, id:', saved.id);
+      console.log('[ReportManager] generateReport: salvato, id:', saved.id);
       return { ok: true };
 
     } catch(e) {
@@ -160,35 +184,34 @@ const ReportManager = (() => {
       return { ok: false, reason: 'Errore: ' + (e.message || String(e)) };
     } finally {
       _generating = false;
+      localStorage.removeItem(GENERATING_LOCK_KEY);
     }
   }
 
-  // ── FETCH NOTE SETTIMANA ──────────────────────────────────────────────────────
-  async function _fetchWeekNotes() {
-    const now   = new Date();
-    const start = _getWeekStart(now);
-    const end   = _getWeekEnd(now);
+  // ── FETCH TUTTE LE NOTE (contesto storico + recenti) ─────────────────────────
+  async function _fetchAllNotes() {
+    const notes    = [];
+    const pageSize = 500;
+    let   from     = 0;
 
-    const startStr = _toLocalDateStr(start);
-    const endStr   = _toLocalDateStr(end);
+    while (true) {
+      const { data, error } = await _sb
+        .from('notes')
+        .select('id, title, content, note_date, mode')
+        .not('mode', 'eq', REPORT_MODE)
+        .order('note_date', { ascending: true })
+        .range(from, from + pageSize - 1);
 
-    const { data, error } = await _sb
-      .from('notes')
-      .select('id, title, content, note_date, mode')
-      .gte('note_date', startStr)
-      .lte('note_date', endStr)
-      .not('mode', 'eq', REPORT_MODE)  // esclude solo i report
-      .order('note_date', { ascending: true });
-
-    if (error) {
-      console.warn('[ReportManager] fetch error:', error);
-      return [];
+      if (error) { console.warn('[ReportManager] _fetchAllNotes page error:', error); break; }
+      if (!data || data.length === 0) break;
+      notes.push(...data);
+      if (data.length < pageSize) break;
+      from += pageSize;
     }
-    console.log('[ReportManager] _fetchWeekNotes:', startStr, '→', endStr, '→', (data||[]).length, 'note, modes:', [...new Set((data||[]).map(n=>n.mode))]);
-    return data || [];
+    return notes;
   }
 
-  // ── COSTRUISCE IL TESTO DA PASSARE A GROQ ────────────────────────────────────
+  // ── TESTO DETTAGLIATO (ultime N note — focus del report) ────────────────────
   function _buildNotesText(notes) {
     return notes.map(n => {
       const date    = n.note_date || '';
@@ -199,6 +222,32 @@ const ReportManager = (() => {
     }).join('\n\n---\n\n');
   }
 
+  // ── TESTO COMPRESSO PER CONTESTO STORICO ─────────────────────────────────────
+  function _buildHistoryText(notes) {
+    // Limita a HISTORY_CAP note per non eccedere la finestra di contesto del modello
+    const capped = notes.slice(-HISTORY_CAP);
+
+    // Raggruppa per mese per una panoramica leggibile
+    const byMonth = {};
+    capped.forEach(n => {
+      const month = (n.note_date || '').slice(0, 7); // YYYY-MM
+      if (!byMonth[month]) byMonth[month] = [];
+      byMonth[month].push(n);
+    });
+
+    return Object.keys(byMonth).sort().map(month => {
+      const ms    = byMonth[month];
+      const d     = new Date(month + '-01T12:00:00');
+      const label = d.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
+      const entries = ms.map(n => {
+        const title   = n.title || 'Senza titolo';
+        const snippet = _stripHtml(n.content || '').slice(0, 130);
+        return `  [${n.note_date}] "${title}": ${snippet}`;
+      }).join('\n');
+      return `[${label} — ${ms.length} note]\n${entries}`;
+    }).join('\n\n');
+  }
+
   function _modeLabel(mode) {
     return mode === 'rec' ? 'Registrazione vocale' :
            mode === 'AI'  ? 'Nota elaborata AI'    :
@@ -206,16 +255,28 @@ const ReportManager = (() => {
   }
 
   // ── CHIAMATA GROQ ─────────────────────────────────────────────────────────────
-  async function _callGroqReport(notesText, notes) {
+  /**
+   * @param {string} recentText   - testo dettagliato delle ultime N note (focus)
+   * @param {Array}  recentNotes  - array oggetti delle ultime N note
+   * @param {string} historyText  - contesto storico compresso (note precedenti)
+   * @param {number} totalCount   - totale note nel diario
+   */
+  async function _callGroqReport(recentText, recentNotes, historyText = '', totalCount = 0) {
     // Estrai dati umore se presenti (dal Diario Guidato)
-    const moodData = _extractMoodData(notes);
+    const moodData = _extractMoodData(recentNotes);
     const moodContext = moodData.length > 0
-      ? `\nUMORE REGISTRATO QUESTA SETTIMANA:\n${moodData.join('\n')}\n`
+      ? `\nUMORE REGISTRATO:\n${moodData.join('\n')}\n`
       : '';
 
-    const systemPrompt = `Sei il Digital Twin di VoceViva — un osservatore silenzioso che conosce l'utente attraverso le sue note. Hai letto tutto quello che ha scritto questa settimana.
+    const n = recentNotes.length;
 
-Il tuo compito è restituire all'utente una lettura onesta e precisa della sua settimana. Non sei un coach, non sei un terapeuta. Sei uno specchio intelligente.
+    const systemPrompt = `Sei il Digital Twin di VoceViva — un osservatore silenzioso con memoria a lungo termine che conosce l'utente attraverso TUTTE le sue note nel tempo.
+
+Hai accesso a due livelli di informazione:
+1. CONTESTO STORICO: panoramica compressa di tutte le note precedenti alle ultime ${n}
+2. FOCUS: le ultime ${n} note in dettaglio — queste sono il cuore dell'analisi
+
+Il tuo compito è restituire una lettura onesta della situazione attuale, confrontata con i pattern del passato. Non sei un coach, non sei un terapeuta. Sei uno specchio intelligente con memoria.
 
 PRINCIPI:
 - Usa quasi sempre le sue parole, non le tue
@@ -223,13 +284,14 @@ PRINCIPI:
 - Le dissonanze vanno nominate con precisione, senza drammatizzarle
 - I suggerimenti vengono SOLO dalle azioni che ha già scritto di voler fare
 - Il tono è quello di un amico che ti conosce da anni e ti dice le cose come stanno
+- Se la storia passata rivela pattern ricorrenti o cambiamenti rispetto al presente, nominali
 
 STRUTTURA DEL REPORT (in HTML):
-<report-title>Un titolo di massimo 6 parole che cattura l'essenza vera di questa settimana, mai generico</report-title>
-<h2>Settimana dal [data inizio] al [data fine]</h2>
+<report-title>Un titolo di massimo 6 parole che cattura l'essenza vera di questo momento, mai generico</report-title>
+<h2>Analisi delle ultime ${n} note</h2>
 
 <h3>📊 Com'è andata</h3>
-[2-3 frasi che sintetizzano la settimana usando le sue parole chiave]
+[2-3 frasi che sintetizzano il periodo usando le sue parole chiave]
 
 <h3>✓ Cosa ha funzionato</h3>
 [Lista puntata — max 4 elementi — di cose concrete andate bene, usando frasi dall'utente]
@@ -238,25 +300,27 @@ STRUTTURA DEL REPORT (in HTML):
 [Lista puntata — max 3 elementi — di difficoltà o pattern negativi ricorrenti]
 
 <h3>🔍 Quello che non torna</h3>
-[0-2 dissonanze specifiche tra ciò che ha dichiarato e ciò che emerge dalle note. Se non ce ne sono scrivere: "Nessuna incongruenza rilevante questa settimana." Non inventare dissonanze.]
+[0-2 dissonanze specifiche tra ciò che ha dichiarato e ciò che emerge dalle note. Se non ce ne sono: "Nessuna incongruenza rilevante." Non inventare dissonanze.]
+
+<h3>🔁 Pattern nel tempo</h3>
+[Solo se dalla storia emerge un pattern rilevante vs. il presente: nomina 1-2 ricorrenze o cambiamenti significativi. Se non ci sono pattern evidenti, ometti questa sezione completamente.]
 
 <h3>→ Da qui</h3>
 [2-3 azioni PICCOLE che l'utente stesso ha già scritto di voler fare. NON inventare. Se non ha scritto azioni concrete, suggerisci solo una domanda aperta.]
 
 Scrivi in italiano. Tono diretto, niente enfasi vuota, niente punteggiatura decorativa.`;
 
-    const userPrompt = `Queste sono tutte le note scritte questa settimana:
-${moodContext}
-NOTE:
-${notesText}
+    const historySection = historyText
+      ? `## CONTESTO STORICO (${totalCount - n} note precedenti — usa per identificare pattern nel tempo):\n${historyText}\n\n---\n\n`
+      : '';
 
-Genera il report settimanale seguendo esattamente la struttura indicata.`;
+    const userPrompt = `${historySection}## FOCUS — ULTIME ${n} NOTE (analisi dettagliata):\n${moodContext}\n${recentText}\n\nGenera il report focalizzandoti sulle ultime ${n} note. Usa il contesto storico solo per rilevare pattern ricorrenti o cambiamenti significativi nel tempo.`;
 
     try {
       const res = await fetch(GROQ_URL, {
         method: 'POST',
         headers: {
-          'Authorization': 'Bearer ' + _groqKey,
+          'Authorization': 'Bearer ' + _groqKey.trim(),
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({

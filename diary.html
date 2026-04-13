@@ -1619,6 +1619,18 @@ if (sb) {
     .subscribe();
 }
 
+// ── FALLBACK AGGIORNAMENTO REAL-TIME ─────────────────────────────────────────
+// Se il WebSocket Supabase si disconnette o non rileva aggiornamenti da altri
+// dispositivi, aggiornamento completo quando la tab torna in primo piano.
+{
+  let _diaryVisDebounce = null;
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+    clearTimeout(_diaryVisDebounce);
+    _diaryVisDebounce = setTimeout(() => loadNotes(), 600);
+  });
+}
+
 // ── MARKDOWN → HTML ───────────────────────────────────────────────────────────
 function mdToHtml(md) {
   const lines = md.split('\n');

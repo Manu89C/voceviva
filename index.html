@@ -713,7 +713,7 @@ h1 em { font-style:italic; color:var(--accent); }
 
 <script>
 // ── CONFIG ──────────────────────────────────────────────────────────────────
-let GROQ_KEY = localStorage.getItem('vv_groq') || '';
+let GROQ_KEY = (localStorage.getItem('vv_groq') || '').trim();
 const CHUNK_MS       = 20000;   // chunk più lunghi → meno allucinazioni Whisper
 const OVERLAP_MS     = 4000;
 const MIN_BLOB_BYTES = 12000;
@@ -1124,12 +1124,21 @@ let _originalTxt = '';
 async function callLlama(messages) {
   for (let a=1; a<=3; a++) {
     if (a>1) await sleep(Math.min(1000*Math.pow(2,a-1),8000));
+    // Rileggi sempre la chiave più aggiornata e assicurati che non abbia spazi
+    const key = (localStorage.getItem('vv_groq') || GROQ_KEY || '').trim();
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions',{
       method:'POST', cache:'no-store',
-      headers:{'Authorization':'Bearer '+GROQ_KEY,'Content-Type':'application/json'},
+      headers:{'Authorization':'Bearer '+key,'Content-Type':'application/json'},
       body:JSON.stringify({ model:'meta-llama/llama-4-scout-17b-16e-instruct', max_tokens:2048, temperature:0.4, messages })
     });
     if (res.status===429){const w=parseInt(res.headers.get('retry-after')||'10',10);await waitWithCountdown(Math.min(w,30),'Rate limit — riprovo tra');a--;continue;}
+    if (res.status===401){
+      // Errore di autenticazione: ricarica la chiave e riprova una volta sola
+      GROQ_KEY = (localStorage.getItem('vv_groq') || '').trim();
+      if (a < 3) { await sleep(1500); continue; }
+      const e=await res.json().catch(()=>({}));
+      throw new Error(e?.error?.message || 'Chiave Groq non valida — verificala nelle impostazioni');
+    }
     if (!res.ok){const e=await res.json().catch(()=>{});throw new Error(e?.error?.message||'HTTP '+res.status);}
     const data = await res.json();
     return data?.choices?.[0]?.message?.content?.trim()||'';
@@ -2823,6 +2832,19 @@ async function uploadPhotoToStorage(base64) {
         }, 600);
       })
       .subscribe();
+
+    // ── Fallback: ricarica quando la tab torna visibile (es. utente passa da mobile a PC) ──
+    let _visDebounce = null;
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState !== 'visible') return;
+      clearTimeout(_visDebounce);
+      _visDebounce = setTimeout(async () => {
+        await renderPendingSection();
+        const rc = document.querySelector('.container');
+        const ps = document.getElementById('pendingSection');
+        await ReportManager.renderReportCard(rc, ps);
+      }, 500);
+    });
   }
 
   // ── EDIT QUESTIONS PANEL ─────────────────────────────────────────────────────

@@ -864,13 +864,27 @@ const AI_SYSTEM_PROMPT = 'Sei un lettore empatico e un analista dell\'animo uman
 let _originalTxt = '';
 
 async function callLlama(messages) {
+  let rateLimitRetries = 0;
+  const MAX_RL_RETRIES = 5;
   for (let a = 1; a <= 3; a++) {
     if (a > 1) await sleep(Math.min(1000 * Math.pow(2, a - 1), 8000));
     const key = (localStorage.getItem('vv_groq') || GROQ_KEY || '').trim();
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', { method: 'POST', cache: 'no-store',
       headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: 'meta-llama/llama-4-scout-17b-16e-instruct', max_tokens: 2048, temperature: 0.4, messages }) });
-    if (res.status === 429) { const w = parseInt(res.headers.get('retry-after') || '10', 10); await waitWithCountdown(Math.min(w, 30), 'Rate limit \u2013 riprovo tra'); a--; continue; }
+    if (res.status === 429) {
+      rateLimitRetries++;
+      if (rateLimitRetries > MAX_RL_RETRIES) throw new Error('Rate limit superato dopo ' + MAX_RL_RETRIES + ' tentativi. Riprova tra qualche minuto.');
+      const w = parseInt(res.headers.get('retry-after') || '30', 10);
+      const ed = await res.json().catch(() => ({}));
+      const m = ed?.error?.message || '';
+      const match = m.match(/try again in (\d+)m(\d+\.?\d*)s/) || m.match(/try again in (\d+\.?\d*)s/);
+      let ws = w;
+      if (match && match.length === 3) ws = parseInt(match[1]) * 60 + Math.ceil(parseFloat(match[2]));
+      else if (match && match.length === 2) ws = Math.ceil(parseFloat(match[1]));
+      await waitWithCountdown(Math.min(ws, 120), 'Rate limit \u2013 riprovo tra');
+      a--; continue;
+    }
     if (res.status === 401) { GROQ_KEY = (localStorage.getItem('vv_groq') || '').trim(); if (a < 3) { await sleep(1500); continue; } const e = await res.json().catch(() => ({})); throw new Error(e?.error?.message || 'Chiave Groq non valida'); }
     if (!res.ok) { const e = await res.json().catch(() => {}); throw new Error(e?.error?.message || 'HTTP ' + res.status); }
     const data = await res.json(); return data?.choices?.[0]?.message?.content?.trim() || '';
@@ -921,7 +935,16 @@ aiBtn.onclick = async () => {
   try {
     const raw = await callLlama([{ role: 'system', content: ProfileManager.buildSystemPrompt(AI_SYSTEM_PROMPT) }, { role: 'user', content: 'Nota:\n\n' + txt }]);
     const { mainHtml, moodContent } = parseAiOutput(raw); renderAiOutput(mainHtml, moodContent);
-  } catch(e) { outputText.innerHTML = '<p>Errore. Riprova.</p>'; showErr('Errore AI: ' + (e?.message || String(e))); outputBox.classList.remove('loading'); outputOverlay.classList.remove('show'); }
+  } catch(e) {
+    const msg = e?.message || String(e);
+    const isRateLimit = /rate.?limit|429|troppi|riprova tra|limit superato/i.test(msg);
+    const displayMsg = isRateLimit
+      ? 'Limite API raggiunto. Attendi qualche minuto e riprova.'
+      : 'Errore. Riprova.';
+    outputText.innerHTML = '<p>' + displayMsg + '</p>';
+    showErr('Errore AI: ' + msg);
+    outputBox.classList.remove('loading'); outputOverlay.classList.remove('show');
+  }
   isSummarizing = false; aiBtn.disabled = false;
 };
 

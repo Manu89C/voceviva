@@ -205,7 +205,7 @@ body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:no
 .photo-feedback-section.show { display:flex; }
 
 /* Output AI */
-.output-box { background:var(--bg); border:1px solid var(--border); border-radius:1rem; padding:1.1rem; min-height:80px; position:relative; transition:border-color .3s; display:none; }
+.output-box { background:var(--bg); border:1px solid var(--border); border-radius:1rem; padding:1.1rem; min-height:80px; position:relative; transition:border-color .3s; display:none; flex-shrink:0; overflow-y:auto; }
 .output-box.show { display:block; }
 .output-box.loading { border-color:rgba(245,80,54,.4); }
 .output-box.done { border-color:rgba(74,222,128,.4); }
@@ -222,18 +222,19 @@ body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:no
 #outputText strong { color:#ffffff; font-weight:600; }
 #outputText em { color:#ffffff; font-style:italic; font-family:'EB Garamond',Georgia,serif; }
 
-/* Mood */
-.mood-box { background:rgba(245,80,54,.05); border:1px solid rgba(245,80,54,.2); border-radius:.8rem; padding:.8rem 1rem; margin-top:.75rem; }
-.mood-label { font-size:.55rem; text-transform:uppercase; letter-spacing:.15em; color:var(--accent); margin-bottom:.35rem; }
-.mood-text { font-size:.8rem; line-height:1.7; color:var(--text); font-style:italic; }
-
 /* Output fmt toolbar */
 .output-fmt-toolbar { display:flex; align-items:center; gap:.2rem; flex-wrap:nowrap; justify-content:space-between; width:100%; margin-bottom:.5rem; display:none; }
 .output-fmt-toolbar.show { display:flex; }
 
-/* Refine */
-.refine-area { display:none; margin-top:.6rem; border-top:1px solid var(--border); padding-top:.6rem; }
-.refine-area.show { display:block; }
+/* Refine drawer */
+.refine-drawer { display:none; flex-shrink:0; }
+.refine-drawer.show { display:flex; flex-direction:column; gap:.4rem; }
+.refine-drawer-handle { background:rgba(245,80,54,.08); border:1px solid rgba(245,80,54,.2); border-radius:.5rem; padding:.45rem .8rem; font-family:'JetBrains Mono',monospace; font-size:.62rem; text-transform:uppercase; letter-spacing:.1em; color:var(--accent); cursor:pointer; touch-action:manipulation; display:flex; align-items:center; justify-content:center; gap:.4rem; transition:all .15s; width:100%; }
+.refine-drawer-handle:hover { background:rgba(245,80,54,.15); border-color:rgba(245,80,54,.35); }
+.refine-drawer-handle svg { width:12px; height:12px; transition:transform .2s; }
+.refine-drawer-handle.open svg { transform:rotate(180deg); }
+.refine-drawer-body { display:none; flex-direction:column; gap:.4rem; padding-top:.5rem; }
+.refine-drawer-body.open { display:flex; }
 .refine-input { width:100%; background:rgba(255,255,255,.04); border:1px solid var(--border); border-radius:.5rem; color:var(--text); font-family:'Crimson Pro',Georgia,serif; font-size:.95rem; line-height:1.6; padding:.5rem .7rem; resize:none; outline:none; min-height:60px; box-sizing:border-box; }
 .refine-input:focus { border-color:var(--accent); }
 .refine-input::placeholder { color:var(--muted); font-style:italic; }
@@ -409,11 +410,13 @@ body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:no
           </div>
           <div class="output-overlay" id="outputOverlay"><div class="spinner"></div> <span id="overlayText">Elaborazione&hellip;</span></div>
           <div id="outputText" contenteditable="true" spellcheck="true"></div>
-          <div class="mood-box" id="moodBox" style="display:none">
-            <div class="mood-label">Stato d&rsquo;animo</div>
-            <div class="mood-text" id="moodText"></div>
-          </div>
-          <div class="refine-area" id="refineArea">
+        </div>
+        <div class="refine-drawer" id="refineDrawer">
+          <button class="refine-drawer-handle" id="refineDrawerHandle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+            Migliora
+          </button>
+          <div class="refine-drawer-body" id="refineDrawerBody">
             <textarea class="refine-input" id="refineInput" placeholder="Scrivi un feedback&hellip; es. &quot;approfondisci il tema della solitudine&quot;, &quot;rimuovi la parte sui libri&quot;, &quot;pi&ugrave; conciso&quot;"></textarea>
             <div class="refine-row">
               <span class="refine-hint">Il modello vedr&agrave; il testo originale, l&rsquo;elaborazione attuale e il tuo feedback.</span>
@@ -641,12 +644,12 @@ const processingPill = $('processingPill'), liveDot = $('liveDot');
 const outputBox = $('outputBox'), outputOverlay = $('outputOverlay'), outputText = $('outputText');
 const outputLabel = $('outputLabel'), outputDot = $('outputDot'), outputLabelText = $('outputLabelText');
 const overlayText = $('overlayText');
-const moodBox = $('moodBox'), moodText = $('moodText');
+
 const wordCount = $('wordCount'), wordCountInline = $('wordCountInline');
 const copyBtn = $('copyBtn'), aiBtn = $('aiBtn'), clearBtn = $('clearBtn');
 const meterFill = $('meterFill'), qualityBadge = $('qualityBadge'), meterSection = $('meterSection');
 const saveDirectBtn = $('saveDirectBtn');
-const refineArea = $('refineArea'), refineInput = $('refineInput'), refineBtn = $('refineBtn');
+const refineDrawer = $('refineDrawer'), refineDrawerHandle = $('refineDrawerHandle'), refineDrawerBody = $('refineDrawerBody'), refineInput = $('refineInput'), refineBtn = $('refineBtn');
 const saveModal = $('saveModal'), modalCard = $('modalCard');
 const modalTitleInput = $('modalTitleInput'), modalDateInput = $('modalDateInput');
 const modalPreview = $('modalPreview'), modalCancel = $('modalCancel'), modalConfirm = $('modalConfirm');
@@ -859,7 +862,7 @@ async function openSaveModal(mode) {
 saveDirectBtn.onclick = () => openSaveModal(_activePanel === 1 ? 'ai' : 'direct');
 
 // ── AI ───────────────────────────────────────────────────────────────────────
-const AI_SYSTEM_PROMPT = 'Sei un lettore empatico e un analista dell\'animo umano. Ricevi una nota personale \u2013 diario, sfogo, pensiero, appunto vocale trascritto, appunti di studio, trascrizione di riunione.\n\nREGOLE ASSOLUTE \u2013 NON DEROGABILI:\n\n1. STRUTTURA OBBLIGATORIA: Dividi SEMPRE il testo in sezioni distinte con <h2> per i macro-temi e <h3> per i sotto-temi. Ogni sezione deve contenere almeno un paragrafo <p>. Mai un blocco unico di testo continuo.\n\n2. ELENCHI: Quando emergono elementi enumerabili \u2013 emozioni, azioni, pensieri ricorrenti, concetti \u2013 usali come <ul> o <ol>. Non condensare in prosa ci\u00f2 che \u00e8 naturalmente una lista.\n\n3. IMMAGINI EVOCATIVE: I riferimenti concreti \u2013 nomi di persone, luoghi, oggetti, libri, film, date \u2013 non vanno MAI rimossi o generalizzati. Sono il cuore del testo. "Claudio non si fa pi\u00f9 sentire" vale pi\u00f9 di "un amico si \u00e8 allontanato". Citali e approfondiscili.\n\n4. TONO EMOTIVO: Non descrivere le emozioni dall\'esterno. Entra nel testo, interpretale, approfondiscile. Cerca cosa c\'\u00e8 sotto la superficie \u2013 i desideri nascosti, le contraddizioni, le paure non dette. Ogni sezione deve aggiungere profondit\u00e0 che l\'autore non ha esplicitato.\n\n5. ADATTA IL RUOLO al tipo di contenuto: empatico per diari, preciso per appunti tecnici, esecutivo per riunioni.\n\nSTATO D\'ANIMO: Chiudi sempre con:\n<div id="mood-output">Una frase densa e specifica che cita elementi concreti del testo \u2013 non emozioni generiche.</div>\n\nRispondi SOLO con HTML valido (<p>, <h2>, <h3>, <ul>, <ol>, <li> e il blocco mood). Zero commenti fuori dall\'HTML. VIETATO usare markdown: niente asterischi, niente underscore, niente hashtag. Scrivi sempre in italiano.';
+const AI_SYSTEM_PROMPT = 'Sei un lettore empatico e un analista dell\'animo umano. Ricevi una nota personale \u2013 diario, sfogo, pensiero, appunto vocale trascritto, appunti di studio, trascrizione di riunione.\n\nREGOLE ASSOLUTE \u2013 NON DEROGABILI:\n\n1. STRUTTURA OBBLIGATORIA: Dividi SEMPRE il testo in sezioni distinte con <h2> per i macro-temi e <h3> per i sotto-temi. Ogni sezione deve contenere almeno un paragrafo <p>. Mai un blocco unico di testo continuo.\n\n2. ELENCHI: Quando emergono elementi enumerabili \u2013 emozioni, azioni, pensieri ricorrenti, concetti \u2013 usali come <ul> o <ol>. Non condensare in prosa ci\u00f2 che \u00e8 naturalmente una lista.\n\n3. IMMAGINI EVOCATIVE: I riferimenti concreti \u2013 nomi di persone, luoghi, oggetti, libri, film, date \u2013 non vanno MAI rimossi o generalizzati. Sono il cuore del testo. "Claudio non si fa pi\u00f9 sentire" vale pi\u00f9 di "un amico si \u00e8 allontanato". Citali e approfondiscili.\n\n4. TONO EMOTIVO: Non descrivere le emozioni dall\'esterno. Entra nel testo, interpretale, approfondiscile. Cerca cosa c\'\u00e8 sotto la superficie \u2013 i desideri nascosti, le contraddizioni, le paure non dette. Ogni sezione deve aggiungere profondit\u00e0 che l\'autore non ha esplicitato.\n\n5. ADATTA IL RUOLO al tipo di contenuto: empatico per diari, preciso per appunti tecnici, esecutivo per riunioni.\n\nRispondi SOLO con HTML valido (<p>, <h2>, <h3>, <ul>, <ol>, <li>). Zero commenti fuori dall\'HTML. VIETATO usare markdown: niente asterischi, niente underscore, niente hashtag. Scrivi sempre in italiano.';
 
 let _originalTxt = '';
 
@@ -892,18 +895,16 @@ async function callLlama(messages) {
 }
 
 function parseAiOutput(raw) {
-  const moodMatch = raw.match(/<div id="mood-output">([\s\S]*?)<\/div>/i);
-  const moodContent = moodMatch ? moodMatch[1].trim() : '';
   const mainHtml = raw.replace(/<div id="mood-output">[\s\S]*?<\/div>/i, '').trim();
-  return { mainHtml, moodContent };
+  return { mainHtml };
 }
 
-function renderAiOutput(mainHtml, moodContent) {
+function renderAiOutput(mainHtml) {
   outputText.innerHTML = mainHtml || '<p>Nessun risultato.</p>'; _hasAI = true;
-  if (moodContent) { moodText.textContent = moodContent; moodBox.style.display = 'block'; } else { moodBox.style.display = 'none'; }
   outputBox.classList.remove('loading'); outputBox.classList.add('done');
   outputDot.className = 'live-dot done'; outputOverlay.classList.remove('show');
-  refineArea.classList.add('show'); refineInput.value = '';
+  refineDrawer.classList.add('show'); refineInput.value = '';
+  refineDrawerBody.classList.remove('open'); refineDrawerHandle.classList.remove('open');
   clearAiBtn.disabled = false; copyAiBtn.disabled = false;
   if (GROQ_KEY && _originalTxt && !noteTitleInput.value.trim()) {
     (async () => {
@@ -931,10 +932,10 @@ aiBtn.onclick = async () => {
   outputLabelText.textContent = 'Elaborazione AI'; overlayText.textContent = 'AI sta elaborando la nota...';
   outputDot.className = 'live-dot processing';
   outputBox.className = 'output-box show loading'; outputOverlay.classList.add('show');
-  moodBox.style.display = 'none'; refineArea.classList.remove('show');
+  refineDrawer.classList.remove('show');
   try {
     const raw = await callLlama([{ role: 'system', content: ProfileManager.buildSystemPrompt(AI_SYSTEM_PROMPT) }, { role: 'user', content: 'Nota:\n\n' + txt }]);
-    const { mainHtml, moodContent } = parseAiOutput(raw); renderAiOutput(mainHtml, moodContent);
+    const { mainHtml } = parseAiOutput(raw); renderAiOutput(mainHtml);
   } catch(e) {
     const msg = e?.message || String(e);
     const isRateLimit = /rate.?limit|429|troppi|riprova tra|limit superato/i.test(msg);
@@ -976,6 +977,12 @@ refineBtn.onclick = async () => {
     const updatedRules = await rulesPromise; if (updatedRules) await ProfileManager.updateRules(updatedRules);
   } catch(e) { showErr('Errore raffinamento: ' + (e?.message || String(e))); outputOverlay.classList.remove('show'); }
   refineBtn.disabled = false; refineBtn.textContent = '\u21BA Raffina';
+};
+
+// ── REFINE DRAWER TOGGLE ─────────────────────────────────────────────────────
+refineDrawerHandle.onclick = () => {
+  refineDrawerBody.classList.toggle('open');
+  refineDrawerHandle.classList.toggle('open');
 };
 
 // ── AUDIO ENGINE ─────────────────────────────────────────────────────────────
@@ -1188,7 +1195,7 @@ async function audioBufferToWav(buffer) {
 // ── COPY / CLEAR / RESET ────────────────────────────────────────────────────
 copyBtn.onclick = () => {
   const txt = _activePanel === 1
-    ? htmlToMarkdown(outputText.innerHTML) + (moodBox.style.display !== 'none' ? '\n\n**Stato d\'animo:** ' + moodText.textContent : '')
+    ? htmlToMarkdown(outputText.innerHTML)
     : htmlToMarkdown(getEditorHtml());
   if (!txt) return;
   const done = () => { copyBtn.classList.add('copied'); setTimeout(() => copyBtn.classList.remove('copied'), 1800); };
@@ -1201,7 +1208,7 @@ function resetAll() {
   noteTitleInput.value = ''; resizeTitleInput();
   annotWrap.classList.remove('done'); liveDot.className = 'live-dot';
   outputBox.className = 'output-box'; outputText.innerHTML = '';
-  moodBox.style.display = 'none'; refineArea.classList.remove('show');
+  refineDrawer.classList.remove('show'); refineDrawerBody.classList.remove('open'); refineDrawerHandle.classList.remove('open');
   swipeHandle.classList.remove('show'); setActivePanel(0);
   photoFeedbackSection.classList.remove('show'); _photoBase64 = null; _photoHasSchema = false; _photoFeedbackHistory.length = 0;
   setStatus('idle', GROQ_KEY ? 'Pronto' : 'Chiave API mancante');
@@ -1210,17 +1217,17 @@ clearBtn.onclick = () => {
   if (isRecording) return;
   if (_activePanel === 1) {
     outputBox.className = 'output-box'; outputText.innerHTML = '';
-    moodBox.style.display = 'none'; refineArea.classList.remove('show');
+    refineDrawer.classList.remove('show'); refineDrawerBody.classList.remove('open'); refineDrawerHandle.classList.remove('open');
     _hasAI = false; swipeHandle.classList.remove('show'); setActivePanel(0); updateWords();
   } else { resetAll(); }
 };
 clearAiBtn.onclick = () => {
   outputBox.className = 'output-box'; outputText.innerHTML = '';
-  moodBox.style.display = 'none'; refineArea.classList.remove('show');
+  refineDrawer.classList.remove('show'); refineDrawerBody.classList.remove('open'); refineDrawerHandle.classList.remove('open');
   _hasAI = false; swipeHandle.classList.remove('show'); setActivePanel(0); updateWords();
 };
 copyAiBtn.onclick = () => {
-  const txt = htmlToMarkdown(outputText.innerHTML) + (moodBox.style.display !== 'none' ? '\n\n**Stato d\'animo:** ' + moodText.textContent : '');
+  const txt = htmlToMarkdown(outputText.innerHTML);
   if (!txt) return;
   const done = () => { copyAiBtn.classList.add('copied'); setTimeout(() => copyAiBtn.classList.remove('copied'), 1800); };
   if (navigator.clipboard) navigator.clipboard.writeText(txt).then(done).catch(() => { fbCopy(txt); done(); });

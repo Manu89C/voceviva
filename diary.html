@@ -1600,24 +1600,40 @@ loadNotes();
 // ── REALTIME SYNC ────────────────────────────────────────────────────────────
 // Aggiorna la vista automaticamente quando un altro dispositivo salva/modifica/cancella una nota
 if (sb) {
-  sb.channel('vv-diary-realtime')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'notes' }, (payload) => {
-      if (payload.eventType === 'INSERT') {
-        if (!allNotes.find(n => n.id === payload.new.id)) {
-          allNotes.push(payload.new);
-          allNotes.sort((a, b) => a.note_date > b.note_date ? -1 : 1);
+  let _diaryRealtimeChannel = null;
+
+  function _setupDiaryRealtime() {
+    // Rimuovi canale esistente se presente
+    if (_diaryRealtimeChannel) {
+      sb.removeChannel(_diaryRealtimeChannel);
+    }
+
+    _diaryRealtimeChannel = sb.channel('vv-diary-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notes' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          if (!allNotes.find(n => n.id === payload.new.id)) {
+            allNotes.push(payload.new);
+            allNotes.sort((a, b) => a.note_date > b.note_date ? -1 : 1);
+          }
+        } else if (payload.eventType === 'UPDATE') {
+          const idx = allNotes.findIndex(n => n.id === payload.new.id);
+          if (idx !== -1) allNotes[idx] = payload.new;
+          else { allNotes.push(payload.new); allNotes.sort((a, b) => a.note_date > b.note_date ? -1 : 1); }
+        } else if (payload.eventType === 'DELETE') {
+          const delId = payload.old?.id;
+          if (delId) allNotes = allNotes.filter(n => n.id !== delId);
         }
-      } else if (payload.eventType === 'UPDATE') {
-        const idx = allNotes.findIndex(n => n.id === payload.new.id);
-        if (idx !== -1) allNotes[idx] = payload.new;
-        else { allNotes.push(payload.new); allNotes.sort((a, b) => a.note_date > b.note_date ? -1 : 1); }
-      } else if (payload.eventType === 'DELETE') {
-        const delId = payload.old?.id;
-        if (delId) allNotes = allNotes.filter(n => n.id !== delId);
-      }
-      if (currentView === 'calendar') renderCalendar(); else renderList();
-    })
-    .subscribe();
+        if (currentView === 'calendar') renderCalendar(); else renderList();
+      })
+      .subscribe((status, err) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('[Diary] Realtime error:', status, err, '— riconnessione tra 5s');
+          setTimeout(_setupDiaryRealtime, 5000);
+        }
+      });
+  }
+
+  _setupDiaryRealtime();
 }
 
 // ── FALLBACK AGGIORNAMENTO REAL-TIME ─────────────────────────────────────────

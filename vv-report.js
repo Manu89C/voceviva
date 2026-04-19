@@ -159,9 +159,18 @@ const ReportManager = (() => {
       const recentText  = _buildNotesText(recentNotes);
       const historyText = historicalNotes.length > 0 ? _buildHistoryText(historicalNotes) : '';
 
-      // 4. Chiamata AI
+      // 4a. Step 1: Estrai fatti strutturati
+      let extractedFacts = null;
+      try {
+        extractedFacts = await _extractFacts(recentText);
+        console.log('[ReportManager] Fatti estratti:', extractedFacts);
+      } catch(e) {
+        console.warn('[ReportManager] Estrazione fatti fallita, procedo senza:', e);
+      }
+
+      // 4b. Step 2: Genera report partendo dai fatti
       const { html: reportHtml, aiTitle } = await _callGroqReport(
-        recentText, recentNotes, historyText, allNotes.length
+        recentText, recentNotes, historyText, allNotes.length, extractedFacts
       );
       if (!reportHtml) {
         return { ok: false, reason: 'Groq ha restituito una risposta vuota' };
@@ -254,19 +263,95 @@ const ReportManager = (() => {
                             'Nota scritta';
   }
 
+  // ── ESTRAZIONE FATTI STRUTTURATI (Step 1 della catena) ─────────────────────────
+  async function _extractFacts(notesText) {
+    const res = await fetch(GROQ_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + _groqKey.trim(),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+        max_tokens: 1500,
+        temperature: 0.1,
+        messages: [
+          {
+            role: 'system',
+            content: `Sei un estrattore di fatti da note personali. 
+Il tuo unico compito è estrarre informazioni strutturate. 
+NON interpretare, NON valutare, NON aggiungere commenti.
+Rispondi SOLO con JSON valido, nessun testo fuori dal JSON.
+
+Estrai questo schema per l'intero insieme di note:
+{
+  "eventi": ["lista di eventi concreti accaduti, uno per riga"],
+  "emozioni": [{"emozione": "nome", "contesto": "situazione associata"}],
+  "azioni_compiute": ["azioni concrete già fatte"],
+  "promises_to_self": ["frasi con intenzione futura in prima persona, es: domani vado, questa settimana inizierò, voglio fare"],
+  "persone_menzionate": ["nomi o ruoli di persone citate"],
+  "temi_ricorrenti": ["parole o concetti che appaiono in più note"],
+  "umore_generale": "una parola sola"
+}`
+          },
+          {
+            role: 'user',
+            content: 'Estrai i fatti da queste note:\n\n' + notesText
+          }
+        ]
+      })
+    });
+
+    if (!res.ok) throw new Error('Estrazione fatti: HTTP ' + res.status);
+    const json = await res.json();
+    const raw = json.choices?.[0]?.message?.content?.trim() || '';
+
+    try {
+      // Rimuovi eventuali backtick markdown prima del parse
+      const clean = raw.replace(/^```json?\s*/i, '').replace(/\s*```$/i, '').trim();
+      return JSON.parse(clean);
+    } catch(e) {
+      console.warn('[ReportManager] _extractFacts: JSON parse fallito, uso testo grezzo', e);
+      return null;
+    }
+  }
+
   // ── CHIAMATA GROQ ─────────────────────────────────────────────────────────────
   /**
    * @param {string} recentText   - testo dettagliato delle ultime N note (focus)
    * @param {Array}  recentNotes  - array oggetti delle ultime N note
    * @param {string} historyText  - contesto storico compresso (note precedenti)
    * @param {number} totalCount   - totale note nel diario
+   * @param {object|null} extractedFacts - fatti strutturati estratti dallo step 1
    */
-  async function _callGroqReport(recentText, recentNotes, historyText = '', totalCount = 0) {
+  async function _callGroqReport(recentText, recentNotes, historyText = '', totalCount = 0, extractedFacts = null) {
     // Estrai dati umore se presenti (dal Diario Guidato)
     const moodData = _extractMoodData(recentNotes);
     const moodContext = moodData.length > 0
       ? `\nUMORE REGISTRATO:\n${moodData.join('\n')}\n`
       : '';
+
+    // Blocco fatti strutturati da inserire nel prompt
+    const factsBlock = extractedFacts ? `
+FATTI ESTRATTI DALLE NOTE (usa questi come base dell'analisi):
+- Umore generale: ${extractedFacts.umore_generale || 'non rilevato'}
+- Azioni compiute: ${(extractedFacts.azioni_compiute || []).join(' | ') || 'nessuna'}
+- Intenzioni dichiarate (promises_to_self): ${(extractedFacts.promises_to_self || []).join(' | ') || 'nessuna'}
+- Emozioni: ${(extractedFacts.emozioni || []).map(e => e.emozione + ' (' + e.contesto + ')').join(' | ') || 'nessuna'}
+- Temi ricorrenti: ${(extractedFacts.temi_ricorrenti || []).join(', ') || 'nessuno'}
+- Persone menzionate: ${(extractedFacts.persone_menzionate || []).join(', ') || 'nessuna'}
+
+DISSONANZE DA VERIFICARE:
+Le seguenti intenzioni dichiarate potrebbero non trovare corrispondenza nelle azioni compiute:
+${
+  (extractedFacts.promises_to_self || []).map(p => {
+    const found = (extractedFacts.azioni_compiute || []).some(a =>
+      a.toLowerCase().split(' ').some(w => w.length > 4 && p.toLowerCase().includes(w))
+    );
+    return found ? null : '⚠ "' + p + '" — non risulta tra le azioni compiute';
+  }).filter(Boolean).join('\n') || 'Nessuna dissonanza rilevata automaticamente'
+}
+` : '';
 
     const n = recentNotes.length;
 
@@ -279,6 +364,10 @@ Hai accesso a due livelli di informazione:
 Il tuo compito è restituire una lettura onesta della situazione attuale, confrontata con i pattern del passato. Non sei un coach, non sei un terapeuta. Sei uno specchio intelligente con memoria.
 
 PRINCIPI:
+- I FATTI ESTRATTI sopra hanno priorità sulla tua interpretazione diretta delle note
+- Le dissonanze segnalate con ⚠ devono essere nominate nel report nella sezione "Quello che non torna"
+- Se non ci sono dissonanze segnalate, scrivi esplicitamente "Nessuna incongruenza rilevante questa settimana"
+- NON inventare dissonanze che non emergono dai fatti estratti
 - Usa quasi sempre le sue parole, non le tue
 - Non consolarlo né giudicarlo
 - Le dissonanze vanno nominate con precisione, senza drammatizzarle
@@ -314,7 +403,11 @@ Scrivi in italiano. Tono diretto, niente enfasi vuota, niente punteggiatura deco
       ? `## CONTESTO STORICO (${totalCount - n} note precedenti — usa per identificare pattern nel tempo):\n${historyText}\n\n---\n\n`
       : '';
 
-    const userPrompt = `${historySection}## FOCUS — ULTIME ${n} NOTE (analisi dettagliata):\n${moodContext}\n${recentText}\n\nGenera il report focalizzandoti sulle ultime ${n} note. Usa il contesto storico solo per rilevare pattern ricorrenti o cambiamenti significativi nel tempo.`;
+    const userPrompt = `${historySection}${factsBlock}## FOCUS — ULTIME ${n} NOTE (testo completo per riferimento):
+${moodContext}
+${recentText}
+
+Genera il report basandoti sui FATTI ESTRATTI sopra. Usa il testo delle note solo per citazioni dirette.`;
 
     try {
       const res = await fetch(GROQ_URL, {

@@ -9,7 +9,6 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="VoceViva">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400;1,600&family=EB+Garamond:ital,wght@1,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
-<script src="rnnoise-sync.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="vv-profile.js"></script>
 <script src="vv-memory.js"></script>
@@ -86,7 +85,7 @@ body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:no
 .guided-mic-btn.recording { background:#c0392b; animation:pulse 1.4s ease-in-out infinite; }
 .guided-mic-btn svg { width:20px; height:20px; }
 .guided-mic-btn.photo-mode { background:var(--accent); color:#fff; box-shadow:0 4px 16px rgba(245,80,54,.45); border:none; animation:none; }
-.guided-mic-btn.allegato-mode { background:#b8641a; color:#fff; box-shadow:0 4px 16px rgba(184,100,26,.45); border:none; animation:none; }
+.guided-mic-btn.allegato-mode { background:var(--accent); color:#fff; box-shadow:0 4px 16px rgba(245,80,54,.45); border:none; animation:none; }
 .guided-mic-status { font-size:.55rem; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); display:flex; align-items:center; gap:.35rem; min-height:1rem; }
 .guided-mic-status .pill-dot { width:4px; height:4px; border-radius:50%; background:var(--accent); animation:blink .6s ease-in-out infinite; }
 
@@ -102,7 +101,7 @@ body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:no
 .guided-editor-wrap:focus-within { border-color:rgba(245,80,54,.4); }
 .guided-editor-wrap.recording { border-color:rgba(240,106,106,.5); }
 .guided-editor-wrap.done { border-color:rgba(74,222,128,.4); }
-.guided-editor { background:transparent; border:none; color:var(--text); font-family:'Crimson Pro',Georgia,serif; font-size:1.05rem; line-height:1.85; outline:none; width:100%; min-height:60px; flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding-right:.8rem; caret-color:var(--accent); scrollbar-width:thin; scrollbar-color:rgba(255,255,255,.18) transparent; }
+.guided-editor { background:transparent; border:none; color:var(--text); font-family:'Crimson Pro',Georgia,serif; font-size:1.05rem; line-height:1.85; outline:none; width:100%; min-height:60px; flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding-right:.8rem; padding-top:18px; caret-color:var(--accent); scrollbar-width:thin; scrollbar-color:rgba(255,255,255,.18) transparent; }
 .guided-editor::-webkit-scrollbar { width:3px; }
 .guided-editor::-webkit-scrollbar-track { background:transparent; }
 .guided-editor::-webkit-scrollbar-thumb { background:rgba(255,255,255,.18); border-radius:2px; }
@@ -130,6 +129,10 @@ body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:no
 .fn-clear-btn:hover { border-color:var(--accent); color:var(--accent); }
 .fn-clear-btn:disabled { opacity:.3; cursor:not-allowed; pointer-events:none; }
 .fn-editor-btns { position:absolute; top:.45rem; right:.45rem; z-index:5; display:flex; gap:.28rem; }
+/* Correggi button (same row as copy/clear) */
+.fn-correggi-btn { background:rgba(245,158,11,.12); border:1px solid rgba(245,158,11,.4); color:var(--warn); height:28px; padding:0 .45rem; border-radius:.35rem; cursor:pointer; display:none; align-items:center; justify-content:center; touch-action:manipulation; transition:all .15s; backdrop-filter:blur(4px); font-family:'JetBrains Mono',monospace; font-size:.52rem; text-transform:uppercase; letter-spacing:.06em; gap:.25rem; white-space:nowrap; }
+.fn-correggi-btn.visible { display:flex; }
+.fn-correggi-btn:hover, .fn-correggi-btn.active { background:rgba(245,158,11,.2); border-color:rgba(245,158,11,.6); color:var(--warn); }
 
 /* Modal input (date) */
 .modal-input { background:var(--bg); border:1px solid var(--border); border-radius:.6rem; color:var(--text); font-family:'JetBrains Mono',monospace; font-size:.78rem; padding:.55rem .7rem; outline:none; transition:border-color .2s; width:100%; color-scheme:dark; }
@@ -158,19 +161,27 @@ body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:no
 .live-dot.done { background:var(--live); animation:none; }
 
 /* Word count & clear row */
-.word-count { font-size:.62rem; color:var(--muted); }
+.word-count { font-size:.58rem; color:var(--muted); line-height:1; }
 
-/* Mic long-press popover */
-.fn-mic-popover { position:absolute; bottom:calc(100% + .5rem); left:50%; transform:translateX(-50%); background:var(--surface); border:1px solid var(--border); border-radius:.8rem; padding:.5rem; display:none; flex-direction:row; gap:.4rem; z-index:50; box-shadow:0 4px 20px rgba(0,0,0,.5); white-space:nowrap; }
-.fn-mic-popover.show { display:flex; }
-.fn-mic-popover-btn { background:none; border:1px solid var(--border); color:var(--muted); border-radius:.5rem; padding:.45rem .7rem; font-family:'JetBrains Mono',monospace; font-size:.6rem; text-transform:uppercase; letter-spacing:.08em; cursor:pointer; display:flex; align-items:center; gap:.35rem; touch-action:manipulation; transition:all .15s; }
-.fn-mic-popover-btn:hover,.fn-mic-popover-btn.active { border-color:var(--accent); color:var(--accent); background:rgba(245,80,54,.08); }
-.fn-mic-popover-btn svg { width:14px; height:14px; flex-shrink:0; }
+/* Mic expanding switcher */
 .guided-mic-nav-wrap { position:relative; display:flex; align-items:center; justify-content:center; }
+.fn-mic-switcher { display:flex; align-items:stretch; justify-content:center; border-radius:.45rem; overflow:hidden; position:relative; transition:all .32s cubic-bezier(.4,0,.2,1); }
+.fn-mic-switcher .fn-sw-side { width:0; overflow:hidden; opacity:0; display:flex; align-items:center; justify-content:center; transition:width .32s cubic-bezier(.4,0,.2,1), opacity .22s ease; cursor:pointer; touch-action:manipulation; border:none; border-left:1px solid rgba(255,255,255,.1); border-right:1px solid rgba(255,255,255,.1); background:rgba(245,80,54,.10); color:var(--accent); flex-shrink:0; padding:0; }
+.fn-mic-switcher .fn-sw-side:first-child { border-left:none; }
+.fn-mic-switcher .fn-sw-side:last-of-type { border-right:none; }
+.fn-mic-switcher .fn-sw-side svg { width:18px; height:18px; flex-shrink:0; pointer-events:none; }
+.fn-mic-switcher.expanded .fn-sw-side { width:44px; opacity:1; }
+.fn-mic-switcher.expanded .fn-sw-side:active { background:rgba(245,80,54,.25); }
+.fn-mic-switcher .fn-sw-side, .fn-mic-switcher .guided-mic-btn { position:relative; z-index:2; }
+/* shrink side buttons for AI/Save when open */
+.guided-nav.switcher-open .fn-ai-btn { min-width:0; padding-left:.35rem; padding-right:.35rem; }
+.guided-nav.switcher-open .guided-continue { min-width:0; padding-left:.35rem; padding-right:.35rem; }
+.guided-nav .fn-ai-btn, .guided-nav .guided-continue { transition:padding .32s cubic-bezier(.4,0,.2,1), min-width .32s cubic-bezier(.4,0,.2,1); }
 
 /* AI button in nav (replaces "rispondi dopo") */
-.fn-ai-btn { background:var(--accent); border:1px solid var(--accent); color:#fff; }
-.fn-ai-btn:hover { opacity:.9; }
+.fn-ai-btn { background:rgba(245,158,11,.12); border:1px solid rgba(245,158,11,.4); color:var(--warn); font-weight:500; display:flex; align-items:center; justify-content:center; gap:.4rem; }
+.fn-ai-btn:hover { background:rgba(245,158,11,.2); }
+.fn-ai-btn:active { background:none; border-color:var(--border); color:var(--muted); }
 .fn-ai-btn:disabled { opacity:.5; cursor:not-allowed; }
 
 /* Status */
@@ -181,9 +192,9 @@ body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:no
 .status-dot.done { background:var(--live); animation:none; }
 
 /* Timer row */
-.fn-timer-row { display:none; align-items:center; justify-content:center; gap:.6rem; padding:.2rem 0; }
+.fn-timer-row { display:none; align-items:center; gap:.6rem; }
 .fn-timer-row.show { display:flex; }
-.timer { font-size:1.4rem; font-weight:300; letter-spacing:.08em; font-variant-numeric:tabular-nums; }
+.timer { font-size:2rem; font-weight:300; letter-spacing:.06em; font-variant-numeric:tabular-nums; font-family:'JetBrains Mono',monospace; line-height:1; }
 .waveform { display:flex; align-items:center; gap:2px; height:18px; }
 .bar { width:2px; background:#f06a6a; border-radius:2px; height:3px; }
 .bar.active { animation:wave .7s ease-in-out infinite; }
@@ -201,17 +212,21 @@ body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:no
 .photo-proc { display:none; font-size:.65rem; color:var(--accent); letter-spacing:.08em; align-items:center; gap:.4rem; }
 .photo-proc.show { display:flex; }
 .photo-proc .dot { width:7px;height:7px;border-radius:50%;background:var(--accent);animation:blink .6s ease-in-out infinite; }
-.photo-feedback-section { display:none; flex-direction:column; gap:.4rem; padding:.75rem; background:var(--bg); border:1px solid var(--border); border-radius:.6rem; }
+.photo-feedback-section { display:none; flex-direction:column; gap:.4rem; padding:.6rem .75rem; background:var(--bg); border:1px solid var(--border); border-radius:0 0 .8rem .8rem; border-top:none; margin-top:-1px; }
 .photo-feedback-section.show { display:flex; }
 
 /* Output AI */
-.output-box { background:var(--bg); border:1px solid var(--border); border-radius:1rem; padding:1.1rem; min-height:80px; position:relative; transition:border-color .3s; display:none; flex-shrink:0; overflow-y:auto; }
-.output-box.show { display:block; }
+.output-box { background:var(--bg); border:1px solid var(--border); border-radius:1rem; padding:1.1rem; min-height:80px; position:relative; transition:border-color .3s; display:none; flex-shrink:0; overflow:hidden; }
+.output-box.show { display:flex; flex-direction:column; }
 .output-box.loading { border-color:rgba(245,80,54,.4); }
 .output-box.done { border-color:rgba(74,222,128,.4); }
 .output-overlay { display:none; position:absolute; inset:0; background:rgba(10,10,15,.8); border-radius:1rem; align-items:center; justify-content:center; gap:.65rem; font-size:.7rem; color:var(--accent); backdrop-filter:blur(3px); }
 .output-overlay.show { display:flex; }
-#outputText { font-size:1.05rem; line-height:1.85; color:var(--text); word-break:break-word; outline:none; font-family:'Crimson Pro',Georgia,serif; }
+#outputText { font-size:1.05rem; line-height:1.85; color:var(--text); word-break:break-word; outline:none; font-family:'Crimson Pro',Georgia,serif; flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; padding-right:.2rem; padding-top:18px; scrollbar-width:thin; scrollbar-color:rgba(255,255,255,.18) transparent; }
+#outputText::-webkit-scrollbar { width:3px; }
+#outputText::-webkit-scrollbar-track { background:transparent; }
+#outputText::-webkit-scrollbar-thumb { background:rgba(255,255,255,.18); border-radius:2px; }
+#outputText::-webkit-scrollbar-thumb:hover { background:rgba(255,255,255,.35); }
 #outputText:focus { background:rgba(255,255,255,.02); border-radius:.4rem; padding:.2rem; }
 #outputText p { margin-bottom:.65rem; }
 #outputText ul { padding-left:1.1rem; margin-bottom:.65rem; }
@@ -227,14 +242,18 @@ body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:no
 .output-fmt-toolbar.show { display:flex; }
 
 /* Refine drawer */
-.refine-drawer { display:none; flex-shrink:0; }
-.refine-drawer.show { display:flex; flex-direction:column; gap:.4rem; }
-.refine-drawer-handle { background:rgba(245,80,54,.08); border:1px solid rgba(245,80,54,.2); border-radius:.5rem; padding:.45rem .8rem; font-family:'JetBrains Mono',monospace; font-size:.62rem; text-transform:uppercase; letter-spacing:.1em; color:var(--accent); cursor:pointer; touch-action:manipulation; display:flex; align-items:center; justify-content:center; gap:.4rem; transition:all .15s; width:100%; }
-.refine-drawer-handle:hover { background:rgba(245,80,54,.15); border-color:rgba(245,80,54,.35); }
-.refine-drawer-handle svg { width:12px; height:12px; transition:transform .2s; }
+.refine-drawer { display:none; flex-direction:column; gap:.45rem; flex-shrink:0; }
+.refine-drawer.show { display:flex; }
+.refine-drawer-stage { display:flex; flex-direction:column; align-items:center; gap:.45rem; }
+.refine-drawer-handle { width:100%; background:var(--accent); color:#fff; border:none; border-radius:.65rem .65rem 0 0; padding:.55rem 1rem; display:flex; flex-direction:row; align-items:center; justify-content:center; gap:.5rem; cursor:pointer; touch-action:manipulation; user-select:none; -webkit-user-select:none; box-shadow:0 -2px 14px rgba(245,80,54,.28); transition:box-shadow .2s, opacity .15s; }
+.refine-drawer-handle:hover { box-shadow:0 -2px 18px rgba(245,80,54,.42); }
+.refine-drawer-handle:active { opacity:.88; }
+.refine-drawer-handle svg { width:14px; height:14px; flex-shrink:0; transition:transform .32s cubic-bezier(.4,0,.2,1); }
+.refine-drawer-label { font-size:.72rem; text-transform:uppercase; letter-spacing:.1em; font-family:'JetBrains Mono',monospace; }
+.refine-drawer-handle.open { box-shadow:0 -2px 8px rgba(245,80,54,.18); }
 .refine-drawer-handle.open svg { transform:rotate(180deg); }
-.refine-drawer-body { display:none; flex-direction:column; gap:.4rem; padding-top:.5rem; }
-.refine-drawer-body.open { display:flex; }
+.refine-drawer-body { width:100%; max-height:0; overflow:hidden; opacity:0; transform:translateY(-12px); transform-origin:bottom center; background:rgba(17,17,24,.96); border:1px solid rgba(245,80,54,.22); border-radius:1rem; padding:0 .85rem; transition:max-height .36s cubic-bezier(.4,0,.2,1), opacity .24s ease, transform .36s cubic-bezier(.4,0,.2,1), padding .36s cubic-bezier(.4,0,.2,1); }
+.refine-drawer-body.open { max-height:220px; opacity:1; transform:translateY(0); padding:.85rem; }
 .refine-input { width:100%; background:rgba(255,255,255,.04); border:1px solid var(--border); border-radius:.5rem; color:var(--text); font-family:'Crimson Pro',Georgia,serif; font-size:.95rem; line-height:1.6; padding:.5rem .7rem; resize:none; outline:none; min-height:60px; box-sizing:border-box; }
 .refine-input:focus { border-color:var(--accent); }
 .refine-input::placeholder { color:var(--muted); font-style:italic; }
@@ -278,15 +297,19 @@ body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:no
 .fn-panel::-webkit-scrollbar-track { background:transparent; }
 .fn-panel::-webkit-scrollbar-thumb { background:rgba(255,255,255,.18); border-radius:2px; }
 .fn-panel::-webkit-scrollbar-thumb:hover { background:rgba(255,255,255,.35); }
+#panelAI { overflow:hidden; padding-bottom:.2rem; }
+#panelAI .box-label { flex-shrink:0; }
+#panelAI .output-box { flex:1; min-height:0; overflow:hidden; margin-bottom:.1rem; }
 /* Swipe handle */
 .fn-swipe-handle { position:absolute; right:0; top:50%; transform:translateY(-50%); z-index:10; display:none; }
 .fn-swipe-handle.show { display:flex; }
 .fn-swipe-tab { background:var(--accent); color:#fff; border-radius:.5rem 0 0 .5rem; padding:.7rem .38rem; display:flex; flex-direction:column; align-items:center; gap:.35rem; cursor:pointer; touch-action:none; user-select:none; -webkit-user-select:none; box-shadow:-2px 0 14px rgba(245,80,54,.4); transition:opacity .15s; }
 .fn-swipe-tab:active { opacity:.8; }
 .fn-swipe-icon { width:14px; height:14px; flex-shrink:0; transition:transform .3s; }
-.fn-swipe-label { font-size:.48rem; text-transform:uppercase; letter-spacing:.1em; font-family:'JetBrains Mono',monospace; writing-mode:vertical-rl; text-orientation:mixed; }
+.fn-swipe-label { font-size:.48rem; text-transform:uppercase; letter-spacing:.1em; font-family:'JetBrains Mono',monospace; writing-mode:vertical-rl; text-orientation:mixed; display:flex; align-items:center; justify-content:center; }
 /* kbd compact override for panels */
 .guided-card.kbd .fn-panel { gap:.25rem; padding-bottom:.25rem; }
+.guided-card.kbd #panelAI .output-box { margin-bottom:0; }
 </style>
 </head>
 <body>
@@ -301,7 +324,6 @@ body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:no
     <div class="guided-header">
       <div class="guided-header-left">
         <div class="guided-title">Nota <em style="color:var(--accent);font-style:italic;">Libera</em></div>
-        <div class="guided-progress fn-wordcount" id="wordCount">0 parole</div>
         <div style="margin-top:.3rem;display:flex;align-items:flex-end;justify-content:space-between;gap:.5rem;">
           <div style="flex:1;min-width:0;">
             <label style="font-size:.55rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);">Titolo</label>
@@ -313,7 +335,14 @@ body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:no
             <label style="font-size:.55rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);">Data</label>
             <input type="date" id="noteDateInput" class="modal-input" style="margin-top:.15rem;">
           </div>
-
+          <div class="fn-timer-row" id="timerRow" style="padding:0;margin-left:.5rem;align-self:flex-end;">
+            <div class="timer" id="timer">00:00</div>
+            <div class="waveform">
+              <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+              <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+              <div class="bar"></div>
+            </div>
+          </div>
         </div>
       </div>
       <div class="guided-header-actions">
@@ -342,13 +371,19 @@ body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:no
     <!-- Editor label -->
     <div class="box-label">
       <span class="live-dot" id="liveDot"></span>
-      <span>Annotazione</span>
+      <span id="annotLabel">Annotazione</span>
+      <span class="word-count" id="wordCountInline" style="margin-left:.3rem;">0 parole</span>
       <div class="processing-pill" id="processingPill"><span class="pill-dot"></span> trascrivo&hellip;</div>
+      <div class="photo-proc" id="photoProcPill" style="margin-left:.2rem;"><span class="dot"></span> analizzo foto...</div>
     </div>
 
     <!-- Editor -->
     <div class="guided-editor-wrap" id="annotWrap">
       <div class="fn-editor-btns">
+        <button class="fn-correggi-btn" id="correggiBtn" title="Correggi trascrizione">
+          <svg viewBox="0 0 24 24" fill="none" style="width:13px;height:13px;flex-shrink:0" aria-hidden="true"><path d="M12 2C12 2 8.5 7.5 2 12C8.5 16.5 12 22 12 22C12 22 15.5 16.5 22 12C15.5 7.5 12 2 12 2Z" fill="currentColor" opacity="0.9"/><path d="M12 2C12 2 15.5 7.5 22 12C15.5 16.5 12 22 12 22" fill="currentColor" opacity="0.4"/></svg>
+          Correggi
+        </button>
         <button class="fn-clear-btn" id="clearBtn" disabled title="Cancella">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
         </button>
@@ -359,36 +394,10 @@ body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:no
       <div class="guided-editor" id="annotEditor" contenteditable="true" spellcheck="true"
         data-placeholder="Scrivi qui o usa il microfono per dettare. Puoi mescolare testo scritto e dettato liberamente."></div>
     </div>
-
-    <!-- Word count -->
-    <div style="display:flex;align-items:center;gap:.4rem;">
-      <span class="word-count" id="wordCountInline">0 parole</span>
-    </div>
-
-    <!-- Photo feedback -->
+    <!-- Photo correction dropdown (under editor) -->
     <div class="photo-feedback-section" id="photoFeedbackSection">
-      <div style="font-size:.55rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);">Correzioni trascrizione</div>
       <textarea id="photoFeedbackInput" style="width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:.5rem;color:var(--text);font-family:'Crimson Pro',Georgia,serif;font-size:.9rem;line-height:1.6;padding:.5rem .7rem;resize:none;outline:none;min-height:52px;box-sizing:border-box;" placeholder="Correzioni&hellip; es. &quot;le frecce &rarr; non sono LO&quot;, &quot;il titolo principale &egrave;&hellip;&quot;"></textarea>
       <button id="photoRefineBtn" class="btn-ai" style="display:block;width:100%;margin-top:.1rem;">&#10227; Rianalizza trascrizione</button>
-    </div>
-
-    <!-- Photo processing pill -->
-    <div class="photo-proc" id="photoProcPill"><span class="dot"></span> analizzo foto...</div>
-
-    <!-- Timer / waveform row -->
-    <div class="fn-timer-row" id="timerRow">
-      <div class="timer" id="timer">00:00</div>
-      <div class="waveform">
-        <div class="bar"></div><div class="bar"></div><div class="bar"></div>
-        <div class="bar"></div><div class="bar"></div><div class="bar"></div>
-        <div class="bar"></div>
-      </div>
-    </div>
-
-    <!-- Status -->
-    <div class="status-row" id="statusRow">
-      <span class="status-dot" id="statusDot"></span>
-      <span id="statusText">Pronto</span>
     </div>
 
       </div><!-- /panelEditor -->
@@ -411,19 +420,6 @@ body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:no
           <div class="output-overlay" id="outputOverlay"><div class="spinner"></div> <span id="overlayText">Elaborazione&hellip;</span></div>
           <div id="outputText" contenteditable="true" spellcheck="true"></div>
         </div>
-        <div class="refine-drawer" id="refineDrawer">
-          <button class="refine-drawer-handle" id="refineDrawerHandle">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
-            Migliora
-          </button>
-          <div class="refine-drawer-body" id="refineDrawerBody">
-            <textarea class="refine-input" id="refineInput" placeholder="Scrivi un feedback&hellip; es. &quot;approfondisci il tema della solitudine&quot;, &quot;rimuovi la parte sui libri&quot;, &quot;pi&ugrave; conciso&quot;"></textarea>
-            <div class="refine-row">
-              <span class="refine-hint">Il modello vedr&agrave; il testo originale, l&rsquo;elaborazione attuale e il tuo feedback.</span>
-              <button class="btn-refine" id="refineBtn">&#10227; Raffina</button>
-            </div>
-          </div>
-        </div>
       </div><!-- /panelAI -->
 
       </div><!-- /fn-carousel-track -->
@@ -439,6 +435,17 @@ body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:no
     </div><!-- /fn-carousel -->
 
     <div class="guided-fixed-bottom" id="fixedBottom">
+    <div class="refine-drawer" id="refineDrawer">
+      <div class="refine-drawer-stage">
+        <div class="refine-drawer-body" id="refineDrawerBody">
+          <textarea class="refine-input" id="refineInput" placeholder="Scrivi un feedback&hellip; es. &quot;approfondisci il tema della solitudine&quot;, &quot;rimuovi la parte sui libri&quot;, &quot;pi&ugrave; conciso&quot;"></textarea>
+          <div class="refine-row">
+            <span class="refine-hint">Il modello vedr&agrave; il testo originale, l&rsquo;elaborazione attuale e il tuo feedback.</span>
+            <button class="btn-refine" id="refineBtn">&#10227; Raffina</button>
+          </div>
+        </div>
+      </div>
+    </div>
     <div class="fmt-toolbar guided-editor-fmt">
       <button class="fmt-btn" id="aFmtH1">&#x1D413; H&sup1;</button>
       <button class="fmt-btn" id="aFmtH2">&#x1D413; H&sup2;</button>
@@ -450,32 +457,22 @@ body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:no
       <button class="fmt-btn" id="aFmtUl"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:middle"><circle cx="2" cy="4" r="1.5"/><rect x="5" y="3" width="10" height="2" rx="1"/><circle cx="2" cy="8" r="1.5"/><rect x="5" y="7" width="10" height="2" rx="1"/><circle cx="2" cy="12" r="1.5"/><rect x="5" y="11" width="10" height="2" rx="1"/></svg></button>
       <button class="fmt-btn" id="aFmtOl"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:middle"><text x="0" y="5" font-size="5" font-family="monospace">1.</text><rect x="5" y="3" width="10" height="2" rx="1"/><text x="0" y="9" font-size="5" font-family="monospace">2.</text><rect x="5" y="7" width="10" height="2" rx="1"/><text x="0" y="13" font-size="5" font-family="monospace">3.</text><rect x="5" y="11" width="10" height="2" rx="1"/></svg></button>
     </div>
-    <div class="guided-nav">
-      <button class="guided-nav-btn fn-ai-btn" id="aiBtn" disabled>Elabora con AI</button>
+    <div class="guided-nav" id="guidedNav">
+      <button class="guided-nav-btn fn-ai-btn" id="aiBtn" disabled><span id="aiBtnLabel">Elabora con AI</span></button>
       <div class="guided-mic-nav-wrap">
-        <div class="fn-mic-popover" id="micPopover">
-          <button class="fn-mic-popover-btn" id="popVoiceBtn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
-            Voce
+        <div class="fn-mic-switcher" id="micSwitcher">
+          <button class="fn-sw-side" id="swSideLeft"></button>
+          <button class="guided-mic-btn guided-mic-nav" id="micBtn" title="Registra">
+            <svg id="micIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+            <svg id="stopIcon" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+            <svg id="cameraIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            <svg id="allegatoIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
           </button>
-          <button class="fn-mic-popover-btn" id="popPhotoBtn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-            Foto
-          </button>
-          <button class="fn-mic-popover-btn" id="popAllegBtn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-            Allegato
-          </button>
+          <button class="fn-sw-side" id="swSideRight"></button>
         </div>
-        <button class="guided-mic-btn guided-mic-nav" id="micBtn" title="Registra">
-          <svg id="micIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-          <svg id="stopIcon" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
-          <svg id="cameraIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-          <svg id="allegatoIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-        </button>
       </div>
       <button class="guided-nav-btn guided-continue" id="saveDirectBtn" disabled>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;vertical-align:middle;margin-right:.3em"><polyline points="20 6 9 17 4 12"/></svg>Salva
+        <span id="saveBtnIcon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;vertical-align:middle;margin-right:.3em"><polyline points="20 6 9 17 4 12"/></svg></span><span id="saveBtnLabel">Salva</span>
       </button>
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;">
@@ -520,20 +517,18 @@ body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:no
 
 <script>
 // ── CONFIG ──────────────────────────────────────────────────────────────────
-let GROQ_KEY = (localStorage.getItem('vv_groq') || '').trim();
+const SUPABASE_URL = 'https://ezycobgovadcgvnyqcew.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_ASHxxToKJyMy4CpBAqseqA_mepXAAJ-';
+let sb = null;
+const MIN_WORDS_AI   = 30;
 const CHUNK_MS       = 20000;
 const OVERLAP_MS     = 4000;
 const MIN_BLOB_BYTES = 12000;
 const MAX_BLOB_BYTES = 8 * 1024 * 1024;
 const SILENCE_THR    = 0.007;
 const SPEECH_RATIO   = 0.12;
-const METER_MS       = 80;
-const MIN_WORDS_AI   = 30;
-
-// ── SUPABASE ─────────────────────────────────────────────────────────────────
-const SUPABASE_URL = 'https://ezycobgovadcgvnyqcew.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_ASHxxToKJyMy4CpBAqseqA_mepXAAJ-';
-let sb = null;
+const METER_MS       = 100;
+let GROQ_KEY = (localStorage.getItem('vv_groq') || '').trim();
 try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) {}
 
 // ── PROFILE & MEMORY ────────────────────────────────────────────────────────
@@ -547,13 +542,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 function showErr(m) { $('errorMsg').textContent = m; $('errorMsg').classList.add('show'); }
 function hideErr() { $('errorMsg').classList.remove('show'); }
 
-function setStatus(state, text) {
-  statusDot.className = 'status-dot';
-  if (state === 'live') statusDot.classList.add('live');
-  else if (state === 'processing') statusDot.classList.add('processing');
-  else if (state === 'done') statusDot.classList.add('done');
-  statusText.textContent = text;
-}
+function setStatus(state, text) { /* stato gestito da annotLabel */ }
 
 async function waitWithCountdown(sec, label) {
   for (let i = sec; i > 0; i--) { showErr('\u23F3 ' + label + ' ' + i + 's...'); await sleep(1000); }
@@ -630,6 +619,7 @@ let pendingChunks = [], isTranscribing = false, isSummarizing = false;
 let audioCtx = null, analyser = null, adaptiveGainNode = null;
 let apiWarmedUp = false;
 let rnnoiseModule = null, rnnoiseState = null;
+let rnnoiseScriptPromise = null;
 const analyserBuf = new Float32Array(2048);
 let _hasRec = false, _hasWrite = false, _hasAI = false;
 let _inputMode = 'voice';
@@ -645,22 +635,25 @@ const outputBox = $('outputBox'), outputOverlay = $('outputOverlay'), outputText
 const outputLabel = $('outputLabel'), outputDot = $('outputDot'), outputLabelText = $('outputLabelText');
 const overlayText = $('overlayText');
 
-const wordCount = $('wordCount'), wordCountInline = $('wordCountInline');
+const wordCount = $('wordCountInline'), wordCountInline = $('wordCountInline');
 const copyBtn = $('copyBtn'), aiBtn = $('aiBtn'), clearBtn = $('clearBtn');
 const meterFill = $('meterFill'), qualityBadge = $('qualityBadge'), meterSection = $('meterSection');
 const saveDirectBtn = $('saveDirectBtn');
-const refineDrawer = $('refineDrawer'), refineDrawerHandle = $('refineDrawerHandle'), refineDrawerBody = $('refineDrawerBody'), refineInput = $('refineInput'), refineBtn = $('refineBtn');
+const refineDrawer = $('refineDrawer'), refineDrawerBody = $('refineDrawerBody'), refineInput = $('refineInput'), refineBtn = $('refineBtn');
 const saveModal = $('saveModal'), modalCard = $('modalCard');
 const modalTitleInput = $('modalTitleInput'), modalDateInput = $('modalDateInput');
 const modalPreview = $('modalPreview'), modalCancel = $('modalCancel'), modalConfirm = $('modalConfirm');
 const modalTitle = $('modalTitle');
 const micStatus = $('micStatus');
+const annotLabel = $('annotLabel');
 const photoInput = $('photoInput'), photoProcPill = $('photoProcPill');
 const allegatoInput = $('allegatoInput');
 const allegatoIcon = $('allegatoIcon');
 const noteTitleInput = $('noteTitleInput');
 const clearAiBtn = $('clearAiBtn'), copyAiBtn = $('copyAiBtn');
-const micPopover = $('micPopover'), popVoiceBtn = $('popVoiceBtn'), popPhotoBtn = $('popPhotoBtn'), popAllegBtn = $('popAllegBtn');
+const correggiBtn = $('correggiBtn');
+const micSwitcher = $('micSwitcher'), swSideLeft = $('swSideLeft'), swSideRight = $('swSideRight');
+const guidedNav = $('guidedNav'), aiBtnLabel = $('aiBtnLabel'), saveBtnLabel = $('saveBtnLabel');
 const photoFeedbackSection = $('photoFeedbackSection');
 const photoFeedbackInput = $('photoFeedbackInput'), photoRefineBtn = $('photoRefineBtn');
 
@@ -670,12 +663,32 @@ const swipeHandle = $('swipeHandle'), swipeTab = $('swipeTab'), swipeIcon = $('s
 const panelAI = $('panelAI');
 let _activePanel = 0;
 
+function syncRefineVisibility() {
+  const onAI = _activePanel === 1;
+  const shouldShow = _hasAI && onAI;
+  refineDrawer.classList.toggle('show', shouldShow);
+  if (!shouldShow) refineDrawerBody.classList.remove('open');
+  // aggiorna testo aiBtn
+  if (onAI && _hasAI) {
+    aiBtnLabel.innerHTML = '<svg viewBox="0 0 24 24" fill="none" style="width:13px;height:13px;flex-shrink:0;vertical-align:middle" aria-hidden="true"><path d="M12 2C12 2 8.5 7.5 2 12C8.5 16.5 12 22 12 22C12 22 15.5 16.5 22 12C15.5 7.5 12 2 12 2Z" fill="currentColor" opacity="0.9"/><path d="M12 2C12 2 15.5 7.5 22 12C15.5 16.5 12 22 12 22" fill="currentColor" opacity="0.4"/></svg> Migliora';
+    aiBtn.disabled = false;
+  } else {
+    const n = (annotEditor.innerText || '').trim().split(/\s+/).filter(Boolean).length;
+    aiBtnLabel.textContent = 'Elabora con AI';
+    aiBtnLabel.innerHTML = '<svg viewBox="0 0 24 24" fill="none" style="width:13px;height:13px;flex-shrink:0;vertical-align:middle" aria-hidden="true"><path d="M12 2C12 2 8.5 7.5 2 12C8.5 16.5 12 22 12 22C12 22 15.5 16.5 22 12C15.5 7.5 12 2 12 2Z" fill="currentColor" opacity="0.9"/><path d="M12 2C12 2 15.5 7.5 22 12C15.5 16.5 12 22 12 22" fill="currentColor" opacity="0.4"/></svg> Elabora con AI';
+    aiBtn.disabled = n < MIN_WORDS_AI;
+  }
+}
+
 function setActivePanel(n) {
   _activePanel = n;
   fnCarouselTrack.style.transform = n === 1 ? 'translateX(-50%)' : 'translateX(0)';
   swipeIcon.style.transform = n === 1 ? 'rotate(180deg)' : '';
-  swipeLabel.textContent = n === 1 ? 'Nota' : 'AI';
+  swipeLabel.innerHTML = n === 1
+    ? '<svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px"><path d="M12 2C12 2 8.5 7.5 2 12C8.5 16.5 12 22 12 22C12 22 15.5 16.5 22 12C15.5 7.5 12 2 12 2Z" fill="currentColor" opacity="0.9"/><path d="M12 2C12 2 15.5 7.5 22 12C15.5 16.5 12 22 12 22" fill="currentColor" opacity="0.4"/></svg>'
+    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>';
   _activeFmtTarget = n === 1 ? outputText : annotEditor;
+  syncRefineVisibility();
 }
 
 swipeTab.addEventListener('click', () => setActivePanel(_activePanel === 0 ? 1 : 0));
@@ -699,7 +712,7 @@ noteTitleInput.addEventListener('input', resizeTitleInput);
 if (!GROQ_KEY) { showErr('Chiave Groq API mancante. Torna alla pagina principale per inserirla.'); setStatus('idle', 'Chiave API mancante'); }
 else { setStatus('idle', 'Pronto'); }
 
-function goBack() { window.location.href = 'index.html'; }
+function goBack() { window.location.replace('index.html'); }
 $('closeBtn').onclick = () => { cleanupRecording(); goBack(); };
 
 // ── EDITOR ───────────────────────────────────────────────────────────────────
@@ -904,7 +917,8 @@ function renderAiOutput(mainHtml) {
   outputBox.classList.remove('loading'); outputBox.classList.add('done');
   outputDot.className = 'live-dot done'; outputOverlay.classList.remove('show');
   refineDrawer.classList.add('show'); refineInput.value = '';
-  refineDrawerBody.classList.remove('open'); refineDrawerHandle.classList.remove('open');
+  refineDrawerBody.classList.remove('open');
+  syncRefineVisibility();
   clearAiBtn.disabled = false; copyAiBtn.disabled = false;
   if (GROQ_KEY && _originalTxt && !noteTitleInput.value.trim()) {
     (async () => {
@@ -920,6 +934,12 @@ function renderAiOutput(mainHtml) {
 }
 
 aiBtn.onclick = async () => {
+  // Se siamo sul pannello AI con contenuto → toggle drawer Migliora
+  if (_activePanel === 1 && _hasAI) {
+    refineDrawerBody.classList.toggle('open');
+    return;
+  }
+  // Altrimenti: elabora con AI
   const txt = getEditorText();
   if (!txt || !GROQ_KEY) { showErr('Inserisci la chiave Groq e del testo.'); return; }
   if (isSummarizing) return;
@@ -980,10 +1000,6 @@ refineBtn.onclick = async () => {
 };
 
 // ── REFINE DRAWER TOGGLE ─────────────────────────────────────────────────────
-refineDrawerHandle.onclick = () => {
-  refineDrawerBody.classList.toggle('open');
-  refineDrawerHandle.classList.toggle('open');
-};
 
 // ── AUDIO ENGINE ─────────────────────────────────────────────────────────────
 function getRMS() { if (!analyser) return 0; analyser.getFloatTimeDomainData(analyserBuf); let s = 0; for (let i = 0; i < analyserBuf.length; i++) s += analyserBuf[i] * analyserBuf[i]; return Math.sqrt(s / analyserBuf.length); }
@@ -1001,7 +1017,21 @@ function startMeter() {
 }
 function stopMeter() { clearInterval(meterInterval); meterFill.style.width = '0%'; qualityBadge.textContent = '\u2014'; qualityBadge.className = 'quality-badge'; meterSection.style.display = 'none'; }
 
-async function initRNNoise() { if (rnnoiseModule) return true; try { if (typeof createRNNWasmModule === 'undefined') return false; rnnoiseModule = await createRNNWasmModule(); rnnoiseState = rnnoiseModule._rnnoise_create(0); return true; } catch(e) { return false; } }
+function ensureRNNoiseLoaded() {
+  if (typeof createRNNWasmModule !== 'undefined') return Promise.resolve(true);
+  if (rnnoiseScriptPromise) return rnnoiseScriptPromise;
+  rnnoiseScriptPromise = new Promise(resolve => {
+    const script = document.createElement('script');
+    script.src = 'rnnoise-sync.js';
+    script.async = true;
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.head.appendChild(script);
+  });
+  return rnnoiseScriptPromise;
+}
+
+async function initRNNoise() { if (rnnoiseModule) return true; try { const loaded = await ensureRNNoiseLoaded(); if (!loaded || typeof createRNNWasmModule === 'undefined') return false; rnnoiseModule = await createRNNWasmModule(); rnnoiseState = rnnoiseModule._rnnoise_create(0); return true; } catch(e) { return false; } }
 
 function buildAudioChain(stream) {
   audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000 });
@@ -1036,7 +1066,7 @@ async function startRec() {
   micBtn.classList.add('recording'); micIcon.style.display = 'none'; stopIcon.style.display = 'block';
   annotWrap.classList.add('recording'); liveDot.className = 'live-dot on';
   startMeter(); startTimer(); acquireWakeLock();
-  setStatus('live', 'In ascolto\u2026'); micStatus.innerHTML = '<span class="pill-dot"></span> In ascolto\u2026';
+  setStatus('live', 'In ascolto\u2026'); annotLabel.textContent = 'In ascolto\u2026'; micStatus.innerHTML = '';
   doSegment(stream, bestMime);
 }
 
@@ -1061,11 +1091,11 @@ async function stopRec() {
   if (wakeLock) { try { wakeLock.release(); } catch(e) {} wakeLock = null; }
   micBtn.classList.remove('recording'); micIcon.style.display = 'block'; stopIcon.style.display = 'none';
   annotWrap.classList.remove('recording'); stopMeter(); stopTimer();
-  setStatus('processing', 'Completamento trascrizione\u2026'); micStatus.innerHTML = '<span class="pill-dot"></span> Completamento\u2026';
+  setStatus('processing', 'Trascrivo\u2026'); annotLabel.textContent = 'Trascrivo\u2026'; micStatus.innerHTML = '';
   processingPill.classList.add('show'); await sleep(400);
   while (pendingChunks.length) await transcribeBlob(pendingChunks.shift());
   processingPill.classList.remove('show'); liveDot.className = 'live-dot done';
-  setStatus('done', 'Completato \u2714'); micStatus.innerHTML = ''; updateWords();
+  setStatus('done', 'Completato \u2714'); annotLabel.textContent = 'Annotazione'; micStatus.innerHTML = ''; updateWords();
 }
 
 function cleanupRecording() {
@@ -1075,25 +1105,89 @@ function cleanupRecording() {
   if (audioCtx) { try { audioCtx.close(); } catch(e) {} audioCtx = null; analyser = null; adaptiveGainNode = null; }
   if (wakeLock) { try { wakeLock.release(); } catch(e) {} wakeLock = null; }
   micBtn.classList.remove('recording'); micIcon.style.display = 'block'; stopIcon.style.display = 'none';
-  annotWrap.classList.remove('recording'); stopMeter(); stopTimer(); micStatus.innerHTML = '';
+  annotWrap.classList.remove('recording'); stopMeter(); stopTimer(); annotLabel.textContent = 'Annotazione'; micStatus.innerHTML = '';
 }
 
 let _micPressTimer = null, _micLongPressed = false;
-function closeMicPopover() { micPopover.classList.remove('show'); }
-document.addEventListener('touchstart', e => {
-  if (!micPopover.classList.contains('show')) return;
-  if (!micBtn.contains(e.target) && !micPopover.contains(e.target)) closeMicPopover();
-}, { passive: true });
+let _switcherOpen = false;
 
+// SVG templates for each mode
+const _modeSVG = {
+  voice: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>',
+  photo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>',
+  allegato: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>'
+};
+const _modeTitle = { voice: 'Voce', photo: 'Foto', allegato: 'Immagine' };
+const _allModes = ['voice', 'photo', 'allegato'];
+
+function getSideSlotModes() {
+  // Return the two modes that are NOT the current _inputMode, in stable order
+  return _allModes.filter(m => m !== _inputMode);
+}
+
+function updateSideSlots() {
+  const sides = getSideSlotModes();
+  swSideLeft.innerHTML = _modeSVG[sides[0]];
+  swSideLeft.title = _modeTitle[sides[0]];
+  swSideLeft.dataset.mode = sides[0];
+  swSideRight.innerHTML = _modeSVG[sides[1]];
+  swSideRight.title = _modeTitle[sides[1]];
+  swSideRight.dataset.mode = sides[1];
+}
+// Initialize side slots
+updateSideSlots();
+
+function openSwitcher() {
+  if (_switcherOpen) return;
+  _switcherOpen = true;
+  updateSideSlots();
+  micSwitcher.classList.add('expanded');
+  guidedNav.classList.add('switcher-open');
+  aiBtnLabel.innerHTML = '<svg viewBox="0 0 24 24" fill="none" style="width:13px;height:13px;flex-shrink:0;vertical-align:middle" aria-hidden="true"><path d="M12 2C12 2 8.5 7.5 2 12C8.5 16.5 12 22 12 22C12 22 15.5 16.5 22 12C15.5 7.5 12 2 12 2Z" fill="currentColor" opacity="0.9"/><path d="M12 2C12 2 15.5 7.5 22 12C15.5 16.5 12 22 12 22" fill="currentColor" opacity="0.4"/></svg> AI';
+  saveBtnLabel.textContent = '';
+}
+
+function closeSwitcher() {
+  if (!_switcherOpen) return;
+  _switcherOpen = false;
+  micSwitcher.classList.remove('expanded');
+  guidedNav.classList.remove('switcher-open');
+  syncRefineVisibility();
+  saveBtnLabel.textContent = 'Salva';
+}
+
+function selectSwitcherOption(sideBtn) {
+  const mode = sideBtn.dataset.mode;
+  // Auto-trigger FIRST (before DOM changes) to preserve user-activation for getUserMedia
+  if (mode === 'voice' && !isRecording) startRec();
+  else if (mode === 'photo') photoInput.click();
+  else if (mode === 'allegato') allegatoInput.click();
+  setInputMode(mode);
+  closeSwitcher();
+  updateSideSlots();
+}
+
+// Close switcher when tapping outside
+document.addEventListener('touchstart', e => {
+  if (!_switcherOpen) return;
+  if (!micSwitcher.contains(e.target)) closeSwitcher();
+}, { passive: true });
+document.addEventListener('mousedown', e => {
+  if (!_switcherOpen) return;
+  if (!micSwitcher.contains(e.target)) closeSwitcher();
+});
+
+// Side button clicks
+swSideLeft.addEventListener('click', e => { e.stopPropagation(); if (_switcherOpen) selectSwitcherOption(swSideLeft); });
+swSideRight.addEventListener('click', e => { e.stopPropagation(); if (_switcherOpen) selectSwitcherOption(swSideRight); });
+
+// Long-press logic for micBtn (touch)
 micBtn.addEventListener('touchstart', e => {
   e.preventDefault();
   _micLongPressed = false;
   _micPressTimer = setTimeout(() => {
     _micLongPressed = true;
-    micPopover.classList.add('show');
-    popVoiceBtn.classList.toggle('active', _inputMode === 'voice');
-    popPhotoBtn.classList.toggle('active', _inputMode === 'photo');
-    popAllegBtn.classList.toggle('active', _inputMode === 'allegato');
+    openSwitcher();
   }, 400);
 }, { passive: false });
 
@@ -1101,29 +1195,27 @@ micBtn.addEventListener('touchend', e => {
   e.preventDefault();
   clearTimeout(_micPressTimer);
   if (!_micLongPressed) {
-    closeMicPopover();
+    if (_switcherOpen) { closeSwitcher(); return; }
     if (_inputMode === 'voice') { if (!isRecording) startRec(); else stopRec(); }
     else if (_inputMode === 'photo') { photoInput.click(); }
     else if (_inputMode === 'allegato') { allegatoInput.click(); }
   }
 }, { passive: false });
 
-micBtn.addEventListener('touchcancel', () => { clearTimeout(_micPressTimer); closeMicPopover(); });
+micBtn.addEventListener('touchcancel', () => { clearTimeout(_micPressTimer); });
 
+// Long-press logic for micBtn (mouse)
 micBtn.addEventListener('mousedown', () => {
   _micLongPressed = false;
   _micPressTimer = setTimeout(() => {
     _micLongPressed = true;
-    micPopover.classList.add('show');
-    popVoiceBtn.classList.toggle('active', _inputMode === 'voice');
-    popPhotoBtn.classList.toggle('active', _inputMode === 'photo');
-    popAllegBtn.classList.toggle('active', _inputMode === 'allegato');
+    openSwitcher();
   }, 400);
 });
 micBtn.addEventListener('mouseup', () => {
   clearTimeout(_micPressTimer);
   if (!_micLongPressed) {
-    closeMicPopover();
+    if (_switcherOpen) { closeSwitcher(); return; }
     if (_inputMode === 'voice') { if (!isRecording) startRec(); else stopRec(); }
     else if (_inputMode === 'photo') { photoInput.click(); }
     else if (_inputMode === 'allegato') { allegatoInput.click(); }
@@ -1131,17 +1223,13 @@ micBtn.addEventListener('mouseup', () => {
 });
 micBtn.addEventListener('mouseleave', () => { clearTimeout(_micPressTimer); });
 
-popVoiceBtn.onclick = () => { setInputMode('voice'); closeMicPopover(); };
-popPhotoBtn.onclick = () => { setInputMode('photo'); closeMicPopover(); photoInput.click(); };
-popAllegBtn.onclick = () => { setInputMode('allegato'); closeMicPopover(); allegatoInput.click(); };
-
 // ── TRANSCRIBE ───────────────────────────────────────────────────────────────
 async function drainQueue() {
   if (isTranscribing || !pendingChunks.length) return;
-  isTranscribing = true; processingPill.classList.add('show'); micStatus.innerHTML = '<span class="pill-dot"></span> Trascrivo\u2026';
+  isTranscribing = true; processingPill.classList.add('show'); micStatus.innerHTML = '';
   while (pendingChunks.length) await transcribeBlob(pendingChunks.shift());
   processingPill.classList.remove('show'); isTranscribing = false;
-  if (isRecording) micStatus.innerHTML = '<span class="pill-dot"></span> In ascolto\u2026'; else micStatus.innerHTML = '';
+  if (isRecording) annotLabel.textContent = 'In ascolto\u2026'; else { annotLabel.textContent = 'Annotazione'; micStatus.innerHTML = ''; }
 }
 
 async function transcribeBlob(blob) {
@@ -1149,7 +1237,7 @@ async function transcribeBlob(blob) {
   const mt = blob.type || ''; const ext = mt.includes('wav') ? 'wav' : mt.includes('ogg') ? 'ogg' : mt.includes('mp4') ? 'mp4' : 'webm';
   const form = new FormData(); form.append('file', blob, 'audio.' + ext); form.append('model', 'whisper-large-v3'); form.append('language', 'it'); form.append('response_format', 'text');
   const ctx = getEditorText().split(/\s+/).slice(-60).join(' ');
-  form.append('prompt', ctx ? 'Trascrivi esattamente le parole dette in italiano. Non aggiungere parole, non interpretare, non completare frasi. Se non senti nulla di chiaro, non scrivere nulla. Contesto recente: ' + ctx : 'Trascrivi esattamente le parole dette in italiano. Non aggiungere parole, non interpretare, non completare frasi. Se non senti nulla di chiaro, non scrivere nulla.');
+  form.append('prompt', ctx ? 'Contesto: ' + ctx : 'Italiano.');
   for (let a = 1; a <= 4; a++) {
     try {
       if (a > 1) await sleep(Math.min(1000 * Math.pow(2, a - 1), 10000));
@@ -1157,7 +1245,8 @@ async function transcribeBlob(blob) {
       if (res.status === 429) { const w = parseInt(res.headers.get('retry-after') || '60', 10); const ed = await res.json().catch(() => ({})); const m = ed?.error?.message || ''; const match = m.match(/try again in (\d+)m(\d+)s/) || m.match(/try again in (\d+)s/); let ws = w; if (match && match.length === 3) ws = parseInt(match[1]) * 60 + parseInt(match[2]); else if (match && match.length === 2) ws = parseInt(match[1]); await waitWithCountdown(Math.min(ws, 300), 'Rate limit \u2013 riprovo tra'); a--; continue; }
       if (!res.ok) { const e = await res.json().catch(() => {}); throw new Error(e?.error?.message || 'HTTP ' + res.status); }
       hideErr(); const raw = (await res.text()).trim(); const txt = raw.replace(/\.{2,}/g, '').replace(/\u2026/g, '').replace(/\s{2,}/g, ' ').trim();
-      if (txt && txt !== '[BLANK_AUDIO]' && txt.length > 1) {
+      const isHallucination = /non scrivere|non inventare|non aggiungere|non interpretare|non completare|trascrivi esattamente|se non senti|sottotitol|grazie per (aver|la)|iscriviti al canale|alla prossima/i.test(txt);
+      if (txt && txt !== '[BLANK_AUDIO]' && txt.length > 1 && !isHallucination) {
         const cur = getEditorText(); const np = deduplicateOverlap(cur, txt);
         if (np) { annotEditor.focus(); const sel = window.getSelection(), range = document.createRange(); range.selectNodeContents(annotEditor); range.collapse(false); sel.removeAllRanges(); sel.addRange(range); const prefix = cur && !/\s$/.test(annotEditor.innerText) ? ' ' : ''; const tn = document.createTextNode(prefix + np); range.insertNode(tn); range.setStartAfter(tn); range.collapse(true); sel.removeAllRanges(); sel.addRange(range); aLastRange = range.cloneRange(); _hasRec = true; updateWords(); annotEditor.scrollTop = annotEditor.scrollHeight; }
       }
@@ -1208,22 +1297,30 @@ function resetAll() {
   noteTitleInput.value = ''; resizeTitleInput();
   annotWrap.classList.remove('done'); liveDot.className = 'live-dot';
   outputBox.className = 'output-box'; outputText.innerHTML = '';
-  refineDrawer.classList.remove('show'); refineDrawerBody.classList.remove('open'); refineDrawerHandle.classList.remove('open');
+  refineDrawer.classList.remove('show'); refineDrawerBody.classList.remove('open');
   swipeHandle.classList.remove('show'); setActivePanel(0);
-  photoFeedbackSection.classList.remove('show'); _photoBase64 = null; _photoHasSchema = false; _photoFeedbackHistory.length = 0;
+  photoFeedbackSection.classList.remove('show'); correggiBtn.classList.remove('visible', 'active'); _photoBase64 = null; _photoHasSchema = false; _photoFeedbackHistory.length = 0;
   setStatus('idle', GROQ_KEY ? 'Pronto' : 'Chiave API mancante');
 }
 clearBtn.onclick = () => {
   if (isRecording) return;
   if (_activePanel === 1) {
     outputBox.className = 'output-box'; outputText.innerHTML = '';
-    refineDrawer.classList.remove('show'); refineDrawerBody.classList.remove('open'); refineDrawerHandle.classList.remove('open');
+    refineDrawer.classList.remove('show'); refineDrawerBody.classList.remove('open');
     _hasAI = false; swipeHandle.classList.remove('show'); setActivePanel(0); updateWords();
   } else { resetAll(); }
 };
+
+// Correggi button toggles photo feedback dropdown
+correggiBtn.onclick = () => {
+  const isOpen = photoFeedbackSection.classList.contains('show');
+  photoFeedbackSection.classList.toggle('show', !isOpen);
+  correggiBtn.classList.toggle('active', !isOpen);
+};
+
 clearAiBtn.onclick = () => {
   outputBox.className = 'output-box'; outputText.innerHTML = '';
-  refineDrawer.classList.remove('show'); refineDrawerBody.classList.remove('open'); refineDrawerHandle.classList.remove('open');
+  refineDrawer.classList.remove('show'); refineDrawerBody.classList.remove('open');
   _hasAI = false; swipeHandle.classList.remove('show'); setActivePanel(0); updateWords();
 };
 copyAiBtn.onclick = () => {
@@ -1251,7 +1348,7 @@ modalConfirm.onclick = async () => {
     const _rec = { title, content, note_date: date, mode: _mode }; if (_imgUrl) _rec.image_url = _imgUrl;
     const { data: savedNote, error } = await sb.from('notes').insert([_rec]).select().single();
     if (savedNote) MemoryManager.indexNote(savedNote); if (error) throw error;
-    _photoBase64 = null; _photoHasSchema = false; _photoFeedbackHistory.length = 0; photoFeedbackSection.classList.remove('show');
+    _photoBase64 = null; _photoHasSchema = false; _photoFeedbackHistory.length = 0; photoFeedbackSection.classList.remove('show'); correggiBtn.classList.remove('visible', 'active');
     if (_saveMode === 'ai' && _originalTxt) { const feedback = refineInput ? refineInput.value.trim() : ''; try { const rules = feedback ? await ProfileManager.analyzeFeedback(feedback, GROQ_KEY) : null; await ProfileManager.saveApprovedExample(_originalTxt, outputText.innerHTML, rules, feedback); } catch(e) {} }
     modalSuccessText.textContent = 'Salvato nel Diario!'; modalSuccessSub.textContent = title; modalSuccess.style.display = 'flex';
     setTimeout(() => {
@@ -1261,11 +1358,11 @@ modalConfirm.onclick = async () => {
       if (_saveMode === 'direct') {
         annotEditor.innerHTML = ''; _hasRec = false; _hasWrite = false; updateWords();
         annotWrap.classList.remove('done'); liveDot.className = 'live-dot';
-        photoFeedbackSection.classList.remove('show'); _photoBase64 = null; _photoHasSchema = false; _photoFeedbackHistory.length = 0;
+        photoFeedbackSection.classList.remove('show'); correggiBtn.classList.remove('visible', 'active'); _photoBase64 = null; _photoHasSchema = false; _photoFeedbackHistory.length = 0;
         setStatus('idle', GROQ_KEY ? 'Pronto' : 'Chiave API mancante');
         if (_hasAI) setActivePanel(1);
       }
-      if (_saveMode === 'ai') { outputBox.className = 'output-box'; outputText.innerHTML = ''; moodBox.style.display = 'none'; refineArea.classList.remove('show'); _hasAI = false; swipeHandle.classList.remove('show'); setActivePanel(0); }
+      if (_saveMode === 'ai') { outputBox.className = 'output-box'; outputText.innerHTML = ''; _hasAI = false; swipeHandle.classList.remove('show'); setActivePanel(0); }
     }, 1800);
   } catch(e) { showErr('Errore salvataggio: ' + e.message); modalConfirm.disabled = false; modalConfirm.textContent = 'Salva'; }
 };
@@ -1301,7 +1398,7 @@ async function processImageFile(file) {
   try {
     const raw = await analyzePhoto(_photoBase64, []); _photoHasSchema = /SCHEMA:\s*s[i\u00ec]/i.test(raw);
     const clean = raw.replace(/SCHEMA:\s*(s[i\u00ec]|no)/i, '').trim(); _photoFeedbackHistory.push({ transcription: clean, feedback: null, response: null });
-    annotEditor.innerHTML = mdToHtml(clean); _hasWrite = true; updateWords(); photoFeedbackSection.classList.add('show'); photoFeedbackInput.value = '';
+    annotEditor.innerHTML = mdToHtml(clean); _hasWrite = true; updateWords(); correggiBtn.classList.add('visible'); photoFeedbackInput.value = '';
   } catch(err) { showErr('Errore analisi foto: ' + (err.message || err)); _photoBase64 = null; }
   photoProcPill.classList.remove('show');
 }
@@ -1372,6 +1469,14 @@ async function uploadPhotoToStorage(base64) {
 (function() {
   var ed = document.getElementById('annotEditor');
   if (ed) { ed.addEventListener('focus', function() { setTimeout(function() { var toolbar = document.querySelector('.guided-editor-fmt'); var body = document.querySelector('.guided-body'); if (!toolbar || !body) return; var tbBottom = toolbar.getBoundingClientRect().bottom; var bdBottom = body.getBoundingClientRect().bottom; if (tbBottom > bdBottom) body.scrollTop += (tbBottom - bdBottom) + 8; }, 350); }); }
+})();
+
+// ── Blocca navigazione indietro alla nota già salvata/sospesa ──
+(function() {
+  history.pushState({ vvNote: true }, '', location.href);
+  window.addEventListener('popstate', function() {
+    window.location.replace('index.html');
+  });
 })();
 </script>
 </body>

@@ -57,8 +57,9 @@ h1 em { font-style:italic; color:var(--accent); }
 .read-card-body p { margin-bottom:.55rem; }
 .read-card-body h3 { font-family:'DM Serif Display',serif; font-size:1rem; margin:.7rem 0 .3rem; }
 .read-card-footer { margin-top:.85rem; display:flex; justify-content:flex-end; gap:.4rem; }
-.btn-edit { background:none; border:1px solid var(--border); color:var(--muted); padding:.38rem .8rem; border-radius:.5rem; font-family:'JetBrains Mono',monospace; font-size:.62rem; cursor:pointer; text-transform:uppercase; letter-spacing:.1em; transition:border-color .2s,color .2s; }
-.btn-edit:hover { border-color:var(--accent); color:var(--accent); }
+.btn-edit { background:rgba(245,158,11,.12); border:1px solid rgba(245,158,11,.4); color:var(--warn); padding:.38rem .8rem; border-radius:.5rem; font-family:'JetBrains Mono',monospace; font-size:.62rem; cursor:pointer; text-transform:uppercase; letter-spacing:.1em; transition:background .2s,border-color .2s,color .2s; }
+.btn-edit:hover { background:rgba(245,158,11,.2); }
+.btn-edit:active { background:none; border-color:var(--border); color:var(--muted); }
 .btn-delete-card { background:none; border:1px solid rgba(240,106,106,.3); color:#f06a6a; padding:.38rem .8rem; border-radius:.5rem; font-family:'JetBrains Mono',monospace; font-size:.62rem; cursor:pointer; text-transform:uppercase; letter-spacing:.1em; transition:border-color .2s,background .2s; }
 .btn-delete-card:hover { background:rgba(240,106,106,.1); }
 /* Cronologia */
@@ -533,7 +534,7 @@ editAiBtn.onclick = async () => {
             {role:'user',content:plainText.slice(0,3000)}
           ]})
       });
-      if (res.status === 429) { const w=parseInt(res.headers.get('retry-after')||'10',10); await sleep(Math.min(w,30)*1000); a--; continue; }
+      if (res.status === 429) { const w=parseInt(res.headers.get('retry-after')||'30',10); const _ed=await res.json().catch(()=>({})); const _m=_ed?.error?.message||''; const _mt=_m.match(/try again in (\d+)m(\d+\.?\d*)s/)||_m.match(/try again in (\d+\.?\d*)s/); let _ws=w; if(_mt&&_mt.length===3)_ws=parseInt(_mt[1])*60+Math.ceil(parseFloat(_mt[2])); else if(_mt&&_mt.length===2)_ws=Math.ceil(parseFloat(_mt[1])); await sleep(Math.min(_ws,120)*1000); a--; continue; }
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const raw = (await res.json()).choices?.[0]?.message?.content?.trim() || '';
       const moodMatch = raw.match(/<div id="mood-output">([\s\S]*?)<\/div>/i);
@@ -575,7 +576,7 @@ editRefineBtn.onclick = async () => {
             {role:'user', content:'Feedback:\n\n'+feedback+'\n\nRielabora tenendo conto di questo feedback mantenendo tutte le regole.'}
           ]})
       });
-      if (res.status===429){const w=parseInt(res.headers.get('retry-after')||'10',10);await sleep(Math.min(w,30)*1000);a--;continue;}
+      if (res.status===429){const w=parseInt(res.headers.get('retry-after')||'30',10);const _ed=await res.json().catch(()=>({}));const _m=_ed?.error?.message||'';const _mt=_m.match(/try again in (\d+)m(\d+\.?\d*)s/)||_m.match(/try again in (\d+\.?\d*)s/);let _ws=w;if(_mt&&_mt.length===3)_ws=parseInt(_mt[1])*60+Math.ceil(parseFloat(_mt[2]));else if(_mt&&_mt.length===2)_ws=Math.ceil(parseFloat(_mt[1]));await sleep(Math.min(_ws,120)*1000);a--;continue;}
       if (!res.ok) throw new Error('HTTP '+res.status);
       const raw=(await res.json()).choices?.[0]?.message?.content?.trim()||'';
       const moodMatch=raw.match(/<div id="mood-output">([\s\S]*?)<\/div>/i);
@@ -1218,7 +1219,7 @@ popupAiBtn.onclick=async()=>{
             {role:'user',content:plainText.slice(0,3000)}
           ]})
       });
-      if(res.status===429){const w=parseInt(res.headers.get('retry-after')||'10',10);await sleep(Math.min(w,30)*1000);a--;continue;}
+      if(res.status===429){const w=parseInt(res.headers.get('retry-after')||'30',10);const _ed=await res.json().catch(()=>({}));const _m=_ed?.error?.message||'';const _mt=_m.match(/try again in (\d+)m(\d+\.?\d*)s/)||_m.match(/try again in (\d+\.?\d*)s/);let _ws=w;if(_mt&&_mt.length===3)_ws=parseInt(_mt[1])*60+Math.ceil(parseFloat(_mt[2]));else if(_mt&&_mt.length===2)_ws=Math.ceil(parseFloat(_mt[1]));await sleep(Math.min(_ws,120)*1000);a--;continue;}
       if(!res.ok)throw new Error('HTTP '+res.status);
       const raw=(await res.json()).choices?.[0]?.message?.content?.trim()||'';
       const moodMatch=raw.match(/<div id="mood-output">([\s\S]*?)<\/div>/i);
@@ -1261,7 +1262,7 @@ popupRefineBtn.onclick = async () => {
             {role:'user', content:'Feedback:\n\n'+feedback+'\n\nRielabora tenendo conto di questo feedback mantenendo tutte le regole.'}
           ]})
       });
-      if (res.status===429){const w=parseInt(res.headers.get('retry-after')||'10',10);await sleep(Math.min(w,30)*1000);a--;continue;}
+      if (res.status===429){const w=parseInt(res.headers.get('retry-after')||'30',10);const _ed=await res.json().catch(()=>({}));const _m=_ed?.error?.message||'';const _mt=_m.match(/try again in (\d+)m(\d+\.?\d*)s/)||_m.match(/try again in (\d+\.?\d*)s/);let _ws=w;if(_mt&&_mt.length===3)_ws=parseInt(_mt[1])*60+Math.ceil(parseFloat(_mt[2]));else if(_mt&&_mt.length===2)_ws=Math.ceil(parseFloat(_mt[1]));await sleep(Math.min(_ws,120)*1000);a--;continue;}
       if (!res.ok) throw new Error('HTTP '+res.status);
       const raw=(await res.json()).choices?.[0]?.message?.content?.trim()||'';
       const moodMatch=raw.match(/<div id="mood-output">([\s\S]*?)<\/div>/i);
@@ -1521,7 +1522,7 @@ async function transcribePopupBlob(blob){
     try{
       if(a>1)await sleep(Math.min(1000*Math.pow(2,a-1),8000));
       const res=await fetch('https://api.groq.com/openai/v1/audio/transcriptions',{method:'POST',cache:'no-store',headers:{'Authorization':'Bearer '+GROQ},body:form});
-      if(res.status===429){const w=parseInt(res.headers.get('retry-after')||'30',10);await sleep(Math.min(w,60)*1000);a--;continue;}
+      if(res.status===429){const w=parseInt(res.headers.get('retry-after')||'30',10);const _ed=await res.json().catch(()=>({}));const _m=_ed?.error?.message||'';const _mt=_m.match(/try again in (\d+)m(\d+\.?\d*)s/)||_m.match(/try again in (\d+\.?\d*)s/);let _ws=w;if(_mt&&_mt.length===3)_ws=parseInt(_mt[1])*60+Math.ceil(parseFloat(_mt[2]));else if(_mt&&_mt.length===2)_ws=Math.ceil(parseFloat(_mt[1]));await sleep(Math.min(_ws,120)*1000);a--;continue;}
       if(!res.ok)throw new Error('HTTP '+res.status);
       const raw=(await res.text()).trim();
       const txt=raw.replace(/\.{2,}/g,'').replace(/\u2026/g,'').replace(/\s{2,}/g,' ').trim();

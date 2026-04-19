@@ -71,6 +71,11 @@ h1 em { font-style:italic; color:var(--accent); }
 .pending-card-chip { font-size:.65rem; background:rgba(245,158,11,.1); border:1px solid rgba(245,158,11,.22); color:var(--warn); border-radius:.25rem; padding:.15rem .5rem; font-family:'JetBrains Mono',monospace; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:200px; }
 .pending-card-cta { font-size:.69rem; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); display:flex; align-items:center; gap:.3rem; }
 .pending-card-cta svg { width:14px; height:14px; flex-shrink:0; }
+/* Report button */
+.btn-report { display:flex; align-items:center; justify-content:center; gap:.5rem; width:100%; background:none; border:1px solid var(--border); border-radius:.7rem; color:var(--muted); font-family:'JetBrains Mono',monospace; font-size:.62rem; text-transform:uppercase; letter-spacing:.13em; padding:.65rem 1rem; cursor:pointer; touch-action:manipulation; transition:border-color .2s,color .2s,background .2s; }
+.btn-report:hover { border-color:rgba(74,222,128,.35); color:var(--live); background:rgba(74,222,128,.05); }
+.btn-report:disabled { opacity:.45; cursor:default; }
+.btn-report svg { width:14px; height:14px; flex-shrink:0; }
 /* Error */
 .error-msg { background:rgba(240,106,106,.08); border:1px solid rgba(240,106,106,.25); border-radius:.6rem; padding:.65rem .85rem; font-size:.68rem; color:#f06a6a; line-height:1.6; display:none; }
 .error-msg.show { display:block; }
@@ -127,6 +132,11 @@ h1 em { font-style:italic; color:var(--accent); }
     </div>
     <div id="pendingCardsList"></div>
   </div>
+
+  <button class="btn-report" id="generateReportBtn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C12 2 8.5 7.5 2 12C8.5 16.5 12 22 12 22C12 22 15.5 16.5 22 12C15.5 7.5 12 2 12 2Z" fill="currentColor" stroke="none" opacity=".8"/></svg>
+    Genera Report Settimanale
+  </button>
 
   <div class="error-msg" id="errorMsg"></div>
 
@@ -218,17 +228,47 @@ const errorMsg = $('errorMsg');
 function showErr(m) { errorMsg.textContent = m; errorMsg.classList.add('show'); }
 function hideErr() { errorMsg.classList.remove('show'); }
 
+const prefetchedTargets = new Set();
+function prefetchTarget(href, asType) {
+  if (prefetchedTargets.has(href)) return;
+  prefetchedTargets.add(href);
+  const link = document.createElement('link');
+  link.rel = 'prefetch';
+  if (asType) link.as = asType;
+  link.href = href;
+  document.head.appendChild(link);
+}
+
+function warmEntryNavigation() {
+  prefetchTarget('guidedDiary_func.html', 'document');
+  prefetchTarget('freeNote_func.html', 'document');
+}
+
+function scheduleIdleWarmup(cb) {
+  if ('requestIdleCallback' in window) {
+    window.requestIdleCallback(cb, { timeout: 1500 });
+    return;
+  }
+  setTimeout(cb, 250);
+}
+
 // ── FAB + / ENTRY SWITCHER ──────────────────────────────────────────────────
 const fabPlus = $('fabPlus'), entrySwitcher = $('entrySwitcher');
 fabPlus.onclick = () => {
+  warmEntryNavigation();
   fabPlus.style.display = 'none';
   entrySwitcher.classList.add('show');
 };
+scheduleIdleWarmup(warmEntryNavigation);
+$('entryGuided').addEventListener('pointerenter', () => prefetchTarget('guidedDiary_func.html', 'document'), { once: true });
+$('entryGuided').addEventListener('touchstart', () => prefetchTarget('guidedDiary_func.html', 'document'), { once: true, passive: true });
 $('entryGuided').onclick = () => {
   entrySwitcher.classList.remove('show');
   fabPlus.style.display = 'flex';
   window.location.href = 'guidedDiary_func.html';
 };
+$('entryNota').addEventListener('pointerenter', () => prefetchTarget('freeNote_func.html', 'document'), { once: true });
+$('entryNota').addEventListener('touchstart', () => prefetchTarget('freeNote_func.html', 'document'), { once: true, passive: true });
 $('entryNota').onclick = () => {
   entrySwitcher.classList.remove('show');
   fabPlus.style.display = 'flex';

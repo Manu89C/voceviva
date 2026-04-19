@@ -9,7 +9,6 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="VoceViva">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400;1,600&family=EB+Garamond:ital,wght@1,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
-<script src="rnnoise-sync.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="vv-memory.js"></script>
 <style>
@@ -342,10 +341,27 @@ function deduplicateOverlap(existing, incoming) {
 // ── RNNOISE ───────────────────────────────────────────────────────────────────
 let rnnoiseModule = null, rnnoiseState = null;
 let apiWarmedUp = false;
+let rnnoiseScriptPromise = null;
+
+function ensureRNNoiseLoaded() {
+  if (typeof createRNNWasmModule !== 'undefined') return Promise.resolve(true);
+  if (rnnoiseScriptPromise) return rnnoiseScriptPromise;
+  rnnoiseScriptPromise = new Promise(resolve => {
+    const script = document.createElement('script');
+    script.src = 'rnnoise-sync.js';
+    script.async = true;
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.head.appendChild(script);
+  });
+  return rnnoiseScriptPromise;
+}
 
 async function initRNNoise() {
   if (rnnoiseModule) return true;
   try {
+    const loaded = await ensureRNNoiseLoaded();
+    if (!loaded) return false;
     if (typeof createRNNWasmModule === 'undefined') return false;
     rnnoiseModule = await createRNNWasmModule();
     rnnoiseState = rnnoiseModule._rnnoise_create(0);
@@ -488,7 +504,7 @@ async function warmupAPI() {
 
   // ── Navigate back to index.html ──
   function goBack() {
-    window.location.href = 'index.html';
+    window.location.replace('index.html');
   }
 
   // ── CLOSE ──
@@ -947,8 +963,14 @@ async function warmupAPI() {
           body: form
         });
         if (res.status === 429) {
-          const w = parseInt(res.headers.get('retry-after') || '10', 10);
-          await sleep(Math.min(w, 30) * 1000); a--; continue;
+          const w = parseInt(res.headers.get('retry-after') || '30', 10);
+          const _ed = await res.json().catch(() => ({}));
+          const _m = _ed?.error?.message || '';
+          const _mt = _m.match(/try again in (\d+)m(\d+\.?\d*)s/) || _m.match(/try again in (\d+\.?\d*)s/);
+          let _ws = w;
+          if (_mt && _mt.length === 3) _ws = parseInt(_mt[1]) * 60 + Math.ceil(parseFloat(_mt[2]));
+          else if (_mt && _mt.length === 2) _ws = Math.ceil(parseFloat(_mt[1]));
+          await sleep(Math.min(_ws, 120) * 1000); a--; continue;
         }
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const raw = (await res.text()).trim();
@@ -1447,6 +1469,14 @@ async function warmupAPI() {
       }, 350);
     });
   }
+})();
+
+// ── Blocca navigazione indietro alla nota già salvata/sospesa ──
+(function() {
+  history.pushState({ vvNote: true }, '', location.href);
+  window.addEventListener('popstate', function() {
+    window.location.replace('index.html');
+  });
 })();
 </script>
 </body>

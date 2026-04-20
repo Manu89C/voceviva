@@ -713,6 +713,10 @@ if (!GROQ_KEY) { showErr('Chiave Groq API mancante. Torna alla pagina principale
 else { setStatus('idle', 'Pronto'); }
 
 // ── EDIT MODE (da diary.html) ────────────────────────────────────────────────
+// Redirect back to diary if this is a stale back-navigation after a completed edit
+if (sessionStorage.getItem('vv_edit_completed') === '1' && !localStorage.getItem('vv_edit_note') && !localStorage.getItem('vv_new_note_date')) {
+  sessionStorage.removeItem('vv_edit_completed'); window.location.replace('diary.html');
+}
 let _editNoteId = null;
 let _cameFromDiary = false;
 {
@@ -881,6 +885,11 @@ async function openSaveModal(mode) {
   const dateVal = $('noteDateInput').value || new Date().toISOString().split('T')[0];
   modalDateInput.value = dateVal; modalPreview.innerHTML = content;
   const existingTitle = noteTitleInput.value.trim();
+  // In edit mode: salva direttamente senza aprire il modale
+  if (_editNoteId) {
+    modalTitleInput.value = existingTitle || 'Senza titolo'; modalConfirm.disabled = false;
+    modalConfirm.onclick(); return;
+  }
   if (existingTitle) {
     modalTitleInput.value = existingTitle; modalTitle.textContent = 'Salva nel Diario'; modalConfirm.disabled = false;
     saveModal.classList.add('show'); return;
@@ -1383,12 +1392,15 @@ modalConfirm.onclick = async () => {
     if (savedNote) MemoryManager.indexNote(savedNote); if (error) throw error;
     _photoBase64 = null; _photoHasSchema = false; _photoFeedbackHistory.length = 0; photoFeedbackSection.classList.remove('show'); correggiBtn.classList.remove('visible', 'active');
     if (_saveMode === 'ai' && _originalTxt) { const feedback = refineInput ? refineInput.value.trim() : ''; try { const rules = feedback ? await ProfileManager.analyzeFeedback(feedback, GROQ_KEY) : null; await ProfileManager.saveApprovedExample(_originalTxt, outputText.innerHTML, rules, feedback); } catch(e) {} }
-    modalSuccessText.textContent = _editNoteId ? 'Nota aggiornata!' : 'Salvato nel Diario!'; modalSuccessSub.textContent = title; modalSuccess.style.display = 'flex';
+    if (_editNoteId) {
+      _editNoteId = null; localStorage.removeItem('vv_edit_note'); saveModal.classList.remove('show');
+      sessionStorage.setItem('vv_edit_completed', '1'); window.location.replace('diary.html'); return;
+    }
+    modalSuccessText.textContent = 'Salvato nel Diario!'; modalSuccessSub.textContent = title; modalSuccess.style.display = 'flex';
     setTimeout(() => {
       saveModal.classList.remove('show'); modalSuccess.style.display = 'none';
       modalTitleInput.value = ''; modalDateInput.value = ''; modalPreview.innerHTML = '';
       modalConfirm.disabled = false; modalConfirm.textContent = 'Salva'; if (modalTitle) modalTitle.textContent = 'Salva nel Diario';
-      if (_editNoteId) { _editNoteId = null; localStorage.removeItem('vv_edit_note'); window.location.replace('diary.html'); return; }
       if (_saveMode === 'direct') {
         annotEditor.innerHTML = ''; _hasRec = false; _hasWrite = false; updateWords();
         annotWrap.classList.remove('done'); liveDot.className = 'live-dot';

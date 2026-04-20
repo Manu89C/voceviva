@@ -322,6 +322,39 @@ saveKeyBtn.onclick = () => {
   };
 })();
 
+// ── REALTIME SYNC ───────────────────────────────────────────────────────────
+// Aggiorna la Report card quando un altro dispositivo salva/cancella un report
+if (sb) {
+  const _indexChannel = sb.channel('vv-index-realtime')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'notes' }, async (payload) => {
+      const mode = payload.new?.mode || payload.old?.mode;
+      if (mode !== 'report') return;
+      const rc = document.querySelector('.container');
+      const ps = document.getElementById('pendingSection');
+      await ReportManager.renderReportCard(rc, ps);
+    })
+    .subscribe((status, err) => {
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.warn('[Index] Realtime subscribe error:', status, err);
+      }
+    });
+}
+
+// ── FALLBACK: aggiorna la Report card quando la tab torna in primo piano ─────
+{
+  let _indexVisDebounce = null;
+  document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState !== 'visible') return;
+    clearTimeout(_indexVisDebounce);
+    _indexVisDebounce = setTimeout(async () => {
+      const rc = document.querySelector('.container');
+      const ps = document.getElementById('pendingSection');
+      await ReportManager.renderReportCard(rc, ps);
+      renderPendingSection();
+    }, 600);
+  });
+}
+
 // ── PWA ─────────────────────────────────────────────────────────────────────
 let swReg = null, _swRefreshing = false;
 if ('serviceWorker' in navigator) {

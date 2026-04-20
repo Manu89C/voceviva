@@ -502,9 +502,10 @@ async function warmupAPI() {
   const gContinueBtn = $('guidedContinue');
   const gCloseBtn = $('guidedClose');
 
-  // ── Navigate back to index.html ──
+  // ── Navigate back ──
+  let _cameFromDiary = !!localStorage.getItem('vv_new_note_date');
   function goBack() {
-    window.location.replace('index.html');
+    window.location.replace(_cameFromDiary ? 'diary.html' : 'index.html');
   }
 
   // ── CLOSE ──
@@ -1357,7 +1358,9 @@ async function warmupAPI() {
     gResumeContext = null;
     gResumeIndices = [];
     gResumeConfirmedIndices = new Set();
-    $('guidedDateInput').value = new Date().toISOString().split('T')[0];
+    const _presetDate = localStorage.getItem('vv_new_note_date');
+    localStorage.removeItem('vv_new_note_date');
+    $('guidedDateInput').value = _presetDate || new Date().toISOString().split('T')[0];
     gRenderQuestion();
   }
 
@@ -1475,7 +1478,7 @@ async function warmupAPI() {
 (function() {
   history.pushState({ vvNote: true }, '', location.href);
   window.addEventListener('popstate', function() {
-    window.location.replace('index.html');
+    window.location.replace(_cameFromDiary ? 'diary.html' : 'index.html');
   });
 })();
 </script>

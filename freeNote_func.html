@@ -1519,9 +1519,19 @@ async function uploadPhotoToStorage(base64) {
 
 // ── Blocca navigazione indietro alla nota già salvata/sospesa ──
 (function() {
-  history.pushState({ vvNote: true }, '', location.href);
+  // In edit mode non aggiungiamo una entry extra: dopo il salvataggio window.location.replace
+  // rimuove l'unica entry di freeNote, quindi Back va direttamente al Diario.
+  if (!_editNoteId) history.pushState({ vvNote: true }, '', location.href);
   window.addEventListener('popstate', function() {
     window.location.replace(_cameFromDiary ? 'diary.html' : 'index.html');
+  });
+  // Gestione bfcache: i browser mobili ripristinano la pagina dalla cache senza
+  // rieseguire gli script. Se la sessione di modifica è già stata completata, redirect.
+  window.addEventListener('pageshow', function(e) {
+    if (e.persisted && sessionStorage.getItem('vv_edit_completed') === '1') {
+      sessionStorage.removeItem('vv_edit_completed');
+      window.location.replace('diary.html');
+    }
   });
 })();
 </script>

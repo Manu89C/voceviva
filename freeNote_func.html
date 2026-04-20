@@ -712,7 +712,34 @@ noteTitleInput.addEventListener('input', resizeTitleInput);
 if (!GROQ_KEY) { showErr('Chiave Groq API mancante. Torna alla pagina principale per inserirla.'); setStatus('idle', 'Chiave API mancante'); }
 else { setStatus('idle', 'Pronto'); }
 
-function goBack() { window.location.replace('index.html'); }
+// ── EDIT MODE (da diary.html) ────────────────────────────────────────────────
+let _editNoteId = null;
+let _cameFromDiary = false;
+{
+  const editJson = localStorage.getItem('vv_edit_note');
+  if (editJson) {
+    try {
+      const note = JSON.parse(editJson);
+      _editNoteId = note.id;
+      _cameFromDiary = true;
+      annotEditor.innerHTML = note.content || '';
+      noteTitleInput.value = note.title || '';
+      $('noteDateInput').value = note.note_date || new Date().toISOString().split('T')[0];
+      resizeTitleInput();
+      updateWords();
+    } catch(e) { console.warn('[Edit mode] parse error:', e); }
+    localStorage.removeItem('vv_edit_note');
+  } else {
+    const newDate = localStorage.getItem('vv_new_note_date');
+    if (newDate) {
+      $('noteDateInput').value = newDate;
+      _cameFromDiary = true;
+      localStorage.removeItem('vv_new_note_date');
+    }
+  }
+}
+
+function goBack() { window.location.replace(_cameFromDiary ? 'diary.html' : 'index.html'); }
 $('closeBtn').onclick = () => { cleanupRecording(); goBack(); };
 
 // ── EDITOR ───────────────────────────────────────────────────────────────────
@@ -1346,15 +1373,22 @@ modalConfirm.onclick = async () => {
     let _imgUrl = null; if (_photoBase64 && _photoHasSchema) _imgUrl = await uploadPhotoToStorage(_photoBase64);
     const _mode = _saveMode === 'ai' ? 'AI' : (_hasRec && (_hasWrite || _photoBase64) ? 'rec+write' : _hasRec ? 'rec' : 'write');
     const _rec = { title, content, note_date: date, mode: _mode }; if (_imgUrl) _rec.image_url = _imgUrl;
-    const { data: savedNote, error } = await sb.from('notes').insert([_rec]).select().single();
+    let savedNote, error;
+    if (_editNoteId) {
+      _rec.updated_at = new Date().toISOString();
+      ({ data: savedNote, error } = await sb.from('notes').update(_rec).eq('id', _editNoteId).select().single());
+    } else {
+      ({ data: savedNote, error } = await sb.from('notes').insert([_rec]).select().single());
+    }
     if (savedNote) MemoryManager.indexNote(savedNote); if (error) throw error;
     _photoBase64 = null; _photoHasSchema = false; _photoFeedbackHistory.length = 0; photoFeedbackSection.classList.remove('show'); correggiBtn.classList.remove('visible', 'active');
     if (_saveMode === 'ai' && _originalTxt) { const feedback = refineInput ? refineInput.value.trim() : ''; try { const rules = feedback ? await ProfileManager.analyzeFeedback(feedback, GROQ_KEY) : null; await ProfileManager.saveApprovedExample(_originalTxt, outputText.innerHTML, rules, feedback); } catch(e) {} }
-    modalSuccessText.textContent = 'Salvato nel Diario!'; modalSuccessSub.textContent = title; modalSuccess.style.display = 'flex';
+    modalSuccessText.textContent = _editNoteId ? 'Nota aggiornata!' : 'Salvato nel Diario!'; modalSuccessSub.textContent = title; modalSuccess.style.display = 'flex';
     setTimeout(() => {
       saveModal.classList.remove('show'); modalSuccess.style.display = 'none';
       modalTitleInput.value = ''; modalDateInput.value = ''; modalPreview.innerHTML = '';
       modalConfirm.disabled = false; modalConfirm.textContent = 'Salva'; if (modalTitle) modalTitle.textContent = 'Salva nel Diario';
+      if (_editNoteId) { _editNoteId = null; localStorage.removeItem('vv_edit_note'); window.location.replace('diary.html'); return; }
       if (_saveMode === 'direct') {
         annotEditor.innerHTML = ''; _hasRec = false; _hasWrite = false; updateWords();
         annotWrap.classList.remove('done'); liveDot.className = 'live-dot';
@@ -1475,7 +1509,7 @@ async function uploadPhotoToStorage(base64) {
 (function() {
   history.pushState({ vvNote: true }, '', location.href);
   window.addEventListener('popstate', function() {
-    window.location.replace('index.html');
+    window.location.replace(_cameFromDiary ? 'diary.html' : 'index.html');
   });
 })();
 </script>

@@ -81,9 +81,11 @@ const MemoryManager = (() => {
   let _sb = null;
   let _cohereKey = '';
   let _initialized = false;
+  let _userId = null;
 
   // ── INIT ────────────────────────────────────────────────────────────────────
-  async function init() {
+  async function init(userId = null) {
+    _userId = userId;
     try {
       _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     } catch(e) {
@@ -455,24 +457,41 @@ Tono: come un amico intelligente che conosce la persona da tempo. Non consolator
   // Controlla e salva lo stato di indicizzazione su Supabase invece che su
   // localStorage, così il flag è condiviso tra tutti i dispositivi dell'utente.
   async function _isIndexedOnServer() {
-  try {
-    const { data } = await _sb
-      .from(TABLE_PROFILE)
-      .select('memory_indexed_at')
-      .eq('user_id', 'default')
-      .single();
-    return !!data?.memory_indexed_at;
-  } catch(e) { return false; }
-}
+    const uid = _userId || 'default';
+    try {
+      // Prima controlla il flag di profilo (fast path)
+      const { data } = await _sb
+        .from(TABLE_PROFILE)
+        .select('memory_indexed_at')
+        .eq('user_id', uid)
+        .single();
+      if (data?.memory_indexed_at) return true;
 
-async function _setIndexedOnServer() {
-  try {
-    await _sb
-      .from(TABLE_PROFILE)
-      .upsert({ user_id: 'default', memory_indexed_at: new Date().toISOString() },
-        { onConflict: 'user_id' });
-  } catch(e) { console.warn('[MemoryManager] _setIndexedOnServer error:', e); }
-}
+      // Flag assente (es. nuovo device o migrazione auth):
+      // controlla se esistono davvero note senza embedding
+      const { count } = await _sb
+        .from('notes')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', uid)
+        .is('embedding', null);
+      if (count === 0) {
+        // Tutte già indicizzate — aggiorna il flag silenziosamente
+        await _setIndexedOnServer();
+        return true;
+      }
+      return false;
+    } catch(e) { return false; }
+  }
+
+  async function _setIndexedOnServer() {
+    const uid = _userId || 'default';
+    try {
+      await _sb
+        .from(TABLE_PROFILE)
+        .upsert({ user_id: uid, memory_indexed_at: new Date().toISOString() },
+          { onConflict: 'user_id' });
+    } catch(e) { console.warn('[MemoryManager] _setIndexedOnServer error:', e); }
+  }
   // ── HELPER: EMBED TESTI VIA COHERE ──────────────────────────────────────────
   async function _embedTexts(texts) {
     if (!_cohereKey || !texts?.length) return [];

@@ -10,6 +10,7 @@
 <meta name="apple-mobile-web-app-title" content="VoceViva">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400;1,600&family=EB+Garamond:ital,wght@1,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="vv-auth.js"></script>
 <script src="vv-profile.js"></script>
 <script src="vv-memory.js"></script>
 <script src="vv-report.js"></script> 
@@ -42,6 +43,17 @@ h1 em { font-style:italic; color:var(--accent); }
 .mode-btn { background:none; border:none; color:var(--muted); padding:.35rem .55rem; border-radius:.4rem; cursor:pointer; touch-action:manipulation; transition:background .2s,color .2s; text-decoration:none; display:flex; align-items:center; justify-content:center; }
 .mode-btn svg { width:16px; height:16px; }
 .mode-btn.active { background:var(--accent); color:#fff; }
+/* Profile menu */
+.profile-wrap { position:relative; display:flex; align-items:center; }
+.profile-btn { width:2.2rem; height:2.2rem; border-radius:50%; background:var(--surface); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text); transition:background .2s; padding:0; flex-shrink:0; }
+.profile-btn svg { width:1.3rem; height:1.3rem; }
+.profile-btn:hover { background:rgba(245,80,54,.1); border-color:var(--accent); }
+.profile-dropdown { position:absolute; right:0; top:calc(100% + .5rem); background:var(--surface); border:1px solid var(--border); border-radius:.8rem; padding:.75rem 1rem; min-width:190px; display:none; flex-direction:column; gap:.45rem; z-index:200; box-shadow:0 8px 24px rgba(0,0,0,.35); }
+.profile-dropdown.open { display:flex; }
+.profile-email { font-size:.68rem; color:var(--muted); word-break:break-all; line-height:1.4; }
+.profile-divider { border:none; border-top:1px solid var(--border); margin:.15rem 0; }
+.profile-signout { background:none; border:none; color:#f55036; font-family:'JetBrains Mono',monospace; font-size:.72rem; cursor:pointer; text-align:left; padding:.15rem 0; }
+.profile-signout:hover { text-decoration:underline; }
 /* FAB + BUTTON */
 .fab-plus { width:56px; height:56px; border-radius:50%; border:none; background:var(--accent); color:#fff; font-size:1.8rem; cursor:pointer; display:flex; align-items:center; justify-content:center; align-self:center; box-shadow:0 6px 28px rgba(245,80,54,.4); touch-action:manipulation; transition:transform .15s,box-shadow .2s; line-height:1; }
 .fab-plus:active { transform:scale(.92); }
@@ -89,9 +101,21 @@ h1 em { font-style:italic; color:var(--accent); }
     <h1>Voce <em>Viva</em></h1>
     <p class="subtitle">Whisper &middot; LLaMA &middot; <span class="badge">ANNOTAZIONI</span></p>
   </header>
+  <div style="display:flex;align-items:center;gap:8px;">
   <div class="mode-switcher">
     <button class="mode-btn active" id="modeAnnot" title="Annotazioni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg></button>
     <a class="mode-btn" href="diary.html" title="Diario"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="12" y1="6" x2="12" y2="14"/><line x1="12" y1="6" x2="12" y2="6.01"/></svg></a>
+  </div>
+  <div class="profile-wrap" id="profileWrap">
+    <button class="profile-btn" id="profileBtn" title="Profilo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+    </button>
+    <div class="profile-dropdown" id="profileDropdown">
+      <span class="profile-email" id="profileEmail">…</span>
+      <hr class="profile-divider">
+      <button class="profile-signout" id="logoutBtn">Esci</button>
+    </div>
+  </div>
   </div>
   </div>
 
@@ -152,15 +176,33 @@ const SUPABASE_KEY = 'sb_publishable_ASHxxToKJyMy4CpBAqseqA_mepXAAJ-';
 let sb = null;
 try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) {}
 
-// ── PROFILE MANAGER INIT ─────────────────────────────────────────────────────
-ProfileManager.init();
+// ── AUTH + INIT ──────────────────────────────────────────────────────────────
+let currentUserId = null;
+
 (async () => {
-  await MemoryManager.init();
-  await ReportManager.init(sb, GROQ_KEY);
+  if (sb) {
+    const { userId } = await VvAuth.init(sb);
+    if (!userId) return; // VvAuth ha già reindirizzato a login.html
+    currentUserId = userId;
+  }
+  ProfileManager.init(currentUserId);
+  await MemoryManager.init(currentUserId);
+  await ReportManager.init(sb, GROQ_KEY, currentUserId);
   const rc = document.querySelector('.container');
   const ps = document.getElementById('pendingSection');
   await ReportManager.renderReportCard(rc, ps);
   renderPendingSection();
+  // Profile dropdown
+  const _profileBtn = document.getElementById('profileBtn');
+  const _profileDrop = document.getElementById('profileDropdown');
+  _profileBtn.onclick = e => { e.stopPropagation(); _profileDrop.classList.toggle('open'); };
+  document.addEventListener('click', () => _profileDrop.classList.remove('open'));
+  document.getElementById('logoutBtn').onclick = () => VvAuth.signOut(sb);
+  // Popola email
+  sb.auth.getSession().then(({ data: { session } }) => {
+    const em = session?.user?.email || session?.user?.user_metadata?.email || '';
+    document.getElementById('profileEmail').textContent = em;
+  });
 })();
 
 // ── IN SOSPESO (pending guided diary entries) ────────────────────────────────

@@ -10,6 +10,7 @@
 <meta name="apple-mobile-web-app-title" content="VoceViva">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400;1,600&family=EB+Garamond:ital,wght@1,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="vv-auth.js"></script>
 <script src="vv-profile.js"></script>
 <script src="vv-memory.js"></script>
 <style>
@@ -532,8 +533,17 @@ let GROQ_KEY = (localStorage.getItem('vv_groq') || '').trim();
 try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) {}
 
 // ── PROFILE & MEMORY ────────────────────────────────────────────────────────
-ProfileManager.init();
-(async () => { await MemoryManager.init(); })();
+// ── AUTH + INIT ──────────────────────────────────────────────────────────────
+let currentUserId = null;
+(async () => {
+  if (sb) {
+    const { userId } = await VvAuth.init(sb);
+    if (!userId) return;
+    currentUserId = userId;
+  }
+  ProfileManager.init(currentUserId);
+  await MemoryManager.init(currentUserId);
+})();
 
 // ── UTILS ────────────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
@@ -1381,7 +1391,7 @@ modalConfirm.onclick = async () => {
   try {
     let _imgUrl = null; if (_photoBase64 && _photoHasSchema) _imgUrl = await uploadPhotoToStorage(_photoBase64);
     const _mode = _saveMode === 'ai' ? 'AI' : (_hasRec && (_hasWrite || _photoBase64) ? 'rec+write' : _hasRec ? 'rec' : 'write');
-    const _rec = { title, content, note_date: date, mode: _mode }; if (_imgUrl) _rec.image_url = _imgUrl;
+    const _rec = { title, content, note_date: date, mode: _mode }; if (_imgUrl) _rec.image_url = _imgUrl; if (currentUserId) _rec.user_id = currentUserId;
     let savedNote, error;
     if (_editNoteId) {
       _rec.updated_at = new Date().toISOString();

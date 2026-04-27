@@ -10,6 +10,7 @@
 <meta name="apple-mobile-web-app-title" content="VoceViva">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400;1,600&family=EB+Garamond:ital,wght@1,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="vv-auth.js"></script>
 <script src="vv-memory.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -311,8 +312,16 @@ const SUPABASE_KEY = 'sb_publishable_ASHxxToKJyMy4CpBAqseqA_mepXAAJ-';
 let sb = null;
 try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) {}
 
-// ── MEMORY MANAGER INIT ──────────────────────────────────────────────────────
-(async () => { await MemoryManager.init(); })();
+// ── AUTH + INIT ───────────────────────────────────────────────────────────────────
+let currentUserId = null;
+(async () => {
+  if (sb) {
+    const { userId } = await VvAuth.init(sb);
+    if (!userId) return;
+    currentUserId = userId;
+  }
+  await MemoryManager.init(currentUserId);
+})();
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
@@ -818,9 +827,11 @@ async function warmupAPI() {
     // Save to Supabase
     if (sb) {
       try {
+        const noteRecord = { title, content: html, note_date: dateStr, mode: 'write' };
+        if (currentUserId) noteRecord.user_id = currentUserId;
         const { data: savedNote, error } = await sb
           .from('notes')
-          .insert([{ title, content: html, note_date: dateStr, mode: 'write' }])
+          .insert([noteRecord])
           .select()
           .single();
         if (error) throw error;

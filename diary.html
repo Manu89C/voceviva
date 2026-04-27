@@ -7,6 +7,7 @@
 <meta name="theme-color" content="#0a0a0f">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400;1,600&family=EB+Garamond:ital,wght@1,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="vv-auth.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root { --bg:#0a0a0f; --surface:#111118; --border:#1e1e2e; --accent:#f55036; --text:#e8e8f0; --muted:#5a5a7a; --live:#4ade80; --warn:#f59e0b; }
@@ -17,6 +18,17 @@ body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:no
 .mode-btn { background:none; border:none; color:var(--muted); padding:.35rem .55rem; border-radius:.4rem; cursor:pointer; touch-action:manipulation; transition:background .2s,color .2s; text-decoration:none; display:flex; align-items:center; justify-content:center; }
 .mode-btn svg { width:16px; height:16px; }
 .mode-btn.active { background:var(--accent); color:#fff; }
+/* Profile menu */
+.profile-wrap { position:relative; display:flex; align-items:center; }
+.profile-btn { width:2.2rem; height:2.2rem; border-radius:50%; background:var(--surface); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text); transition:background .2s; padding:0; flex-shrink:0; }
+.profile-btn svg { width:1.3rem; height:1.3rem; }
+.profile-btn:hover { background:rgba(245,80,54,.1); border-color:var(--accent); }
+.profile-dropdown { position:absolute; right:0; top:calc(100% + .5rem); background:var(--surface); border:1px solid var(--border); border-radius:.8rem; padding:.75rem 1rem; min-width:190px; display:none; flex-direction:column; gap:.45rem; z-index:200; box-shadow:0 8px 24px rgba(0,0,0,.35); }
+.profile-dropdown.open { display:flex; }
+.profile-email { font-size:.68rem; color:var(--muted); word-break:break-all; line-height:1.4; }
+.profile-divider { border:none; border-top:1px solid var(--border); margin:.15rem 0; }
+.profile-signout { background:none; border:none; color:#f55036; font-family:'JetBrains Mono',monospace; font-size:.72rem; cursor:pointer; text-align:left; padding:.15rem 0; }
+.profile-signout:hover { text-decoration:underline; }
 .header-row { display:flex; justify-content:space-between; align-items:flex-start; }
 h1 { font-family:'DM Serif Display',serif; font-size:clamp(1.6rem,5vw,2.2rem); letter-spacing:-.03em; line-height:1; }
 h1 em { font-style:italic; color:var(--accent); }
@@ -142,9 +154,21 @@ h1 em { font-style:italic; color:var(--accent); }
       <h1>Diario <em>Viva</em></h1>
       <p class="subtitle">Le tue note e pensieri</p>
     </header>
+    <div style="display:flex;align-items:center;gap:8px;">
     <div class="mode-switcher">
       <a class="mode-btn" href="index.html" title="Annotazioni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg></a>
       <button class="mode-btn active" title="Diario"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="12" y1="6" x2="12" y2="14"/><line x1="12" y1="6" x2="12" y2="6.01"/></svg></button>
+    </div>
+    <div class="profile-wrap" id="profileWrap">
+      <button class="profile-btn" id="profileBtn" title="Profilo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+      </button>
+      <div class="profile-dropdown" id="profileDropdown">
+        <span class="profile-email" id="profileEmail">…</span>
+        <hr class="profile-divider">
+        <button class="profile-signout" id="logoutBtn">Esci</button>
+      </div>
+    </div>
     </div>
   </div>
 
@@ -499,7 +523,25 @@ if('serviceWorker' in navigator){
     .then(()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 }
 
-loadNotes();
+// ── AUTH + CARICA NOTE ────────────────────────────────────────────────
+(async () => {
+  if (sb) {
+    const { userId } = await VvAuth.init(sb);
+    if (!userId) return;
+    // Profile dropdown
+    const _profileBtn = document.getElementById('profileBtn');
+    const _profileDrop = document.getElementById('profileDropdown');
+    _profileBtn.onclick = e => { e.stopPropagation(); _profileDrop.classList.toggle('open'); };
+    document.addEventListener('click', () => _profileDrop.classList.remove('open'));
+    document.getElementById('logoutBtn').onclick = () => VvAuth.signOut(sb);
+    // Popola email
+    sb.auth.getSession().then(({ data: { session } }) => {
+      const em = session?.user?.email || session?.user?.user_metadata?.email || '';
+      document.getElementById('profileEmail').textContent = em;
+    });
+  }
+  loadNotes();
+})();
 
 // ── REALTIME SYNC ────────────────────────────────────────────────────────────
 // Aggiorna la vista automaticamente quando un altro dispositivo salva/modifica/cancella una nota

@@ -1,7 +1,23 @@
-const CACHE = 'voceviva-v5';
+const CACHE = 'voceviva-v6';
+
+const PRECACHE = [
+  'index.html',
+  'login.html',
+  'diary.html',
+  'freeNote_func.html',
+  'guidedDiary_func.html',
+  'vv-auth.js',
+  'vv-memory.js',
+  'vv-profile.js',
+  'vv-report.js',
+];
 
 self.addEventListener('install', e => {
-  self.skipWaiting();
+  e.waitUntil(
+    caches.open(CACHE)
+      .then(c => c.addAll(PRECACHE))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', e => {
@@ -28,7 +44,11 @@ self.addEventListener('fetch', e => {
         caches.open(CACHE).then(c => c.put(e.request, clone));
         return res;
       })
-      .catch(() => caches.match(e.request))
+      .catch(() =>
+        caches.match(e.request).then(cached =>
+          cached || new Response('Not found', { status: 404 })
+        )
+      )
   );
 });
 

@@ -1,0 +1,5 @@
+[
+  { "text": "Qual è la tua situazione attuale in {area}?", "hasMood": false, "placeholder": "Descrivi la tua situazione attuale in quest'area..." },
+  { "text": "Quali traguardi vuoi raggiungere in {area}?", "hasMood": false, "placeholder": "Indica gli obiettivi che vuoi raggiungere in quest'area..." },
+  { "text": "Chi sono i tuoi punti di riferimento in {area}?", "hasMood": false, "placeholder": "Chi ti ispira o ti guida in quest'area?" }
+]

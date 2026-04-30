@@ -47,6 +47,7 @@ const ReportManager = (() => {
   // ── STATO INTERNO ─────────────────────────────────────────────────────────────
   let _sb       = null;
   let _groqKey  = '';
+  let _userId   = null;
   let _timer    = null;
   let _initialized = false;
   let _generating  = false;
@@ -56,11 +57,12 @@ const ReportManager = (() => {
    * @param {object} supabaseClient - istanza supabase già creata in index.html
    * @param {string} groqKey        - chiave Groq API
    */
-  async function init(supabaseClient, groqKey) {
+  async function init(supabaseClient, groqKey, userId = null) {
     if (!supabaseClient) { console.warn('[ReportManager] init: manca supabaseClient'); return; }
     if (!groqKey) { console.warn('[ReportManager] init: manca groqKey — report disabilitato finché non salvi la chiave Groq'); }
     _sb      = supabaseClient;
     _groqKey = groqKey;
+    _userId  = userId;
     _initialized = true;
 
     // Controlla subito al caricamento
@@ -462,16 +464,19 @@ Genera il report basandoti sui FATTI ESTRATTI sopra. Usa il testo delle note sol
       ? `${aiTitle} — ${dateRange}`
       : `Report Settimanale — ${dateRange}`;
 
+    const noteData = {
+      title,
+      content: html,
+      note_date: weekStartStr,
+      mode: REPORT_MODE,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    if (_userId) noteData.user_id = _userId;
+
     const { data, error } = await _sb
       .from('notes')
-      .insert([{
-        title,
-        content: html,
-        note_date: weekStartStr,
-        mode: REPORT_MODE,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }])
+      .insert([noteData])
       .select()
       .single();
 

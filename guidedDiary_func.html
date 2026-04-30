@@ -10,6 +10,7 @@
 <meta name="apple-mobile-web-app-title" content="VoceViva">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400;1,600&family=EB+Garamond:ital,wght@1,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="vv-auth.js"></script>
 <script src="vv-memory.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -146,6 +147,19 @@ body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:no
 .guided-edit-panel-footer { flex-shrink:0; padding:.65rem 1.2rem; padding-bottom:max(1rem, env(safe-area-inset-bottom)); border-top:1px solid var(--border); background:var(--surface); }
 .guided-edit-save-btn { width:100%; padding:.58rem; background:var(--live); border:none; border-radius:.6rem; color:#0a0a0f; font-family:'JetBrains Mono',monospace; font-size:.65rem; text-transform:uppercase; letter-spacing:.1em; cursor:pointer; font-weight:600; transition:opacity .15s; }
 .guided-edit-save-btn:hover { opacity:.88; }
+
+/* ── LIFE-WHEEL area title input ── */
+.guided-title-lw {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.4rem; letter-spacing: -.02em; font-style: italic;
+  color: var(--accent);
+  background: none; border: none;
+  border-bottom: 1px solid transparent;
+  outline: none; padding: .05rem 0; width: 100%;
+  transition: border-color .2s;
+}
+.guided-title-lw:focus { border-bottom-color: var(--lw-color, var(--accent)); }
+.guided-title-lw::placeholder { opacity: .4; font-style: italic; }
 
 /* Modal input (date) */
 .modal-input { background:var(--bg); border:1px solid var(--border); border-radius:.6rem; color:var(--text); font-family:'JetBrains Mono',monospace; font-size:.78rem; padding:.55rem .7rem; outline:none; transition:border-color .2s; width:100%; color-scheme:dark; }
@@ -311,8 +325,16 @@ const SUPABASE_KEY = 'sb_publishable_ASHxxToKJyMy4CpBAqseqA_mepXAAJ-';
 let sb = null;
 try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) {}
 
-// ── MEMORY MANAGER INIT ──────────────────────────────────────────────────────
-(async () => { await MemoryManager.init(); })();
+// ── AUTH + INIT ───────────────────────────────────────────────────────────────────
+let currentUserId = null;
+(async () => {
+  if (sb) {
+    const { userId } = await VvAuth.init(sb);
+    if (!userId) return;
+    currentUserId = userId;
+  }
+  await MemoryManager.init(currentUserId);
+})();
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
@@ -439,12 +461,21 @@ async function warmupAPI() {
 
 // ── DIARIO GUIDATO ────────────────────────────────────────────────────────────
 (async () => {
-  // Check API key
-  if (!GROQ_KEY) {
+  // ── MODE PARAMS ───────────────────────────────────────────────────────────
+  const _urlP     = new URLSearchParams(location.search);
+  const GD_MODE    = _urlP.get('mode') || 'diary';  // 'diary' | 'life-wheel'
+  const GD_AREA_ID = _urlP.get('areaId') ? parseInt(_urlP.get('areaId'), 10) : null;
+  const GD_POPUP   = _urlP.get('popup') === '1';
+
+  // Check API key (only needed for diary mode)
+  if (!GROQ_KEY && GD_MODE !== 'life-wheel') {
     showErr('Chiave Groq API mancante. Torna alla pagina principale per inserirla.');
   }
 
-  const GUIDED_QUESTIONS = [
+  const GQ_STORAGE_KEY  = GD_MODE === 'life-wheel' ? 'vv_lw_questions' : 'vv_guided_questions';
+  const GQ_DEFAULT_FILE = GD_MODE === 'life-wheel' ? 'questions-life-wheel.json' : 'questions-diary.json';
+
+  const _GQ_FALLBACK_DIARY = [
     { text: 'Qual è il tuo umore oggi?', hasMood: true, placeholder: 'Aggiungi un commento sul tuo umore (opzionale)...' },
     { text: 'Cosa ti è successo oggi?', hasMood: false, placeholder: 'Racconta cosa è accaduto...' },
     { text: 'Quanto di ciò che ti è successo ha condizionato il tuo umore ed in che modo?', hasMood: false, placeholder: 'Descrivi l\'impatto sul tuo umore...' },
@@ -454,21 +485,30 @@ async function warmupAPI() {
     { text: 'Quali azioni piccole potresti attuare per allinearti all\'idea di te che vuoi raggiungere?', hasMood: false, placeholder: 'Pensa ad azioni concrete e piccole...' },
     { text: 'Cosa hai imparato oggi sia da ciò che puoi cambiare che da ciò che non puoi cambiare?', hasMood: false, placeholder: 'Rifletti su ciò che hai appreso...' }
   ];
+  const _GQ_FALLBACK_LW = [
+    { text: 'Qual è la tua situazione attuale in {area}?', hasMood: false, placeholder: 'Descrivi la tua situazione attuale in quest\'area...' },
+    { text: 'Quali traguardi vuoi raggiungere in {area}?', hasMood: false, placeholder: 'Indica gli obiettivi che vuoi raggiungere in quest\'area...' },
+    { text: 'Chi sono i tuoi punti di riferimento in {area}?', hasMood: false, placeholder: 'Chi ti ispira o ti guida in quest\'area?' }
+  ];
 
-  // Load custom questions from localStorage if available
-  const GQ_STORAGE_KEY = 'vv_guided_questions';
-  (function() {
-    try {
-      const stored = localStorage.getItem(GQ_STORAGE_KEY);
-      if (stored) {
-        const arr = JSON.parse(stored);
-        if (Array.isArray(arr) && arr.length > 0) {
-          GUIDED_QUESTIONS.length = 0;
-          arr.forEach(q => GUIDED_QUESTIONS.push(q));
-        }
-      }
-    } catch(e) {}
-  })();
+  // Load questions from JSON file, then allow localStorage custom override
+  let _GQ_DEFAULTS = GD_MODE === 'life-wheel' ? [..._GQ_FALLBACK_LW] : [..._GQ_FALLBACK_DIARY];
+  try {
+    const _qResp = await fetch(GQ_DEFAULT_FILE);
+    if (_qResp.ok) {
+      const _qArr = await _qResp.json();
+      if (Array.isArray(_qArr) && _qArr.length > 0) _GQ_DEFAULTS = _qArr;
+    }
+  } catch(e) {}
+
+  let GUIDED_QUESTIONS = [..._GQ_DEFAULTS];
+  try {
+    const stored = localStorage.getItem(GQ_STORAGE_KEY);
+    if (stored) {
+      const arr = JSON.parse(stored);
+      if (Array.isArray(arr) && arr.length > 0) GUIDED_QUESTIONS = arr;
+    }
+  } catch(e) {}
 
   let gCurrentIdx = 0;
   let gAnswers = new Array(GUIDED_QUESTIONS.length).fill(null);
@@ -505,6 +545,11 @@ async function warmupAPI() {
   // ── Navigate back ──
   let _cameFromDiary = !!localStorage.getItem('vv_new_note_date');
   function goBack() {
+    if (GD_POPUP && window.parent !== window) {
+      window.parent.postMessage({ type: 'lw-diary-close' }, '*');
+      return;
+    }
+    if (GD_MODE === 'life-wheel') { window.location.replace('life_wheel.html'); return; }
     window.location.replace(_cameFromDiary ? 'diary.html' : 'index.html');
   }
 
@@ -589,7 +634,11 @@ async function warmupAPI() {
     const hasContent = (gEditor.innerText || '').trim().length > 0;
     const total = gResumeMode ? gResumeIndices.length : GUIDED_QUESTIONS.length;
     const isLast = gCurrentIdx >= total - 1;
-    gLaterBtn.textContent = hasContent ? 'Completa dopo' : 'Rispondi dopo';
+    if (GD_MODE === 'life-wheel') {
+      gLaterBtn.textContent = 'Salta';
+    } else {
+      gLaterBtn.textContent = hasContent ? 'Completa dopo' : 'Rispondi dopo';
+    }
     if (isLast) {
       gContinueBtn.classList.add('complete');
       gContinueBtn.innerHTML = hasContent ? _saveCompleteSVG : _skipCompleteSVG;
@@ -597,6 +646,22 @@ async function warmupAPI() {
       gContinueBtn.classList.remove('complete');
       gContinueBtn.innerHTML = hasContent ? _saveContinueSVG : _skipSVG;
     }
+  }
+
+  // resolve {area} placeholder in question text
+  let _gAreaLabel = '';
+  let _gAreaColor = 'var(--accent)';
+  function _gInterpolate(text) {
+    if (!text) return text;
+    const raw = _gAreaLabel || 'quest\'area';
+    const label = raw.charAt(0).toUpperCase() + raw.slice(1);
+    return text.replace(/\{area\}/gi,
+      '<em style="color:#fff;font-style:italic;font-weight:500;">' + label + '</em>');
+  }
+  function _gRefreshQuestionText() {
+    const origIdx = gCurrentOrigIdx ? gCurrentOrigIdx() : gCurrentIdx;
+    const q = GUIDED_QUESTIONS[origIdx];
+    if (q && gQuestion) gQuestion.innerHTML = _gInterpolate(q.text);
   }
 
   function gUpdateQNav() {
@@ -615,7 +680,7 @@ async function warmupAPI() {
     const total = GUIDED_QUESTIONS.length;
     gProgress.textContent = `Domanda ${gCurrentIdx + 1} di ${total}`;
     gProgressFill.style.width = ((gCurrentIdx + 1) / total * 100) + '%';
-    gQuestion.innerHTML = q.text;
+    gQuestion.innerHTML = _gInterpolate(q.text);
     gEditor.innerHTML = gAnswers[gCurrentIdx] || '';
     gEditor.setAttribute('data-placeholder', q.placeholder);
     gMoodRow.style.display = q.hasMood ? 'flex' : 'none';
@@ -636,7 +701,7 @@ async function warmupAPI() {
     const total = gResumeIndices.length;
     gProgress.textContent = `Domanda sospesa ${resumeStep + 1} di ${total}`;
     gProgressFill.style.width = ((resumeStep + 1) / total * 100) + '%';
-    gQuestion.innerHTML = q.text;
+    gQuestion.innerHTML = _gInterpolate(q.text);
     gEditor.innerHTML = gAnswers[origIdx] || '';
     gEditor.setAttribute('data-placeholder', q.placeholder);
     gMoodRow.style.display = q.hasMood ? 'flex' : 'none';
@@ -719,6 +784,25 @@ async function warmupAPI() {
 
     gContinueBtn.disabled = true;
     gContinueBtn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;"></div>';
+
+    // ── LIFE-WHEEL MODE ──
+    if (GD_MODE === 'life-wheel' && GD_AREA_ID !== null) {
+      try {
+        const lwRaw = localStorage.getItem('vv_life_wheel');
+        const lwData = lwRaw ? JSON.parse(lwRaw) : { areas: [] };
+        const area = (lwData.areas || []).find(a => a.id === GD_AREA_ID);
+        if (area) {
+          area.answers = GUIDED_QUESTIONS.map((q, i) => gAnswers[i] || '');
+          localStorage.setItem('vv_life_wheel', JSON.stringify(lwData));
+        }
+      } catch(e) {}
+      if (GD_POPUP && window.parent !== window) {
+        window.parent.postMessage({ type: 'lw-diary-saved', areaId: GD_AREA_ID }, '*');
+      } else {
+        window.location.replace('life_wheel.html');
+      }
+      return;
+    }
 
     const dateStr = $('guidedDateInput').value || new Date().toISOString().split('T')[0];
     const chosenDate = new Date(dateStr + 'T12:00:00');
@@ -818,9 +902,11 @@ async function warmupAPI() {
     // Save to Supabase
     if (sb) {
       try {
+        const noteRecord = { title, content: html, note_date: dateStr, mode: 'write' };
+        if (currentUserId) noteRecord.user_id = currentUserId;
         const { data: savedNote, error } = await sb
           .from('notes')
-          .insert([{ title, content: html, note_date: dateStr, mode: 'write' }])
+          .insert([noteRecord])
           .select()
           .single();
         if (error) throw error;
@@ -1135,16 +1221,7 @@ async function warmupAPI() {
   }
 
   // ── EDIT QUESTIONS PANEL ─────────────────────────────────────────────────────
-  const GQ_DEFAULTS = [
-    { text: 'Qual è il tuo umore oggi?', hasMood: true, placeholder: 'Aggiungi un commento sul tuo umore (opzionale)...' },
-    { text: 'Cosa ti è successo oggi?', hasMood: false, placeholder: 'Racconta cosa è accaduto...' },
-    { text: 'Quanto di ciò che ti è successo ha condizionato il tuo umore ed in che modo?', hasMood: false, placeholder: 'Descrivi l\'impatto sul tuo umore...' },
-    { text: 'Cosa di ciò che non ti è accaduto ha condizionato il tuo umore ed in che modo lo influenza?', hasMood: false, placeholder: 'Pensa a ciò che non è successo...' },
-    { text: 'Cosa degli avvenimenti o delle motivazioni sopra elencate dipende da te?', hasMood: false, placeholder: 'Cosa è sotto il tuo controllo...' },
-    { text: 'Cosa invece non dipende da te?', hasMood: false, placeholder: 'Cosa non puoi controllare...' },
-    { text: 'Quali azioni piccole potresti attuare per allinearti all\'idea di te che vuoi raggiungere?', hasMood: false, placeholder: 'Pensa ad azioni concrete e piccole...' },
-    { text: 'Cosa hai imparato oggi sia da ciò che puoi cambiare che da ciò che non puoi cambiare?', hasMood: false, placeholder: 'Rifletti su ciò che hai appreso...' }
-  ];
+  const GQ_DEFAULTS = _GQ_DEFAULTS;
 
   const gEditPanel    = document.getElementById('guidedEditPanel');
   const gEditList     = document.getElementById('guidedEditList');
@@ -1318,6 +1395,59 @@ async function warmupAPI() {
 
   // ── INIT: check for resume context or start fresh ──
   function initGuidedDiary() {
+    // ── LIFE-WHEEL MODE INIT ──
+    if (GD_MODE === 'life-wheel') {
+      gCurrentIdx = 0;
+      gMoodValue = null;
+      gSkippedNow = new Set();
+      gResumeMode = false;
+      gResumeContext = null;
+      gResumeIndices = [];
+      gResumeConfirmedIndices = new Set();
+      // Pre-populate answers from localStorage area
+      try {
+        const lwRaw = localStorage.getItem('vv_life_wheel');
+        const lwData = lwRaw ? JSON.parse(lwRaw) : { areas: [] };
+        const area = (lwData.areas || []).find(a => a.id === GD_AREA_ID);
+        gAnswers = new Array(GUIDED_QUESTIONS.length).fill(null);
+        if (area) {
+          _gAreaLabel = area.label || '';
+          _gAreaColor = area.color || 'var(--accent)';
+          // Set CSS variable so _gInterpolate em tags get the right color
+          const _card = document.querySelector('.guided-card');
+          if (_card) _card.style.setProperty('--lw-color', _gAreaColor);
+          GUIDED_QUESTIONS.forEach((q, i) => { gAnswers[i] = (area.answers && area.answers[i]) || null; });
+          // Replace static title with an editable input
+          const titleEl = document.querySelector('.guided-title');
+          if (titleEl) {
+            titleEl.innerHTML = '';
+            const titleInput = document.createElement('input');
+            titleInput.className = 'guided-title-lw';
+            titleInput.placeholder = 'Nome area…';
+            titleInput.value = _gAreaLabel ? (_gAreaLabel.charAt(0).toUpperCase() + _gAreaLabel.slice(1)) : '';
+            titleInput.addEventListener('input', () => {
+              _gAreaLabel = titleInput.value;
+              // Persist label to localStorage immediately
+              try {
+                const _lwr = localStorage.getItem('vv_life_wheel');
+                const _lwd = _lwr ? JSON.parse(_lwr) : { areas: [] };
+                const _la = (_lwd.areas || []).find(a => a.id === GD_AREA_ID);
+                if (_la) { _la.label = _gAreaLabel; localStorage.setItem('vv_life_wheel', JSON.stringify(_lwd)); }
+              } catch(e) {}
+              // Refresh only the question text (not the full question render)
+              _gRefreshQuestionText();
+            });
+            titleEl.appendChild(titleInput);
+          }
+        }
+      } catch(e) {}
+      // Hide date section
+      const _dateSection = $('guidedDateLabel') ? $('guidedDateLabel').parentElement : null;
+      if (_dateSection) _dateSection.style.display = 'none';
+      gRenderQuestion();
+      return;
+    }
+
     // Check URL params for resume
     const params = new URLSearchParams(window.location.search);
     const resumeParam = params.get('resume_pending');

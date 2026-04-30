@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="it">
 <head>
 <meta charset="UTF-8">
@@ -10,6 +10,7 @@
 <meta name="apple-mobile-web-app-title" content="VoceViva">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400;1,600&family=EB+Garamond:ital,wght@1,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="vv-auth.js"></script>
 <script src="vv-profile.js"></script>
 <script src="vv-memory.js"></script>
 <script src="vv-report.js"></script> 
@@ -25,11 +26,22 @@ h1 em { font-style:italic; color:var(--accent); }
 .badge { background:rgba(245,80,54,.12); border:1px solid rgba(245,80,54,.25); color:var(--accent); padding:.1rem .5rem; border-radius:.3rem; font-size:.55rem; }
 .header-row { display:flex; justify-content:space-between; align-items:flex-start; }
 /* API card */
-.api-card { background:var(--surface); border:1px solid var(--border); border-radius:1rem; padding:1.1rem; display:flex; flex-direction:column; gap:.65rem; transition:border-color .3s; }
-.api-card.ok { border-color:rgba(74,222,128,.3); }
+.api-card { background:transparent; border:none; border-radius:.6rem; transition:border-color .3s; }
+.api-card.open { background:var(--surface); border:1px solid var(--border); }
+.api-card.open.ok { border-color:rgba(74,222,128,.3); }
 .api-label { font-size:.6rem; text-transform:uppercase; letter-spacing:.12em; color:var(--muted); display:flex; align-items:center; gap:.5rem; }
-.dot { width:6px; height:6px; border-radius:50%; background:#f06a6a; flex-shrink:0; transition:background .3s; }
+.dot { width:8px; height:8px; border-radius:50%; background:#f06a6a; flex-shrink:0; transition:background .3s; }
 .dot.ok { background:var(--live); }
+/* API Keys accordion */
+.apikeys-toggle { width:auto; align-self:flex-start; background:var(--surface); border:1px solid var(--border); border-radius:.6rem; color:var(--text); font-family:'JetBrains Mono',monospace; font-size:.6rem; text-transform:uppercase; letter-spacing:.12em; padding:.45rem .8rem; display:flex; align-items:center; gap:.55rem; cursor:pointer; touch-action:manipulation; transition:border-color .2s; }
+.api-card.open .apikeys-toggle { background:transparent; border-color:transparent; border-radius:.6rem; }
+.apikeys-toggle:hover { background:rgba(255,255,255,.03); }
+.apikeys-title { flex:1; text-align:left; }
+.apikeys-chevron { width:14px; height:14px; flex-shrink:0; transition:transform .25s; color:var(--muted); }
+.api-card.open .apikeys-chevron { transform:rotate(180deg); }
+.apikeys-body { display:none; padding:8px 1.1rem 1rem; flex-direction:column; gap:.65rem; }
+.api-card.open .apikeys-body { display:flex; }
+.apikeys-divider { border:none; border-top:1px solid var(--border); margin:.15rem 0; }
 .api-row { display:flex; gap:.5rem; }
 .api-input { flex:1; background:var(--bg); border:1px solid var(--border); border-radius:.6rem; color:var(--text); font-family:'JetBrains Mono',monospace; font-size:.68rem; padding:.55rem .7rem; outline:none; min-width:0; transition:border-color .2s; }
 .api-input:focus { border-color:var(--accent); }
@@ -42,6 +54,17 @@ h1 em { font-style:italic; color:var(--accent); }
 .mode-btn { background:none; border:none; color:var(--muted); padding:.35rem .55rem; border-radius:.4rem; cursor:pointer; touch-action:manipulation; transition:background .2s,color .2s; text-decoration:none; display:flex; align-items:center; justify-content:center; }
 .mode-btn svg { width:16px; height:16px; }
 .mode-btn.active { background:var(--accent); color:#fff; }
+/* Profile menu */
+.profile-wrap { position:relative; display:flex; align-items:center; }
+.profile-btn { width:2.2rem; height:2.2rem; border-radius:50%; background:var(--surface); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text); transition:background .2s; padding:0; flex-shrink:0; }
+.profile-btn svg { width:1.3rem; height:1.3rem; }
+.profile-btn:hover { background:rgba(245,80,54,.1); border-color:var(--accent); }
+.profile-dropdown { position:absolute; right:0; top:calc(100% + .5rem); background:var(--surface); border:1px solid var(--border); border-radius:.8rem; padding:.75rem 1rem; min-width:190px; display:none; flex-direction:column; gap:.45rem; z-index:200; box-shadow:0 8px 24px rgba(0,0,0,.35); }
+.profile-dropdown.open { display:flex; }
+.profile-email { font-size:.68rem; color:var(--muted); word-break:break-all; line-height:1.4; }
+.profile-divider { border:none; border-top:1px solid var(--border); margin:.15rem 0; }
+.profile-signout { background:none; border:none; color:#f55036; font-family:'JetBrains Mono',monospace; font-size:.72rem; cursor:pointer; text-align:left; padding:.15rem 0; }
+.profile-signout:hover { text-decoration:underline; }
 /* FAB + BUTTON */
 .fab-plus { width:56px; height:56px; border-radius:50%; border:none; background:var(--accent); color:#fff; font-size:1.8rem; cursor:pointer; display:flex; align-items:center; justify-content:center; align-self:center; box-shadow:0 6px 28px rgba(245,80,54,.4); touch-action:manipulation; transition:transform .15s,box-shadow .2s; line-height:1; }
 .fab-plus:active { transform:scale(.92); }
@@ -89,22 +112,55 @@ h1 em { font-style:italic; color:var(--accent); }
     <h1>Voce <em>Viva</em></h1>
     <p class="subtitle">Whisper &middot; LLaMA &middot; <span class="badge">ANNOTAZIONI</span></p>
   </header>
+  <div style="display:flex;align-items:center;gap:8px;">
   <div class="mode-switcher">
     <button class="mode-btn active" id="modeAnnot" title="Annotazioni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg></button>
     <a class="mode-btn" href="diary.html" title="Diario"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="12" y1="6" x2="12" y2="14"/><line x1="12" y1="6" x2="12" y2="6.01"/></svg></a>
+    <a class="mode-btn" href="life_wheel.html" title="Life Wheel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="3" x2="12" y2="12"/><line x1="21" y1="12" x2="12" y2="12"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="3" y1="12" x2="12" y2="12"/></svg></a>
+  </div>
+  <div class="profile-wrap" id="profileWrap">
+    <button class="profile-btn" id="profileBtn" title="Profilo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+    </button>
+    <div class="profile-dropdown" id="profileDropdown">
+      <span class="profile-email" id="profileEmail">�</span>
+      <hr class="profile-divider">
+      <button class="profile-signout" id="logoutBtn">Esci</button>
+    </div>
+  </div>
   </div>
   </div>
 
   <div class="api-card" id="apiCard">
-    <div class="api-label"><span class="dot" id="apiDot"></span><span id="apiLabel">Chiave Groq richiesta</span></div>
-    <div class="api-row">
-      <input class="api-input" type="password" id="apiKeyInput" placeholder="gsk_... (Groq)" autocomplete="off" spellcheck="false">
-      <button class="btn-save" id="saveKeyBtn">Salva</button>
+    <button class="apikeys-toggle" id="apikeysToggle">
+      <span class="dot" id="apiDot"></span>
+      <span class="apikeys-title">Api Keys</span>
+      <svg class="apikeys-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+    <div class="apikeys-body" id="apikeysBody">
+      <div class="api-label"><span class="dot" id="groqDot"></span><span id="apiLabel">Chiave Groq</span></div>
+      <div class="api-row">
+        <input class="api-input" type="password" id="apiKeyInput" placeholder="gsk_... (Groq)" autocomplete="off" spellcheck="false">
+        <button class="btn-save" id="saveKeyBtn">Salva</button>
+      </div>
+      <p class="api-hint">Gratis su <a href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a></p>
     </div>
-    <p class="api-hint">Gratis su <a href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a></p>
   </div>
 
-  <div style="margin-top:24px"></div>
+  <!-- LIFE WHEEL - sempre visibile --------------------------------------- -->
+  <section id="lwSection" style="display:flex;flex-direction:column;gap:.5rem;">
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <span style="font-size:.55rem;text-transform:uppercase;letter-spacing:.16em;color:var(--muted);">Life Wheel</span>
+      <a href="life_wheel.html" style="font-size:.55rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);text-decoration:none;border:1px solid var(--border);border-radius:.4rem;padding:.25rem .55rem;transition:color .2s,border-color .2s;" onmouseover="this.style.color='var(--accent)';this.style.borderColor='rgba(245,80,54,.4)'" onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">Espandi ?</a>
+    </div>
+    <iframe
+      src="life_wheel.html?embed=1"
+      id="lwIframe"
+      scrolling="no"
+      style="width:100%;border:none;border-radius:.75rem;overflow:hidden;display:block;"
+      title="Life Wheel">
+    </iframe>
+  </section>
 
   <!-- FAB + BUTTON (Nuova nota) -->
   <button class="fab-plus" id="fabPlus" title="Nuova nota">+</button>
@@ -143,27 +199,45 @@ h1 em { font-style:italic; color:var(--accent); }
 </div>
 
 <script>
-// ── CONFIG ──────────────────────────────────────────────────────────────────
+// -- CONFIG ------------------------------------------------------------------
 let GROQ_KEY = (localStorage.getItem('vv_groq') || '').trim();
 
-// ── SUPABASE ─────────────────────────────────────────────────────────────────
+// -- SUPABASE -----------------------------------------------------------------
 const SUPABASE_URL = 'https://ezycobgovadcgvnyqcew.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_ASHxxToKJyMy4CpBAqseqA_mepXAAJ-';
 let sb = null;
 try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) {}
 
-// ── PROFILE MANAGER INIT ─────────────────────────────────────────────────────
-ProfileManager.init();
+// -- AUTH + INIT --------------------------------------------------------------
+let currentUserId = null;
+
 (async () => {
-  await MemoryManager.init();
-  await ReportManager.init(sb, GROQ_KEY);
+  if (sb) {
+    const { userId } = await VvAuth.init(sb);
+    if (!userId) return; // VvAuth ha gi� reindirizzato a login.html
+    currentUserId = userId;
+  }
+  ProfileManager.init(currentUserId);
+  await MemoryManager.init(currentUserId);
+  await ReportManager.init(sb, GROQ_KEY, currentUserId);
   const rc = document.querySelector('.container');
   const ps = document.getElementById('pendingSection');
   await ReportManager.renderReportCard(rc, ps);
   renderPendingSection();
+  // Profile dropdown
+  const _profileBtn = document.getElementById('profileBtn');
+  const _profileDrop = document.getElementById('profileDropdown');
+  _profileBtn.onclick = e => { e.stopPropagation(); _profileDrop.classList.toggle('open'); };
+  document.addEventListener('click', () => _profileDrop.classList.remove('open'));
+  document.getElementById('logoutBtn').onclick = () => VvAuth.signOut(sb);
+  // Popola email
+  sb.auth.getSession().then(({ data: { session } }) => {
+    const em = session?.user?.email || session?.user?.user_metadata?.email || '';
+    document.getElementById('profileEmail').textContent = em;
+  });
 })();
 
-// ── IN SOSPESO (pending guided diary entries) ────────────────────────────────
+// -- IN SOSPESO (pending guided diary entries) --------------------------------
 function renderPendingSection() {
   var PENDING_KEY = 'vv_pending_questions';
   var ps = document.getElementById('pendingSection');
@@ -222,7 +296,7 @@ function renderPendingSection() {
   });
 }
 
-// ── HELPERS ──────────────────────────────────────────────────────────────────
+// -- HELPERS ------------------------------------------------------------------
 const $ = id => document.getElementById(id);
 const errorMsg = $('errorMsg');
 function showErr(m) { errorMsg.textContent = m; errorMsg.classList.add('show'); }
@@ -252,7 +326,7 @@ function scheduleIdleWarmup(cb) {
   setTimeout(cb, 250);
 }
 
-// ── FAB + / ENTRY SWITCHER ──────────────────────────────────────────────────
+// -- FAB + / ENTRY SWITCHER --------------------------------------------------
 const fabPlus = $('fabPlus'), entrySwitcher = $('entrySwitcher');
 fabPlus.onclick = () => {
   warmEntryNavigation();
@@ -275,21 +349,29 @@ $('entryNota').onclick = () => {
   window.location.href = 'freeNote_func.html';
 };
 
-// ── API KEY ─────────────────────────────────────────────────────────────────
+// -- API KEY -----------------------------------------------------------------
 const apiKeyInput = $('apiKeyInput'), saveKeyBtn = $('saveKeyBtn');
 const apiDot = $('apiDot'), apiLabel = $('apiLabel'), apiCard = $('apiCard');
 
+function _updateHeaderDot() {
+  const groqOk = !!(localStorage.getItem('vv_groq') || '').trim();
+  const cohereOk = !!(localStorage.getItem('vv_cohere') || '').trim();
+  apiDot.className = (groqOk && cohereOk) ? 'dot ok' : 'dot';
+  apiCard.classList.toggle('ok', groqOk && cohereOk);
+}
+
 function applyKey(k) {
   GROQ_KEY = k.trim();
-  if (GROQ_KEY) {
-    apiDot.className = 'dot ok'; apiLabel.textContent = 'Chiave Groq salvata';
-    apiCard.classList.add('ok');
-  } else {
-    apiDot.className = 'dot'; apiLabel.textContent = 'Chiave Groq richiesta';
-    apiCard.classList.remove('ok');
-  }
+  const groqDot = $('groqDot');
+  if (groqDot) groqDot.className = GROQ_KEY ? 'dot ok' : 'dot';
+  apiLabel.textContent = 'Chiave Groq';
+  _updateHeaderDot();
 }
 if (GROQ_KEY) { apiKeyInput.value = GROQ_KEY; applyKey(GROQ_KEY); }
+else { apiCard.classList.add('open'); }
+document.getElementById('apikeysToggle').addEventListener('click', () => {
+  apiCard.classList.toggle('open');
+});
 saveKeyBtn.onclick = () => {
   const k = apiKeyInput.value.trim();
   if (!k) { showErr('Incolla la chiave Groq.'); return; }
@@ -297,7 +379,7 @@ saveKeyBtn.onclick = () => {
   ReportManager.setGroqKey(k);
 };
 
-// ── REPORT BUTTON ───────────────────────────────────────────────────────────
+// -- REPORT BUTTON -----------------------------------------------------------
 (function() {
   const genBtn = document.getElementById('generateReportBtn');
   if (!genBtn) return;
@@ -322,7 +404,7 @@ saveKeyBtn.onclick = () => {
   };
 })();
 
-// ── REALTIME SYNC ───────────────────────────────────────────────────────────
+// -- REALTIME SYNC -----------------------------------------------------------
 // Aggiorna la Report card quando un altro dispositivo salva/cancella un report
 if (sb) {
   const _indexChannel = sb.channel('vv-index-realtime')
@@ -340,7 +422,7 @@ if (sb) {
     });
 }
 
-// ── FALLBACK: aggiorna la Report card quando la tab torna in primo piano ─────
+// -- FALLBACK: aggiorna la Report card quando la tab torna in primo piano -----
 {
   let _indexVisDebounce = null;
   document.addEventListener('visibilitychange', async () => {
@@ -355,7 +437,15 @@ if (sb) {
   });
 }
 
-// ── PWA ─────────────────────────────────────────────────────────────────────
+// -- LIFE WHEEL IFRAME AUTO-HEIGHT -------------------------------------------
+window.addEventListener('message', e => {
+  if (e.data?.type === 'lw-height') {
+    const f = document.getElementById('lwIframe');
+    if (f) f.style.height = e.data.h + 'px';
+  }
+});
+
+// -- PWA ---------------------------------------------------------------------
 let swReg = null, _swRefreshing = false;
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('controllerchange', () => {

@@ -1,0 +1,10 @@
+[
+  { "text": "Qual è il tuo umore oggi?", "hasMood": true, "placeholder": "Aggiungi un commento sul tuo umore (opzionale)..." },
+  { "text": "Cosa ti è successo oggi?", "hasMood": false, "placeholder": "Racconta cosa è accaduto..." },
+  { "text": "Quanto di ciò che ti è successo ha condizionato il tuo umore ed in che modo?", "hasMood": false, "placeholder": "Descrivi l'impatto sul tuo umore..." },
+  { "text": "Cosa di ciò che non ti è accaduto ha condizionato il tuo umore ed in che modo lo influenza?", "hasMood": false, "placeholder": "Pensa a ciò che non è successo..." },
+  { "text": "Cosa degli avvenimenti o delle motivazioni sopra elencate dipende da te?", "hasMood": false, "placeholder": "Cosa è sotto il tuo controllo..." },
+  { "text": "Cosa invece non dipende da te?", "hasMood": false, "placeholder": "Cosa non puoi controllare..." },
+  { "text": "Quali azioni piccole potresti attuare per allinearti all'idea di te che vuoi raggiungere?", "hasMood": false, "placeholder": "Pensa ad azioni concrete e piccole..." },
+  { "text": "Cosa hai imparato oggi sia da ciò che puoi cambiare che da ciò che non puoi cambiare?", "hasMood": false, "placeholder": "Rifletti su ciò che hai appreso..." }
+]

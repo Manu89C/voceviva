@@ -81,9 +81,11 @@ const MemoryManager = (() => {
   let _sb = null;
   let _cohereKey = '';
   let _initialized = false;
+  let _userId = null;
 
   // ── INIT ────────────────────────────────────────────────────────────────────
-  async function init() {
+  async function init(userId = null) {
+    _userId = userId;
     try {
       _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     } catch(e) {
@@ -95,45 +97,71 @@ const MemoryManager = (() => {
 
     // Mostra banner se: chiave presente, mai indicizzato prima
     if (_cohereKey) {
-      const indexed = await _isIndexedOnServer();
-      if (!indexed) _showIndexBanner();
-  }
+      if (localStorage.getItem(STORAGE_KEY_INDEXED)) {
+        // fast path: già indicizzato in questo browser
+      } else {
+        const indexed = await _isIndexedOnServer();
+        if (!indexed) _showIndexBanner();
+      }
+    }
     // Inietta UI per la chiave Cohere nell'api-card esistente
     _injectCohereKeyUI();
   }
 
   // ── UI: CHIAVE COHERE ────────────────────────────────────────────────────────
   function _injectCohereKeyUI() {
-    const apiCard = document.getElementById('apiCard');
-    if (!apiCard || document.getElementById('cohereKeyRow')) return;
+    const body = document.getElementById('apikeysBody');
+    if (!body || document.getElementById('cohereKeyRow')) return;
+
+    const label = document.createElement('div');
+    label.className = 'api-label';
+    label.innerHTML = '<span class="dot" id="cohereDot"></span><span>Chiave Cohere</span>';
 
     const row = document.createElement('div');
     row.id = 'cohereKeyRow';
-    row.style.cssText = 'display:flex;gap:.5rem;margin-top:.5rem;';
+    row.className = 'api-row';
     row.innerHTML = `
       <input class="api-input" type="password" id="cohereKeyInput"
-        placeholder="Chiave Cohere (memoria semantica)"
-        autocomplete="off" spellcheck="false"
-        style="flex:1">
+        placeholder="trial-... (Cohere)"
+        autocomplete="off" spellcheck="false">
       <button class="btn-save" id="saveCohereBtn">Salva</button>
     `;
     const hint = document.createElement('p');
     hint.className = 'api-hint';
     hint.innerHTML = 'Gratis su <a href="https://dashboard.cohere.com/api-keys" target="_blank">dashboard.cohere.com</a> · necessaria per la memoria a lungo termine';
 
-    apiCard.appendChild(row);
-    apiCard.appendChild(hint);
+    const sep = document.createElement('hr');
+    sep.className = 'apikeys-divider';
+    body.appendChild(sep);
+    body.appendChild(label);
+    body.appendChild(row);
+    body.appendChild(hint);
 
     const input = document.getElementById('cohereKeyInput');
     const btn   = document.getElementById('saveCohereBtn');
+    const dot   = document.getElementById('cohereDot');
 
-    if (_cohereKey) input.value = _cohereKey;
+    function _updateCohereDot(k) {
+      if (dot) dot.className = k ? 'dot ok' : 'dot';
+      // aggiorna anche il dot dell'header accordion
+      const headerDot = document.getElementById('apiDot');
+      const apiCard   = document.getElementById('apiCard');
+      if (headerDot && apiCard) {
+        const groqOk   = !!(localStorage.getItem('vv_groq')   || '').trim();
+        const cohereOk = !!k;
+        headerDot.className = (groqOk && cohereOk) ? 'dot ok' : 'dot';
+        apiCard.classList.toggle('ok', groqOk && cohereOk);
+      }
+    }
+
+    if (_cohereKey) { input.value = _cohereKey; _updateCohereDot(_cohereKey); }
 
     btn.onclick = () => {
       const k = input.value.trim();
       if (!k) return;
       _cohereKey = k;
       localStorage.setItem(STORAGE_KEY_COHERE, k);
+      _updateCohereDot(k);
       btn.textContent = '✓';
       btn.style.background = '#4ade80';
       btn.style.color = '#0a0a0f';
@@ -193,7 +221,10 @@ const MemoryManager = (() => {
     }
 
     document.getElementById('startIndexBtn').onclick = () => _runIndexing(banner);
-    document.getElementById('dismissBannerBtn').onclick = () => banner.remove();
+    document.getElementById('dismissBannerBtn').onclick = () => {
+      localStorage.setItem(STORAGE_KEY_INDEXED, 'dismissed');
+      banner.remove();
+    };
   }
 
   // ── INDICIZZAZIONE STORICA ──────────────────────────────────────────────────
@@ -455,24 +486,42 @@ Tono: come un amico intelligente che conosce la persona da tempo. Non consolator
   // Controlla e salva lo stato di indicizzazione su Supabase invece che su
   // localStorage, così il flag è condiviso tra tutti i dispositivi dell'utente.
   async function _isIndexedOnServer() {
-  try {
-    const { data } = await _sb
-      .from(TABLE_PROFILE)
-      .select('memory_indexed_at')
-      .eq('user_id', 'default')
-      .single();
-    return !!data?.memory_indexed_at;
-  } catch(e) { return false; }
-}
+    const uid = _userId || 'default';
+    try {
+      // Prima controlla il flag di profilo (fast path)
+      const { data } = await _sb
+        .from(TABLE_PROFILE)
+        .select('memory_indexed_at')
+        .eq('user_id', uid)
+        .single();
+      if (data?.memory_indexed_at) return true;
 
-async function _setIndexedOnServer() {
-  try {
-    await _sb
-      .from(TABLE_PROFILE)
-      .upsert({ user_id: 'default', memory_indexed_at: new Date().toISOString() },
-        { onConflict: 'user_id' });
-  } catch(e) { console.warn('[MemoryManager] _setIndexedOnServer error:', e); }
-}
+      // Flag assente (es. nuovo device o migrazione auth):
+      // controlla se esistono davvero note senza embedding
+      const { count } = await _sb
+        .from('notes')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', uid)
+        .is('embedding', null);
+      if (count === 0) {
+        // Tutte già indicizzate — aggiorna il flag silenziosamente
+        await _setIndexedOnServer();
+        return true;
+      }
+      return false;
+    } catch(e) { return false; }
+  }
+
+  async function _setIndexedOnServer() {
+    const uid = _userId || 'default';
+    localStorage.setItem(STORAGE_KEY_INDEXED, '1'); // persiste nel browser corrente
+    try {
+      await _sb
+        .from(TABLE_PROFILE)
+        .upsert({ user_id: uid, memory_indexed_at: new Date().toISOString() },
+          { onConflict: 'user_id' });
+    } catch(e) { console.warn('[MemoryManager] _setIndexedOnServer error:', e); }
+  }
   // ── HELPER: EMBED TESTI VIA COHERE ──────────────────────────────────────────
   async function _embedTexts(texts) {
     if (!_cohereKey || !texts?.length) return [];

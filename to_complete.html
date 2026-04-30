@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Voce Viva — In Sospeso</title>
+<meta name="theme-color" content="#0a0a0f">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400;1,600&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root { --bg:#0a0a0f; --surface:#111118; --border:#1e1e2e; --accent:#f55036; --text:#e8e8f0; --muted:#5a5a7a; --live:#4ade80; --warn:#f59e0b; }
+body { min-height:100vh; background:var(--bg); color:var(--text); font-family:'JetBrains Mono',monospace; display:flex; flex-direction:column; align-items:center; padding:1.5rem 1rem 3rem; -webkit-tap-highlight-color:transparent; }
+body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:none; background:radial-gradient(ellipse 80% 50% at 5% 95%,rgba(245,80,54,.08) 0%,transparent 60%),radial-gradient(ellipse 50% 40% at 95% 5%,rgba(245,80,54,.05) 0%,transparent 60%); }
+.container { position:relative; z-index:1; width:100%; max-width:640px; display:flex; flex-direction:column; gap:1.1rem; }
+h1 { font-family:'DM Serif Display',serif; font-size:clamp(2rem,7vw,3rem); letter-spacing:-.03em; line-height:1; }
+h1 em { font-style:italic; color:var(--accent); }
+.subtitle { font-size:.6rem; color:var(--muted); text-transform:uppercase; letter-spacing:.18em; margin-top:.4rem; display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; }
+.badge { background:rgba(245,80,54,.12); border:1px solid rgba(245,80,54,.25); color:var(--accent); padding:.1rem .5rem; border-radius:.3rem; font-size:.55rem; }
+.header-row { display:flex; justify-content:space-between; align-items:flex-start; }
+
+/* Mode switcher */
+.mode-switcher { display:inline-flex; gap:.3rem; background:var(--surface); border:1px solid var(--border); border-radius:.6rem; padding:.25rem; }
+.mode-btn { background:none; border:none; color:var(--muted); padding:.35rem .55rem; border-radius:.4rem; cursor:pointer; touch-action:manipulation; transition:background .2s,color .2s; text-decoration:none; display:flex; align-items:center; justify-content:center; }
+.mode-btn svg { width:16px; height:16px; }
+.mode-btn.active { background:var(--accent); color:#fff; }
+
+/* Section header */
+.section-header { display:flex; align-items:center; justify-content:space-between; }
+.section-title { font-size:.58rem; text-transform:uppercase; letter-spacing:.15em; color:var(--muted); display:flex; align-items:center; gap:.5rem; }
+.section-count { background:rgba(245,158,11,.12); border:1px solid rgba(245,158,11,.3); color:var(--warn); padding:.1rem .45rem; border-radius:.3rem; font-size:.55rem; }
+
+/* Pending cards */
+.pending-list { display:flex; flex-direction:column; gap:.65rem; }
+.pending-card { background:var(--surface); border:1px solid var(--border); border-radius:.85rem; padding:.9rem 1rem; cursor:pointer; transition:border-color .2s, background .15s; display:flex; flex-direction:column; gap:.45rem; position:relative; overflow:hidden; }
+.pending-card::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:rgba(245,158,11,.5); border-radius:.85rem 0 0 .85rem; }
+.pending-card:hover { border-color:rgba(245,158,11,.45); background:rgba(245,158,11,.04); }
+.pending-card:active { background:rgba(245,158,11,.08); }
+.pending-card-top { display:flex; justify-content:space-between; align-items:flex-start; gap:.5rem; }
+.pending-card-meta { display:flex; flex-direction:column; gap:.2rem; flex:1; min-width:0; }
+.pending-card-date { font-size:.58rem; color:var(--muted); text-transform:uppercase; letter-spacing:.1em; }
+.pending-card-label { font-size:.55rem; color:var(--warn); text-transform:uppercase; letter-spacing:.08em; background:rgba(245,158,11,.1); border:1px solid rgba(245,158,11,.25); padding:.1rem .4rem; border-radius:.25rem; display:inline-flex; align-items:center; gap:.3rem; width:fit-content; }
+.pending-card-dismiss { background:none; border:none; color:var(--muted); font-size:.9rem; cursor:pointer; padding:.15rem .3rem; line-height:1; transition:color .15s; flex-shrink:0; }
+.pending-card-dismiss:hover { color:#f06a6a; }
+.pending-card-questions { display:flex; flex-direction:column; gap:.3rem; }
+.pending-question-chip { display:flex; align-items:flex-start; gap:.45rem; }
+.pending-question-num { font-size:.55rem; color:var(--accent); background:rgba(245,80,54,.12); border:1px solid rgba(245,80,54,.2); border-radius:50%; width:18px; height:18px; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:.05rem; }
+.pending-question-text { font-family:'Crimson Pro',Georgia,serif; font-size:.82rem; color:var(--text); line-height:1.4; }
+.pending-card-footer { display:flex; align-items:center; gap:.5rem; padding-top:.2rem; border-top:1px solid var(--border); }
+.pending-card-cta { font-size:.58rem; color:var(--accent); text-transform:uppercase; letter-spacing:.1em; display:flex; align-items:center; gap:.3rem; }
+.pending-card-cta svg { width:12px; height:12px; }
+.pending-card-note-title { font-size:.6rem; color:var(--muted); font-style:italic; flex:1; text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+/* Empty state */
+.empty-state { text-align:center; padding:3rem 1rem; color:var(--muted); display:flex; flex-direction:column; align-items:center; gap:.75rem; }
+.empty-icon { font-size:2.5rem; opacity:.4; }
+.empty-title { font-size:.75rem; text-transform:uppercase; letter-spacing:.12em; }
+.empty-sub { font-size:.65rem; line-height:1.7; max-width:280px; }
+
+/* Fab + new note */
+.fab-plus { width:56px; height:56px; border-radius:50%; border:none; background:var(--accent); color:#fff; font-size:1.8rem; cursor:pointer; display:flex; align-items:center; justify-content:center; align-self:center; box-shadow:0 6px 28px rgba(245,80,54,.4); touch-action:manipulation; transition:transform .15s,box-shadow .2s; line-height:1; text-decoration:none; }
+.fab-plus:active { transform:scale(.92); }
+.fab-plus-label { font-size:.58rem; text-transform:uppercase; letter-spacing:.12em; color:var(--muted); text-align:center; }
+
+/* Confirm dialog */
+.confirm-overlay { display:none; position:fixed; inset:0; z-index:200; background:rgba(0,0,0,.75); backdrop-filter:blur(6px); align-items:center; justify-content:center; padding:1rem; }
+.confirm-overlay.show { display:flex; }
+.confirm-card { background:var(--surface); border:1px solid var(--border); border-radius:1.2rem; padding:1.5rem; width:100%; max-width:360px; display:flex; flex-direction:column; gap:1rem; animation:modalIn .2s ease-out; }
+@keyframes modalIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+.confirm-title { font-family:'DM Serif Display',serif; font-size:1.1rem; }
+.confirm-text { font-size:.72rem; color:var(--muted); line-height:1.7; }
+.confirm-actions { display:flex; gap:.5rem; justify-content:flex-end; }
+.confirm-btn { padding:.5rem 1rem; border-radius:.6rem; font-family:'JetBrains Mono',monospace; font-size:.65rem; cursor:pointer; border:none; touch-action:manipulation; }
+.confirm-cancel { background:none; border:1px solid var(--border); color:var(--muted); }
+.confirm-delete { background:rgba(240,106,106,.15); border:1px solid rgba(240,106,106,.4); color:#f06a6a; }
+
+@keyframes spin { to{transform:rotate(360deg)} }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header-row">
+    <header>
+      <h1>Voce <em>Viva</em></h1>
+      <p class="subtitle">Whisper · LLaMA · <span class="badge">IN SOSPESO</span></p>
+    </header>
+    <div class="mode-switcher">
+      <a class="mode-btn" href="index.html" title="Annotazioni">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+      </a>
+      <button class="mode-btn active" title="In Sospeso">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      </button>
+      <a class="mode-btn" href="diary.html" title="Diario">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      </a>
+    </div>
+  </div>
+
+  <div class="section-header">
+    <div class="section-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Domande in sospeso
+      <span class="section-count" id="pendingCount">0</span>
+    </div>
+  </div>
+
+  <div class="pending-list" id="pendingList"></div>
+
+  <div style="height:.5rem"></div>
+  <a href="index.html" class="fab-plus" title="Nuova annotazione">+</a>
+  <div class="fab-plus-label">Nuova nota</div>
+
+</div>
+
+<!-- Confirm discard overlay -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-card">
+    <div class="confirm-title">Rimuovere dalla lista?</div>
+    <div class="confirm-text">Le domande saltate verranno eliminate. La nota originale nel diario rimarrà invariata.</div>
+    <div class="confirm-actions">
+      <button class="confirm-btn confirm-cancel" id="confirmCancel">Annulla</button>
+      <button class="confirm-btn confirm-delete" id="confirmDelete">Rimuovi</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── STORAGE KEY ───────────────────────────────────────────────────────────────
+const PENDING_KEY = 'vv_pending_questions';
+
+// ── LOAD / SAVE ───────────────────────────────────────────────────────────────
+function loadPending() {
+  try {
+    const raw = localStorage.getItem(PENDING_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch(e) { return []; }
+}
+
+function savePending(list) {
+  try { localStorage.setItem(PENDING_KEY, JSON.stringify(list)); } catch(e) {}
+}
+
+// ── DATE FORMATTING ───────────────────────────────────────────────────────────
+const MONTHS_IT = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
+
+function formatDate(isoDate) {
+  const d = new Date(isoDate + 'T12:00:00');
+  return d.getDate() + ' ' + MONTHS_IT[d.getMonth()] + ' ' + d.getFullYear();
+}
+
+function formatCreatedAt(ts) {
+  const d = new Date(ts);
+  return 'Creata il ' + d.getDate() + ' ' + MONTHS_IT[d.getMonth()] + ' ' + d.getFullYear()
+    + ' alle ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+const GUIDED_QUESTION_TEXTS = [
+  'Qual è il tuo umore oggi?',
+  'Cosa ti è successo oggi?',
+  'Quanto di ciò che ti è successo ha condizionato il tuo umore ed in che modo?',
+  'Cosa di ciò che non ti è accaduto ha condizionato il tuo umore ed in che modo lo influenza?',
+  'Cosa degli avvenimenti o delle motivazioni sopra elencate dipende da te?',
+  'Cosa invece non dipende da te?',
+  'Quali azioni piccole potresti attuare per allinearti all\'idea di te che vuoi raggiungere?',
+  'Cosa hai imparato oggi sia da ciò che puoi cambiare che da ciò che non puoi cambiare?'
+];
+
+let pendingToDelete = null;
+const pendingList = document.getElementById('pendingList');
+const pendingCount = document.getElementById('pendingCount');
+const confirmOverlay = document.getElementById('confirmOverlay');
+
+function render() {
+  const items = loadPending();
+  pendingCount.textContent = items.length;
+
+  if (items.length === 0) {
+    pendingList.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">✓</div>
+        <div class="empty-title">Nessuna domanda in sospeso</div>
+        <div class="empty-sub">Le domande saltate nel Diario Guidato appariranno qui, pronte per essere completate.</div>
+      </div>`;
+    return;
+  }
+
+  pendingList.innerHTML = '';
+
+  // Sort by createdAt descending (most recent first)
+  const sorted = [...items].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  sorted.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'pending-card';
+    card.dataset.id = item.id;
+
+    const skippedIndices = item.skippedIndices || [];
+    const questionsHtml = skippedIndices.slice(0, 3).map(idx => `
+      <div class="pending-question-chip">
+        <div class="pending-question-num">${idx + 1}</div>
+        <div class="pending-question-text">${GUIDED_QUESTION_TEXTS[idx] || 'Domanda ' + (idx + 1)}</div>
+      </div>`).join('') + (skippedIndices.length > 3 ? `
+      <div class="pending-question-chip">
+        <div class="pending-question-num">+${skippedIndices.length - 3}</div>
+        <div class="pending-question-text" style="color:var(--muted);">altre domande…</div>
+      </div>` : '');
+
+    card.innerHTML = `
+      <div class="pending-card-top">
+        <div class="pending-card-meta">
+          <div class="pending-card-label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:10px;height:10px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            ${skippedIndices.length} ${skippedIndices.length === 1 ? 'domanda' : 'domande'} in sospeso
+          </div>
+          <div class="pending-card-date">${formatCreatedAt(item.createdAt)}</div>
+        </div>
+        <button class="pending-card-dismiss" title="Rimuovi" data-id="${item.id}">&#x2715;</button>
+      </div>
+      <div class="pending-card-questions">${questionsHtml}</div>
+      <div class="pending-card-footer">
+        <div class="pending-card-cta">
+          Rispondi ora
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </div>
+        <div class="pending-card-note-title">${item.noteTitle || 'Diario Guidato — ' + formatDate(item.noteDate)}</div>
+      </div>`;
+
+    // Click on card → go to resume session
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('.pending-card-dismiss')) return;
+      openResume(item);
+    });
+
+    // Dismiss button
+    card.querySelector('.pending-card-dismiss').addEventListener('click', (e) => {
+      e.stopPropagation();
+      pendingToDelete = item.id;
+      confirmOverlay.classList.add('show');
+    });
+
+    pendingList.appendChild(card);
+  });
+}
+
+// ── OPEN RESUME ───────────────────────────────────────────────────────────────
+function openResume(item) {
+  // Store the resume context so index.html can pick it up
+  try {
+    localStorage.setItem('vv_resume_pending', JSON.stringify({
+      pendingId: item.id,
+      noteId: item.noteId,
+      noteDate: item.noteDate,
+      skippedIndices: item.skippedIndices,
+      allAnswers: item.allAnswers,
+      moodValue: item.moodValue,
+      noteTitle: item.noteTitle
+    }));
+  } catch(e) {}
+  // Redirect to guided diary page in resume mode
+  window.location.href = 'guidedDiary_func.html?resume_pending=1';
+}
+
+// ── CONFIRM DELETE ───────────────────────────────────────────────────────────
+document.getElementById('confirmCancel').addEventListener('click', () => {
+  confirmOverlay.classList.remove('show');
+  pendingToDelete = null;
+});
+
+document.getElementById('confirmDelete').addEventListener('click', () => {
+  if (pendingToDelete !== null) {
+    const items = loadPending().filter(i => i.id !== pendingToDelete);
+    savePending(items);
+    pendingToDelete = null;
+  }
+  confirmOverlay.classList.remove('show');
+  render();
+});
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+render();
+</script>
+</body>
+</html>

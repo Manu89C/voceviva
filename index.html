@@ -1,0 +1,472 @@
+﻿<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Voce Viva</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0a0a0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="VoceViva">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400;1,600&family=EB+Garamond:ital,wght@1,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="vv-auth.js"></script>
+<script src="vv-profile.js"></script>
+<script src="vv-memory.js"></script>
+<script src="vv-report.js"></script> 
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root { --bg:#0a0a0f; --surface:#111118; --border:#1e1e2e; --accent:#f55036; --text:#e8e8f0; --muted:#5a5a7a; --live:#4ade80; --warn:#f59e0b; }
+body { min-height:100vh; background:var(--bg); color:var(--text); font-family:'JetBrains Mono',monospace; display:flex; flex-direction:column; align-items:center; padding:1.5rem 1rem 3rem; -webkit-tap-highlight-color:transparent; }
+body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:none; background:radial-gradient(ellipse 80% 50% at 5% 95%,rgba(245,80,54,.08) 0%,transparent 60%),radial-gradient(ellipse 50% 40% at 95% 5%,rgba(245,80,54,.05) 0%,transparent 60%); }
+.container { position:relative; z-index:1; width:100%; max-width:640px; display:flex; flex-direction:column; gap:1.1rem; }
+h1 { font-family:'DM Serif Display',serif; font-size:clamp(2rem,7vw,3rem); letter-spacing:-.03em; line-height:1; }
+h1 em { font-style:italic; color:var(--accent); }
+.subtitle { font-size:.6rem; color:var(--muted); text-transform:uppercase; letter-spacing:.18em; margin-top:.4rem; display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; }
+.badge { background:rgba(245,80,54,.12); border:1px solid rgba(245,80,54,.25); color:var(--accent); padding:.1rem .5rem; border-radius:.3rem; font-size:.55rem; }
+.header-row { display:flex; justify-content:space-between; align-items:flex-start; }
+/* API card */
+.api-card { background:transparent; border:none; border-radius:.6rem; transition:border-color .3s; }
+.api-card.open { background:var(--surface); border:1px solid var(--border); }
+.api-card.open.ok { border-color:rgba(74,222,128,.3); }
+.api-label { font-size:.6rem; text-transform:uppercase; letter-spacing:.12em; color:var(--muted); display:flex; align-items:center; gap:.5rem; }
+.dot { width:8px; height:8px; border-radius:50%; background:#f06a6a; flex-shrink:0; transition:background .3s; }
+.dot.ok { background:var(--live); }
+/* API Keys accordion */
+.apikeys-toggle { width:auto; align-self:flex-start; background:var(--surface); border:1px solid var(--border); border-radius:.6rem; color:var(--text); font-family:'JetBrains Mono',monospace; font-size:.6rem; text-transform:uppercase; letter-spacing:.12em; padding:.45rem .8rem; display:flex; align-items:center; gap:.55rem; cursor:pointer; touch-action:manipulation; transition:border-color .2s; }
+.api-card.open .apikeys-toggle { background:transparent; border-color:transparent; border-radius:.6rem; }
+.apikeys-toggle:hover { background:rgba(255,255,255,.03); }
+.apikeys-title { flex:1; text-align:left; }
+.apikeys-chevron { width:14px; height:14px; flex-shrink:0; transition:transform .25s; color:var(--muted); }
+.api-card.open .apikeys-chevron { transform:rotate(180deg); }
+.apikeys-body { display:none; padding:8px 1.1rem 1rem; flex-direction:column; gap:.65rem; }
+.api-card.open .apikeys-body { display:flex; }
+.apikeys-divider { border:none; border-top:1px solid var(--border); margin:.15rem 0; }
+.api-row { display:flex; gap:.5rem; }
+.api-input { flex:1; background:var(--bg); border:1px solid var(--border); border-radius:.6rem; color:var(--text); font-family:'JetBrains Mono',monospace; font-size:.68rem; padding:.55rem .7rem; outline:none; min-width:0; transition:border-color .2s; }
+.api-input:focus { border-color:var(--accent); }
+.api-input::placeholder { color:var(--muted); }
+.btn-save { background:var(--accent); color:#fff; border:none; padding:.55rem .9rem; border-radius:.6rem; font-family:'JetBrains Mono',monospace; font-size:.68rem; cursor:pointer; white-space:nowrap; touch-action:manipulation; }
+.api-hint { font-size:.58rem; color:var(--muted); line-height:1.6; }
+.api-hint a { color:var(--accent); text-decoration:none; }
+/* Mode switcher */
+.mode-switcher { display:inline-flex; gap:.3rem; background:var(--surface); border:1px solid var(--border); border-radius:.6rem; padding:.25rem; }
+.mode-btn { background:none; border:none; color:var(--muted); padding:.35rem .55rem; border-radius:.4rem; cursor:pointer; touch-action:manipulation; transition:background .2s,color .2s; text-decoration:none; display:flex; align-items:center; justify-content:center; }
+.mode-btn svg { width:16px; height:16px; }
+.mode-btn.active { background:var(--accent); color:#fff; }
+/* Profile menu */
+.profile-wrap { position:relative; display:flex; align-items:center; }
+.profile-btn { width:2.2rem; height:2.2rem; border-radius:50%; background:var(--surface); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text); transition:background .2s; padding:0; flex-shrink:0; }
+.profile-btn svg { width:1.3rem; height:1.3rem; }
+.profile-btn:hover { background:rgba(245,80,54,.1); border-color:var(--accent); }
+.profile-dropdown { position:absolute; right:0; top:calc(100% + .5rem); background:var(--surface); border:1px solid var(--border); border-radius:.8rem; padding:.75rem 1rem; min-width:190px; display:none; flex-direction:column; gap:.45rem; z-index:200; box-shadow:0 8px 24px rgba(0,0,0,.35); }
+.profile-dropdown.open { display:flex; }
+.profile-email { font-size:.68rem; color:var(--muted); word-break:break-all; line-height:1.4; }
+.profile-divider { border:none; border-top:1px solid var(--border); margin:.15rem 0; }
+.profile-signout { background:none; border:none; color:#f55036; font-family:'JetBrains Mono',monospace; font-size:.72rem; cursor:pointer; text-align:left; padding:.15rem 0; }
+.profile-signout:hover { text-decoration:underline; }
+/* FAB + BUTTON */
+.fab-plus { width:56px; height:56px; border-radius:50%; border:none; background:var(--accent); color:#fff; font-size:1.8rem; cursor:pointer; display:flex; align-items:center; justify-content:center; align-self:center; box-shadow:0 6px 28px rgba(245,80,54,.4); touch-action:manipulation; transition:transform .15s,box-shadow .2s; line-height:1; }
+.fab-plus:active { transform:scale(.92); }
+/* ENTRY SWITCHER */
+.entry-switcher { display:none; gap:.4rem; background:var(--surface); border:1px solid var(--border); border-radius:.8rem; padding:.35rem; }
+.entry-switcher.show { display:flex; }
+.entry-btn { flex:1; background:none; border:none; color:var(--muted); font-family:'JetBrains Mono',monospace; font-size:.65rem; text-transform:uppercase; letter-spacing:.12em; padding:.55rem; border-radius:.5rem; cursor:pointer; touch-action:manipulation; transition:background .2s,color .2s; display:flex; align-items:center; justify-content:center; gap:.4rem; }
+.entry-btn:hover { background:rgba(245,80,54,.1); color:var(--accent); }
+.entry-btn svg { width:15px; height:15px; flex-shrink:0; }
+/* IN SOSPESO INLINE SECTION */
+.pending-section { display:none; flex-direction:column; gap:.55rem; width:100%; max-width:640px; }
+.pending-section.show { display:flex; }
+.pending-section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:.1rem; }
+.pending-section-title { font-size:.55rem; text-transform:uppercase; letter-spacing:.14em; color:var(--muted); display:flex; align-items:center; gap:.4rem; }
+.pending-section-title svg { width:12px; height:12px; flex-shrink:0; }
+.pending-count-badge { background:rgba(245,158,11,.15); color:var(--warn); border:1px solid rgba(245,158,11,.3); border-radius:.3rem; padding:.1rem .4rem; font-size:.55rem; font-family:'JetBrains Mono',monospace; letter-spacing:.06em; }
+.pending-card { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--warn); border-radius:.8rem; padding:.94rem 1.13rem; display:flex; flex-direction:column; gap:.5rem; cursor:pointer; transition:background .15s,border-color .2s; }
+.pending-card:hover { background:rgba(245,158,11,.04); border-color:rgba(245,158,11,.55); }
+.pending-card-top { display:flex; align-items:center; justify-content:space-between; }
+.pending-card-meta { display:flex; align-items:center; gap:.5rem; }
+.pending-card-label { font-size:.65rem; text-transform:uppercase; letter-spacing:.13em; color:var(--warn); }
+.pending-card-date { font-size:.69rem; color:var(--muted); font-family:'JetBrains Mono',monospace; }
+.pending-card-dismiss { background:none; border:none; color:var(--muted); font-size:.88rem; cursor:pointer; padding:.15rem .3rem; border-radius:.25rem; transition:color .12s; line-height:1; }
+.pending-card-dismiss:hover { color:var(--accent); }
+.pending-card-title { font-family:'Crimson Pro',Georgia,serif; font-size:1.19rem; color:var(--text); line-height:1.3; }
+.pending-card-chips { display:flex; flex-wrap:wrap; gap:.3rem; }
+.pending-card-chip { font-size:.65rem; background:rgba(245,158,11,.1); border:1px solid rgba(245,158,11,.22); color:var(--warn); border-radius:.25rem; padding:.15rem .5rem; font-family:'JetBrains Mono',monospace; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:200px; }
+.pending-card-cta { font-size:.69rem; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); display:flex; align-items:center; gap:.3rem; }
+.pending-card-cta svg { width:14px; height:14px; flex-shrink:0; }
+/* Report button */
+.btn-report { display:flex; align-items:center; justify-content:center; gap:.5rem; width:100%; background:none; border:1px solid var(--border); border-radius:.7rem; color:var(--muted); font-family:'JetBrains Mono',monospace; font-size:.62rem; text-transform:uppercase; letter-spacing:.13em; padding:.65rem 1rem; cursor:pointer; touch-action:manipulation; transition:border-color .2s,color .2s,background .2s; }
+.btn-report:hover { border-color:rgba(74,222,128,.35); color:var(--live); background:rgba(74,222,128,.05); }
+.btn-report:disabled { opacity:.45; cursor:default; }
+.btn-report svg { width:14px; height:14px; flex-shrink:0; }
+/* Error */
+.error-msg { background:rgba(240,106,106,.08); border:1px solid rgba(240,106,106,.25); border-radius:.6rem; padding:.65rem .85rem; font-size:.68rem; color:#f06a6a; line-height:1.6; display:none; }
+.error-msg.show { display:block; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header-row">
+  <header>
+    <h1>Voce <em>Viva</em></h1>
+    <p class="subtitle">Whisper &middot; LLaMA &middot; <span class="badge">ANNOTAZIONI</span></p>
+  </header>
+  <div style="display:flex;align-items:center;gap:8px;">
+  <div class="mode-switcher">
+    <button class="mode-btn active" id="modeAnnot" title="Annotazioni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg></button>
+    <a class="mode-btn" href="diary.html" title="Diario"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="12" y1="6" x2="12" y2="14"/><line x1="12" y1="6" x2="12" y2="6.01"/></svg></a>
+    <a class="mode-btn" href="life_wheel.html" title="Life Wheel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="3" x2="12" y2="12"/><line x1="21" y1="12" x2="12" y2="12"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="3" y1="12" x2="12" y2="12"/></svg></a>
+  </div>
+  <div class="profile-wrap" id="profileWrap">
+    <button class="profile-btn" id="profileBtn" title="Profilo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+    </button>
+    <div class="profile-dropdown" id="profileDropdown">
+      <span class="profile-email" id="profileEmail">�</span>
+      <hr class="profile-divider">
+      <button class="profile-signout" id="logoutBtn">Esci</button>
+    </div>
+  </div>
+  </div>
+  </div>
+
+  <div class="api-card" id="apiCard">
+    <button class="apikeys-toggle" id="apikeysToggle">
+      <span class="dot" id="apiDot"></span>
+      <span class="apikeys-title">Api Keys</span>
+      <svg class="apikeys-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+    <div class="apikeys-body" id="apikeysBody">
+      <div class="api-label"><span class="dot" id="groqDot"></span><span id="apiLabel">Chiave Groq</span></div>
+      <div class="api-row">
+        <input class="api-input" type="password" id="apiKeyInput" placeholder="gsk_... (Groq)" autocomplete="off" spellcheck="false">
+        <button class="btn-save" id="saveKeyBtn">Salva</button>
+      </div>
+      <p class="api-hint">Gratis su <a href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a></p>
+    </div>
+  </div>
+
+  <!-- LIFE WHEEL - sempre visibile --------------------------------------- -->
+  <section id="lwSection" style="display:flex;flex-direction:column;gap:.5rem;">
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <span style="font-size:.55rem;text-transform:uppercase;letter-spacing:.16em;color:var(--muted);">Life Wheel</span>
+      <a href="life_wheel.html" style="font-size:.55rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);text-decoration:none;border:1px solid var(--border);border-radius:.4rem;padding:.25rem .55rem;transition:color .2s,border-color .2s;" onmouseover="this.style.color='var(--accent)';this.style.borderColor='rgba(245,80,54,.4)'" onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">Espandi ?</a>
+    </div>
+    <iframe
+      src="life_wheel.html?embed=1"
+      id="lwIframe"
+      scrolling="no"
+      style="width:100%;border:none;border-radius:.75rem;overflow:hidden;display:block;"
+      title="Life Wheel">
+    </iframe>
+  </section>
+
+  <!-- FAB + BUTTON (Nuova nota) -->
+  <button class="fab-plus" id="fabPlus" title="Nuova nota">+</button>
+
+  <!-- ENTRY SWITCHER -->
+  <div class="entry-switcher" id="entrySwitcher">
+    <button class="entry-btn" id="entryGuided">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      Diario Guidato
+    </button>
+    <button class="entry-btn" id="entryNota">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+      Nota Libera
+    </button>
+  </div>
+
+  <button class="btn-report" id="generateReportBtn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C12 2 8.5 7.5 2 12C8.5 16.5 12 22 12 22C12 22 15.5 16.5 22 12C15.5 7.5 12 2 12 2Z" fill="currentColor" stroke="none" opacity=".8"/></svg>
+    Genera Report Settimanale
+  </button>
+
+  <!-- INLINE IN SOSPESO SECTION -->
+  <div class="pending-section" id="pendingSection">
+    <div class="pending-section-header">
+      <span class="pending-section-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        In sospeso
+      </span>
+      <span class="pending-count-badge" id="pendingCountBadge"></span>
+    </div>
+    <div id="pendingCardsList"></div>
+  </div>
+
+  <div class="error-msg" id="errorMsg"></div>
+
+</div>
+
+<script>
+// -- CONFIG ------------------------------------------------------------------
+let GROQ_KEY = (localStorage.getItem('vv_groq') || '').trim();
+
+// -- SUPABASE -----------------------------------------------------------------
+const SUPABASE_URL = 'https://ezycobgovadcgvnyqcew.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_ASHxxToKJyMy4CpBAqseqA_mepXAAJ-';
+let sb = null;
+try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) {}
+
+// -- AUTH + INIT --------------------------------------------------------------
+let currentUserId = null;
+
+(async () => {
+  if (sb) {
+    const { userId } = await VvAuth.init(sb);
+    if (!userId) return; // VvAuth ha gi� reindirizzato a login.html
+    currentUserId = userId;
+  }
+  ProfileManager.init(currentUserId);
+  await MemoryManager.init(currentUserId);
+  await ReportManager.init(sb, GROQ_KEY, currentUserId);
+  const rc = document.querySelector('.container');
+  const ps = document.getElementById('pendingSection');
+  await ReportManager.renderReportCard(rc, ps);
+  renderPendingSection();
+  // Profile dropdown
+  const _profileBtn = document.getElementById('profileBtn');
+  const _profileDrop = document.getElementById('profileDropdown');
+  _profileBtn.onclick = e => { e.stopPropagation(); _profileDrop.classList.toggle('open'); };
+  document.addEventListener('click', () => _profileDrop.classList.remove('open'));
+  document.getElementById('logoutBtn').onclick = () => VvAuth.signOut(sb);
+  // Popola email
+  sb.auth.getSession().then(({ data: { session } }) => {
+    const em = session?.user?.email || session?.user?.user_metadata?.email || '';
+    document.getElementById('profileEmail').textContent = em;
+  });
+})();
+
+// -- IN SOSPESO (pending guided diary entries) --------------------------------
+function renderPendingSection() {
+  var PENDING_KEY = 'vv_pending_questions';
+  var ps = document.getElementById('pendingSection');
+  var badge = document.getElementById('pendingCountBadge');
+  var list = document.getElementById('pendingCardsList');
+  if (!ps || !list) return;
+  var items = [];
+  try { var raw = localStorage.getItem(PENDING_KEY); items = raw ? JSON.parse(raw) : []; } catch(e) {}
+  if (!items.length) { ps.classList.remove('show'); return; }
+  ps.classList.add('show');
+  if (badge) badge.textContent = items.length;
+  list.innerHTML = '';
+  var MONTHS = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
+  items.sort(function(a,b){ return new Date(b.createdAt) - new Date(a.createdAt); });
+  items.forEach(function(item) {
+    var skipped = item.skippedIndices || [];
+    var chips = skipped.slice(0, 3).map(function(idx) {
+      return '<span class="pending-card-chip">Q' + (idx+1) + '</span>';
+    }).join('');
+    if (skipped.length > 3) chips += '<span class="pending-card-chip">+' + (skipped.length-3) + '</span>';
+    var d = new Date((item.noteDate || item.createdAt) + (item.noteDate ? 'T12:00:00' : ''));
+    var dateStr = d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' + d.getFullYear();
+    var card = document.createElement('div');
+    card.className = 'pending-card';
+    card.innerHTML =
+      '<div class="pending-card-top">' +
+        '<div class="pending-card-meta">' +
+          '<span class="pending-card-label">In sospeso</span>' +
+          '<span class="pending-card-date">' + dateStr + '</span>' +
+        '</div>' +
+        '<button class="pending-card-dismiss" title="Rimuovi">\u2715</button>' +
+      '</div>' +
+      '<div class="pending-card-title">' + (item.noteTitle || 'Diario Guidato') + '</div>' +
+      '<div class="pending-card-chips">' + chips + '</div>' +
+      '<div class="pending-card-cta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg> Continua</div>';
+    card.addEventListener('click', function(e) {
+      if (e.target.closest('.pending-card-dismiss')) return;
+      try {
+        localStorage.setItem('vv_resume_pending', JSON.stringify({
+          pendingId: item.id, noteId: item.noteId, noteDate: item.noteDate,
+          skippedIndices: item.skippedIndices, allAnswers: item.allAnswers,
+          moodValue: item.moodValue, noteTitle: item.noteTitle
+        }));
+      } catch(ex) {}
+      window.location.href = 'guidedDiary_func.html?resume_pending=1';
+    });
+    card.querySelector('.pending-card-dismiss').addEventListener('click', function(e) {
+      e.stopPropagation();
+      var updated = [];
+      try { var r = localStorage.getItem(PENDING_KEY); updated = r ? JSON.parse(r) : []; } catch(ex) {}
+      updated = updated.filter(function(i){ return i.id !== item.id; });
+      try { localStorage.setItem(PENDING_KEY, JSON.stringify(updated)); } catch(ex) {}
+      renderPendingSection();
+    });
+    list.appendChild(card);
+  });
+}
+
+// -- HELPERS ------------------------------------------------------------------
+const $ = id => document.getElementById(id);
+const errorMsg = $('errorMsg');
+function showErr(m) { errorMsg.textContent = m; errorMsg.classList.add('show'); }
+function hideErr() { errorMsg.classList.remove('show'); }
+
+const prefetchedTargets = new Set();
+function prefetchTarget(href, asType) {
+  if (prefetchedTargets.has(href)) return;
+  prefetchedTargets.add(href);
+  const link = document.createElement('link');
+  link.rel = 'prefetch';
+  if (asType) link.as = asType;
+  link.href = href;
+  document.head.appendChild(link);
+}
+
+function warmEntryNavigation() {
+  prefetchTarget('guidedDiary_func.html', 'document');
+  prefetchTarget('freeNote_func.html', 'document');
+}
+
+function scheduleIdleWarmup(cb) {
+  if ('requestIdleCallback' in window) {
+    window.requestIdleCallback(cb, { timeout: 1500 });
+    return;
+  }
+  setTimeout(cb, 250);
+}
+
+// -- FAB + / ENTRY SWITCHER --------------------------------------------------
+const fabPlus = $('fabPlus'), entrySwitcher = $('entrySwitcher');
+fabPlus.onclick = () => {
+  warmEntryNavigation();
+  fabPlus.style.display = 'none';
+  entrySwitcher.classList.add('show');
+};
+scheduleIdleWarmup(warmEntryNavigation);
+$('entryGuided').addEventListener('pointerenter', () => prefetchTarget('guidedDiary_func.html', 'document'), { once: true });
+$('entryGuided').addEventListener('touchstart', () => prefetchTarget('guidedDiary_func.html', 'document'), { once: true, passive: true });
+$('entryGuided').onclick = () => {
+  entrySwitcher.classList.remove('show');
+  fabPlus.style.display = 'flex';
+  window.location.href = 'guidedDiary_func.html';
+};
+$('entryNota').addEventListener('pointerenter', () => prefetchTarget('freeNote_func.html', 'document'), { once: true });
+$('entryNota').addEventListener('touchstart', () => prefetchTarget('freeNote_func.html', 'document'), { once: true, passive: true });
+$('entryNota').onclick = () => {
+  entrySwitcher.classList.remove('show');
+  fabPlus.style.display = 'flex';
+  window.location.href = 'freeNote_func.html';
+};
+
+// -- API KEY -----------------------------------------------------------------
+const apiKeyInput = $('apiKeyInput'), saveKeyBtn = $('saveKeyBtn');
+const apiDot = $('apiDot'), apiLabel = $('apiLabel'), apiCard = $('apiCard');
+
+function _updateHeaderDot() {
+  const groqOk = !!(localStorage.getItem('vv_groq') || '').trim();
+  const cohereOk = !!(localStorage.getItem('vv_cohere') || '').trim();
+  apiDot.className = (groqOk && cohereOk) ? 'dot ok' : 'dot';
+  apiCard.classList.toggle('ok', groqOk && cohereOk);
+}
+
+function applyKey(k) {
+  GROQ_KEY = k.trim();
+  const groqDot = $('groqDot');
+  if (groqDot) groqDot.className = GROQ_KEY ? 'dot ok' : 'dot';
+  apiLabel.textContent = 'Chiave Groq';
+  _updateHeaderDot();
+}
+if (GROQ_KEY) { apiKeyInput.value = GROQ_KEY; applyKey(GROQ_KEY); }
+else { apiCard.classList.add('open'); }
+document.getElementById('apikeysToggle').addEventListener('click', () => {
+  apiCard.classList.toggle('open');
+});
+saveKeyBtn.onclick = () => {
+  const k = apiKeyInput.value.trim();
+  if (!k) { showErr('Incolla la chiave Groq.'); return; }
+  localStorage.setItem('vv_groq', k); applyKey(k); hideErr();
+  ReportManager.setGroqKey(k);
+};
+
+// -- REPORT BUTTON -----------------------------------------------------------
+(function() {
+  const genBtn = document.getElementById('generateReportBtn');
+  if (!genBtn) return;
+  genBtn.onclick = async () => {
+    if (genBtn.disabled) return;
+    genBtn.textContent = 'Generazione\u2026';
+    genBtn.disabled = true;
+    try {
+      const result = await ReportManager.generateReport();
+      if (result && result.ok) {
+        genBtn.textContent = '\u2714 Report generato';
+        const rc = document.querySelector('.container');
+        const ps = document.getElementById('pendingSection');
+        await ReportManager.renderReportCard(rc, ps);
+      } else {
+        genBtn.textContent = (result && result.reason) || 'Errore sconosciuto';
+      }
+    } catch(e) {
+      genBtn.textContent = 'Errore: ' + (e.message || e);
+    }
+    setTimeout(() => { genBtn.disabled = false; genBtn.textContent = 'Genera Report Settimanale'; }, 5000);
+  };
+})();
+
+// -- REALTIME SYNC -----------------------------------------------------------
+// Aggiorna la Report card quando un altro dispositivo salva/cancella un report
+if (sb) {
+  const _indexChannel = sb.channel('vv-index-realtime')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'notes' }, async (payload) => {
+      const mode = payload.new?.mode || payload.old?.mode;
+      if (mode !== 'report') return;
+      const rc = document.querySelector('.container');
+      const ps = document.getElementById('pendingSection');
+      await ReportManager.renderReportCard(rc, ps);
+    })
+    .subscribe((status, err) => {
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.warn('[Index] Realtime subscribe error:', status, err);
+      }
+    });
+}
+
+// -- FALLBACK: aggiorna la Report card quando la tab torna in primo piano -----
+{
+  let _indexVisDebounce = null;
+  document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState !== 'visible') return;
+    clearTimeout(_indexVisDebounce);
+    _indexVisDebounce = setTimeout(async () => {
+      const rc = document.querySelector('.container');
+      const ps = document.getElementById('pendingSection');
+      await ReportManager.renderReportCard(rc, ps);
+      renderPendingSection();
+    }, 600);
+  });
+}
+
+// -- LIFE WHEEL IFRAME AUTO-HEIGHT -------------------------------------------
+window.addEventListener('message', e => {
+  if (e.data?.type === 'lw-height') {
+    const f = document.getElementById('lwIframe');
+    if (f) f.style.height = e.data.h + 'px';
+  }
+});
+
+// -- PWA ---------------------------------------------------------------------
+let swReg = null, _swRefreshing = false;
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (_swRefreshing) return;
+    _swRefreshing = true;
+    window.location.reload();
+  });
+  navigator.serviceWorker.register('sw.js').then(r => {
+    swReg = r;
+    if (r.waiting) r.waiting.postMessage({ type: 'SKIP_WAITING' });
+    r.addEventListener('updatefound', () => {
+      const newSW = r.installing;
+      if (!newSW) return;
+      newSW.addEventListener('statechange', () => {
+        if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+          newSW.postMessage({ type: 'SKIP_WAITING' });
+        }
+      });
+    });
+  }).catch(() => {});
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Life Wheel — Voce Viva</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0a0a0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="vv-auth.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0a0a0f; --surface: #111118; --border: #1e1e2e;
+  --accent: #f55036; --text: #e8e8f0; --muted: #5a5a7a;
+}
+body {
+  min-height: 100vh; background: var(--bg); color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 1.5rem 1rem 4rem; -webkit-tap-highlight-color: transparent;
+}
+body::before {
+  content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background: none;
+}
+.container {
+  position: relative; z-index: 1; width: 100%; max-width: 640px;
+  display: flex; flex-direction: column; gap: 1.4rem;
+}
+/* Header */
+.header-row { display: flex; align-items: center; justify-content: space-between; }
+.back-btn {
+  background: none; border: 1px solid var(--border); border-radius: .5rem;
+  color: var(--muted); font-family: 'JetBrains Mono', monospace; font-size: .62rem;
+  padding: .4rem .65rem; cursor: pointer; display: flex; align-items: center; gap: .35rem;
+  transition: border-color .2s, color .2s; text-decoration: none;
+}
+.back-btn:hover { border-color: var(--accent); color: var(--accent); }
+.page-title { font-family: 'DM Serif Display', serif; font-size: 1.15rem; letter-spacing: -.02em; }
+.page-title em { font-style: italic; color: var(--accent); }
+
+/* Sphere section */
+.sphere-outer { display: flex; justify-content: center; }
+.sphere-wrap {
+  position: relative;
+  width: min(300px, calc(100vw - 3rem));
+  height: min(300px, calc(100vw - 3rem));
+  flex-shrink: 0;
+}
+#sphereCanvas {
+  position: absolute;
+}
+.sphere-ring {
+  position: absolute; inset: 0; border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.05); pointer-events: none;
+}
+/* Labels around sphere */
+.sphere-label {
+  position: absolute; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  cursor: pointer; transform: translate(-50%, -50%); transition: opacity .2s; z-index: 2;
+}
+.sphere-label:hover { opacity: .7; }
+.sphere-label-dot {
+  width: 8px; height: 8px; border-radius: 50%; border: 2px solid;
+}
+.sphere-label-text {
+  font-size: .47rem; text-transform: uppercase; letter-spacing: .1em;
+  white-space: nowrap; max-width: 62px; overflow: hidden;
+  text-overflow: ellipsis; text-align: center;
+}
+/* Add button on sphere border */
+.sphere-add-btn {
+  position: absolute; width: 26px; height: 26px; border-radius: 50%;
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--muted); font-size: 1.05rem; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transform: translate(-50%, -50%);
+  transition: border-color .2s, color .2s, background .2s; padding: 0; z-index: 2;
+}
+.sphere-add-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(245,80,54,.08); }
+
+/* Section label */
+.section-label { font-size: .55rem; text-transform: uppercase; letter-spacing: .16em; color: var(--muted); }
+
+/* Life area cards */
+.areas-grid {
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+}
+.area-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: .75rem; padding: .9rem;
+  display: flex; flex-direction: column; gap: .55rem;
+  border-left: 3px solid var(--area-color);
+  cursor: pointer;
+  transition: border-color .2s;
+}
+.area-card-header { display: flex; align-items: center; gap: .35rem; }
+.area-card-chevron {
+  background: none; border: none; color: var(--muted);
+  cursor: pointer; padding: 0 .1rem; flex-shrink: 0;
+  display: flex; align-items: center; transition: color .15s, transform .2s;
+  transform: rotate(0deg);
+}
+.area-card.expanded .area-card-chevron { transform: rotate(90deg); }
+.area-card-chevron:hover { color: var(--text); }
+.area-card-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--area-color); flex-shrink: 0; }
+.area-card-name {
+  flex: 1; background: none; border: none;
+  border-bottom: 1px solid transparent;
+  color: var(--text); font-family: 'JetBrains Mono', monospace;
+  font-size: .78rem; text-transform: uppercase; letter-spacing: .1em;
+  outline: none; min-width: 0; padding: .1rem 0;
+  transition: border-color .2s;
+}
+.area-card-name:focus { border-bottom-color: var(--area-color); }
+.area-card-name::placeholder { color: var(--muted); }
+.area-card-del {
+  background: none; border: none; color: var(--muted);
+  font-size: .78rem; cursor: pointer; padding: 0 .1rem;
+  transition: color .15s; line-height: 1; flex-shrink: 0;
+}
+.area-card-del:hover { color: #f06a6a; }
+.area-card-edit-btn {
+  background: none; border: none; color: var(--muted);
+  cursor: pointer; padding: 0 .15rem; line-height: 1; flex-shrink: 0;
+  transition: color .15s; display: flex; align-items: center;
+}
+.area-card-edit-btn:hover { color: var(--text); }
+.area-card-edit-btn.editing { color: var(--area-color); }
+.area-card-body {
+  display: none;
+  flex-direction: column;
+  gap: 0;
+  padding-top: .2rem;
+}
+.area-card.expanded .area-card-body { display: flex; }
+.area-qa-item {
+  display: flex; flex-direction: column; gap: .2rem;
+  padding: .45rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.area-qa-item:last-child { border-bottom: none; padding-bottom: .05rem; }
+.area-qa-question {
+  font-size: .62rem; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--muted); line-height: 1.4; pointer-events: none;
+}
+.area-qa-answer {
+  color: var(--text); font-family: 'JetBrains Mono', monospace;
+  font-size: .88rem; line-height: 1.65; padding: 0;
+  white-space: pre-wrap; word-break: break-word;
+}
+/* Drag states */
+.area-card.dragging { opacity: .35; cursor: grabbing; }
+.area-card.drag-over { box-shadow: 0 -3px 0 0 var(--area-color); }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header-row">
+    <a class="back-btn" href="index.html">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      Home
+    </a>
+    <p class="page-title">Life <em>Wheel</em></p>
+    <div style="width:58px"></div>
+  </div>
+
+  <div class="sphere-outer">
+    <div class="sphere-wrap" id="sphereWrap">
+      <canvas id="sphereCanvas"></canvas>
+      <canvas id="ringCanvas" style="position:absolute;top:0;left:0;pointer-events:none;"></canvas>
+      <div class="sphere-ring"></div>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:.5rem">
+    <span class="section-label">Aree della vita</span>
+    <div class="areas-grid" id="areasGrid"></div>
+  </div>
+
+</div>
+
+<script>
+// ── AUTH ──────────────────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://ezycobgovadcgvnyqcew.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_ASHxxToKJyMy4CpBAqseqA_mepXAAJ-';
+let sb = null;
+try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) {}
+(async () => { if (sb) await VvAuth.init(sb); })();
+
+// ── DATA ──────────────────────────────────────────────────────────────────────
+const STORE = 'vv_life_wheel';
+const PALETTE = ['#f55036','#4ade80','#60a5fa','#f59e0b','#a78bfa','#34d399','#fb923c','#38bdf8','#f472b6','#facc15'];
+const QUESTIONS_DEFAULT = [
+  'Qual è la tua situazione attuale in {area}?',
+  'Quali traguardi vuoi raggiungere in {area}?',
+  'Chi sono i tuoi punti di riferimento in {area}?'
+];
+let QUESTIONS = [...QUESTIONS_DEFAULT];
+try {
+  const _sq = localStorage.getItem('vv_lw_questions');
+  if (_sq) {
+    const _arr = JSON.parse(_sq);
+    if (Array.isArray(_arr) && _arr.length > 0) {
+      const _mapped = _arr.map(q => (typeof q === 'string' ? q : q.text || ''));
+      // Usa le domande salvate solo se contengono {area}, altrimenti usa i default aggiornati
+      if (_mapped.some(q => /\{area\}/i.test(q))) {
+        QUESTIONS = _mapped;
+      }
+    }
+  }
+} catch(e) {}
+
+function loadData() {
+  try {
+    const r = localStorage.getItem(STORE);
+    if (r) {
+      const d = JSON.parse(r);
+      d.areas.forEach(a => {
+        if (!a.answers) a.answers = new Array(QUESTIONS.length).fill('');
+        // Extend answers array if questions were added
+        while (a.answers.length < QUESTIONS.length) a.answers.push('');
+      });
+      return d;
+    }
+  } catch(e) {}
+  return {
+    areas: PALETTE.slice(0, 4).map((color, i) => ({ id: i + 1, color, label: '', answers: ['', '', ''] })),
+    nextId: 5
+  };
+}
+function save() { try { localStorage.setItem(STORE, JSON.stringify(data)); } catch(e) {} }
+let data = loadData();
+
+// ── SPHERE ────────────────────────────────────────────────────────────────────
+const wrap   = document.getElementById('sphereWrap');
+const canvas = document.getElementById('sphereCanvas');
+const ctx    = canvas.getContext('2d');
+
+// Responsive sizing
+const WRAP_SIZE = wrap.offsetWidth;
+const CANVAS_W  = Math.round(WRAP_SIZE * 0.84);
+const SR        = Math.round(CANVAS_W  * 0.44);  // sphere radius
+const FOV       = 400;
+const CX = CANVAS_W / 2, CY = CANVAS_W / 2;
+const _dpr = window.devicePixelRatio || 1;
+canvas.width  = Math.round(CANVAS_W * _dpr);
+canvas.height = Math.round(CANVAS_W * _dpr);
+canvas.style.width  = CANVAS_W + 'px';
+canvas.style.height = CANVAS_W + 'px';
+ctx.scale(_dpr, _dpr);
+const _cvOff = Math.round((WRAP_SIZE - CANVAS_W) / 2);
+canvas.style.left = _cvOff + 'px';
+canvas.style.top  = _cvOff + 'px';
+
+const NUM_PTS   = 72;   // dot count
+const CONN_DIST = SR * 0.16;  // max 3-D distance for a connection
+const TILT      = 0.22;
+const cosTilt   = Math.cos(TILT), sinTilt = Math.sin(TILT);
+
+function hexRgb(h) {
+  return [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)];
+}
+
+// Connection opacity state — each pair [i][j] has a live alpha for smooth fade in/out
+let connAlpha = [];  // flat array, index = i*NUM_PTS + j
+
+let pts = [];
+
+function mkPts() {
+  pts = [];
+  connAlpha = new Float32Array(NUM_PTS * NUM_PTS); // all 0
+  for (let i = 0; i < NUM_PTS; i++) {
+    const phi   = Math.acos(1 - 2 * (i + .5) / NUM_PTS); // Fibonacci
+    const theta = Math.PI * (1 + Math.sqrt(5)) * i;
+    const x = SR * Math.sin(phi) * Math.cos(theta);
+    const y = SR * Math.cos(phi);
+    const z = SR * Math.sin(phi) * Math.sin(theta);
+    pts.push({
+      wx: x, wy: y, wz: z,
+      // faster, more chaotic initial velocities
+      vx: (Math.random() - .5) * 0.55,
+      vy: (Math.random() - .5) * 0.55,
+      vz: (Math.random() - .5) * 0.55,
+      // random impulse timer so bursts are desynchronised
+      impTimer: Math.floor(Math.random() * 80),
+      colorIdx: i % Math.max(data.areas.length, 1)
+    });
+  }
+}
+mkPts();
+
+let ry = 0;
+
+function project(wx, wy, wz) {
+  const rx =  wx * Math.cos(ry) + wz * Math.sin(ry);
+  const rz = -wx * Math.sin(ry) + wz * Math.cos(ry);
+  const ty = wy * cosTilt - rz * sinTilt;
+  const tz = wy * sinTilt + rz * cosTilt;
+  const s  = FOV / (FOV + tz + SR);
+  return { px: CX + rx * s, py: CY + ty * s, z: tz, s };
+}
+
+function drawSphere() {
+  ry += 0.006;
+  ctx.clearRect(0, 0, CANVAS_W, CANVAS_W);
+
+  const n = Math.max(data.areas.length, 1);
+
+  // ── Physics update ──
+  pts.forEach((p, i) => {
+    p.colorIdx = i % n;
+    p.wx += p.vx;  p.wy += p.vy;  p.wz += p.vz;
+
+    // elastic pull toward sphere surface
+    const dist = Math.sqrt(p.wx*p.wx + p.wy*p.wy + p.wz*p.wz) || 1;
+    const pull = (SR - dist) * 0.018;
+    p.vx += (p.wx / dist) * pull;
+    p.vy += (p.wy / dist) * pull;
+    p.vz += (p.wz / dist) * pull;
+
+    // continuous random turbulence
+    p.vx += (Math.random() - .5) * 0.26;
+    p.vy += (Math.random() - .5) * 0.26;
+    p.vz += (Math.random() - .5) * 0.26;
+
+    // random impulse burst every ~40-80 frames per dot
+    p.impTimer--;
+    if (p.impTimer <= 0) {
+      p.vx += (Math.random() - .5) * 2.4;
+      p.vy += (Math.random() - .5) * 2.4;
+      p.vz += (Math.random() - .5) * 2.4;
+      p.impTimer = 40 + Math.floor(Math.random() * 40);
+    }
+
+    // dampen
+    p.vx *= 0.90;  p.vy *= 0.90;  p.vz *= 0.90;
+  });
+
+  // ── Project ──
+  const proj = pts.map(p => {
+    const pr = project(p.wx, p.wy, p.wz);
+    return { ...pr, wx: p.wx, wy: p.wy, wz: p.wz, colorIdx: p.colorIdx };
+  });
+
+  proj.sort((a, b) => a.z - b.z);
+
+  // ── Connections: fade alpha in/out per pair ──
+  const FADE_IN  = 0.035;
+      const FADE_OUT = 0.020;
+
+  ctx.save();
+  for (let i = 0; i < proj.length; i++) {
+    for (let j = i + 1; j < proj.length; j++) {
+      const pi = proj[i], pj = proj[j];
+      const dx = pi.wx - pj.wx, dy = pi.wy - pj.wy, dz = pi.wz - pj.wz;
+      const d3 = Math.sqrt(dx*dx + dy*dy + dz*dz);
+      const key = i * NUM_PTS + j;
+
+      const inRange = d3 < CONN_DIST;
+      let a = connAlpha[key];
+      if (inRange) {
+        const t = 1 - d3 / CONN_DIST;
+        const depthI = (pi.z + SR) / (2 * SR);
+        const depthJ = (pj.z + SR) / (2 * SR);
+        const target = 0.32 + t * (0.45 + ((depthI + depthJ) / 2) * 0.20);
+        a += (target - a) * FADE_IN;
+      } else {
+        a -= FADE_OUT;
+        if (a < 0) a = 0;
+      }
+      connAlpha[key] = a;
+
+      if (a < 0.01) continue;
+
+      const colI = data.areas[pi.colorIdx]?.color || PALETTE[pi.colorIdx % PALETTE.length];
+      const colJ = data.areas[pj.colorIdx]?.color || PALETTE[pj.colorIdx % PALETTE.length];
+      const [ri,gi,bi] = hexRgb(colI);
+      const [rj,gj,bj] = hexRgb(colJ);
+      const rm = Math.round((ri+rj)/2), gm = Math.round((gi+gj)/2), bm = Math.round((bi+bj)/2);
+
+      ctx.beginPath();
+      ctx.moveTo(pi.px, pi.py);
+      ctx.lineTo(pj.px, pj.py);
+      ctx.strokeStyle = `rgba(${rm},${gm},${bm},${a.toFixed(3)})`;
+      ctx.lineWidth = 2.2;
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+
+  // ── Dots ──
+  proj.forEach(p => {
+    const depth  = (p.z + SR) / (2 * SR);
+    const alpha  = (0.25 + depth * 0.75).toFixed(2);
+    const color  = data.areas[p.colorIdx]?.color || PALETTE[p.colorIdx % PALETTE.length];
+    const [r, g, b] = hexRgb(color);
+    // larger dot radius
+    const radius = (2.2 + depth * 3.4) * p.s;
+
+    // glow halo
+    ctx.beginPath();
+    ctx.arc(p.px, p.py, Math.max(1, radius * 2.6), 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${r},${g},${b},${(depth * 0.10).toFixed(3)})`;
+    ctx.fill();
+
+    // solid dot
+    ctx.beginPath();
+    ctx.arc(p.px, p.py, Math.max(1, radius), 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`;
+    ctx.fill();
+  });
+
+  requestAnimationFrame(drawSphere);
+}
+drawSphere();
+
+// ── LABELS AROUND SPHERE ──────────────────────────────────────────────────────
+const ringCanvas = document.getElementById('ringCanvas');
+const ringCtx    = ringCanvas.getContext('2d');
+ringCanvas.width  = WRAP_SIZE;
+ringCanvas.height = WRAP_SIZE;
+
+const RING_R_OUT = Math.round(WRAP_SIZE * 0.468);
+const RING_WIDTH = 22;
+const RING_R_IN  = RING_R_OUT - RING_WIDTH;
+const RING_R_MID = RING_R_OUT - RING_WIDTH / 2;
+const RING_CX    = WRAP_SIZE / 2;
+const RING_CY    = WRAP_SIZE / 2;
+const ADD_SLOT   = 0.44; // radians reserved for add button at top
+
+function renderLabels() {
+  const n          = data.areas.length;
+  const arcStart   = -Math.PI / 2 + ADD_SLOT / 2;
+  const totalArc   = 2 * Math.PI - ADD_SLOT;
+  const segStep    = totalArc / n;
+  const GAP        = 0.022;
+
+  ringCtx.clearRect(0, 0, WRAP_SIZE, WRAP_SIZE);
+
+  data.areas.forEach((area, i) => {
+    const segStart = arcStart + segStep * i + GAP;
+    const segEnd   = arcStart + segStep * (i + 1) - GAP;
+    const midAngle = arcStart + segStep * (i + 0.5);
+
+    // Filled arc segment
+    ringCtx.beginPath();
+    ringCtx.arc(RING_CX, RING_CY, RING_R_OUT, segStart, segEnd);
+    ringCtx.arc(RING_CX, RING_CY, RING_R_IN, segEnd, segStart, true);
+    ringCtx.closePath();
+    ringCtx.fillStyle = area.color + '1e';
+    ringCtx.fill();
+
+    // Outer arc
+    ringCtx.beginPath();
+    ringCtx.arc(RING_CX, RING_CY, RING_R_OUT, segStart, segEnd);
+    ringCtx.strokeStyle = area.color + 'bb';
+    ringCtx.lineWidth = 1.5;
+    ringCtx.stroke();
+
+    // Inner arc
+    ringCtx.beginPath();
+    ringCtx.arc(RING_CX, RING_CY, RING_R_IN, segStart, segEnd);
+    ringCtx.strokeStyle = area.color + '44';
+    ringCtx.lineWidth = 1;
+    ringCtx.stroke();
+
+    // Radial divider at segment start
+    ringCtx.beginPath();
+    ringCtx.moveTo(RING_CX + RING_R_IN * Math.cos(segStart), RING_CY + RING_R_IN * Math.sin(segStart));
+    ringCtx.lineTo(RING_CX + RING_R_OUT * Math.cos(segStart), RING_CY + RING_R_OUT * Math.sin(segStart));
+    ringCtx.strokeStyle = area.color + '99';
+    ringCtx.lineWidth = 1.5;
+    ringCtx.stroke();
+  });
+
+  // Final divider after last segment
+  const lastEnd = arcStart + segStep * n - GAP;
+  ringCtx.beginPath();
+  ringCtx.moveTo(RING_CX + RING_R_IN * Math.cos(lastEnd), RING_CY + RING_R_IN * Math.sin(lastEnd));
+  ringCtx.lineTo(RING_CX + RING_R_OUT * Math.cos(lastEnd), RING_CY + RING_R_OUT * Math.sin(lastEnd));
+  ringCtx.strokeStyle = data.areas[n - 1].color + '99';
+  ringCtx.lineWidth = 1.5;
+  ringCtx.stroke();
+
+  // Add button at top (canvas angle -π/2)
+  let addBtn = document.getElementById('sphereAddBtn');
+  if (!addBtn) {
+    addBtn = document.createElement('button');
+    addBtn.id        = 'sphereAddBtn';
+    addBtn.className = 'sphere-add-btn';
+    addBtn.title     = 'Nuova area';
+    addBtn.textContent = '+';
+    addBtn.onclick   = addArea;
+    wrap.appendChild(addBtn);
+  }
+  addBtn.style.left = (WRAP_SIZE / 2) + 'px';
+  addBtn.style.top  = (WRAP_SIZE / 2 - RING_R_MID) + 'px';
+}
+
+// ── CARDS ─────────────────────────────────────────────────────────────────────
+const grid = document.getElementById('areasGrid');
+let dragSrcIdx = null;
+
+function renderCards() {
+  grid.innerHTML = '';
+  data.areas.forEach((area, i) => {
+    const card = document.createElement('div');
+    card.className = 'area-card';
+    card.id = 'area-card-' + area.id;
+    card.style.setProperty('--area-color', area.color);
+    card.draggable = true;
+    card.addEventListener('dragstart', e => {
+      dragSrcIdx = i;
+      e.dataTransfer.effectAllowed = 'move';
+      setTimeout(() => card.classList.add('dragging'), 0);
+    });
+    card.addEventListener('dragend', () => {
+      card.classList.remove('dragging');
+      document.querySelectorAll('.area-card.drag-over').forEach(c => c.classList.remove('drag-over'));
+    });
+    card.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      document.querySelectorAll('.area-card.drag-over').forEach(c => c.classList.remove('drag-over'));
+      if (dragSrcIdx !== i) card.classList.add('drag-over');
+    });
+    card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
+    card.addEventListener('drop', e => {
+      e.preventDefault(); e.stopPropagation();
+      card.classList.remove('drag-over');
+      if (dragSrcIdx === null || dragSrcIdx === i) return;
+      const moved = data.areas.splice(dragSrcIdx, 1)[0];
+      data.areas.splice(i, 0, moved);
+      dragSrcIdx = null;
+      save(); mkPts(); renderLabels(); renderCards();
+    });
+    const header = document.createElement('div');
+    header.className = 'area-card-header';
+
+    const chevron = document.createElement('button');
+    chevron.className = 'area-card-chevron';
+    chevron.title = 'Espandi / Comprimi';
+    chevron.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+    chevron.addEventListener('click', e => {
+      e.stopPropagation();
+      const wasExpanded = card.classList.contains('expanded');
+      document.querySelectorAll('.area-card.expanded').forEach(c => c.classList.remove('expanded'));
+      if (!wasExpanded) card.classList.add('expanded');
+    });
+
+    const dot = document.createElement('div');
+    dot.className = 'area-card-dot';
+
+    const nameInput = document.createElement('input');
+    nameInput.className   = 'area-card-name';
+    nameInput.type        = 'text';
+    nameInput.placeholder = 'Nome area…';
+    nameInput.maxLength   = 28;
+    nameInput.value       = area.label || '';
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'area-card-edit-btn';
+    editBtn.title = 'Modifica';
+    editBtn.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>';
+
+    const delBtn = document.createElement('button');
+    delBtn.className   = 'area-card-del';
+    delBtn.title       = 'Rimuovi';
+    delBtn.textContent = '✕';
+
+    header.appendChild(chevron);
+    header.appendChild(dot);
+    header.appendChild(nameInput);
+    header.appendChild(editBtn);
+    header.appendChild(delBtn);
+
+    const body = document.createElement('div');
+    body.className = 'area-card-body';
+
+    QUESTIONS.forEach((q, qi) => {
+      const item = document.createElement('div');
+      item.className = 'area-qa-item';
+      const qlabel = document.createElement('div');
+      qlabel.className = 'area-qa-question';
+      qlabel.textContent = (area.label
+        ? QUESTIONS[qi].replace(/\{area\}/gi, area.label)
+        : QUESTIONS[qi].replace(/\{area\}/gi, 'quest\'area'));
+      const ans = document.createElement('div');
+      ans.className = 'area-qa-answer';
+      const ansVal = (area.answers && area.answers[qi]) || '';
+      ans.textContent = ansVal;
+      item.appendChild(qlabel);
+      item.appendChild(ans);
+      body.appendChild(item);
+    });
+
+    // Name is always editable inline
+
+    function _updateBodyVisibility() {
+      body.querySelectorAll('.area-qa-item').forEach(itm => {
+        const ans = itm.querySelector('.area-qa-answer');
+        itm.style.display = (ans && ans.textContent.trim()) ? '' : 'none';
+      });
+    }
+
+    editBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      const overlay = document.getElementById('lwDiaryOverlay');
+      const frame   = document.getElementById('lwDiaryFrame');
+      if (overlay && frame) {
+        frame.src = 'guidedDiary_func.html?mode=life-wheel&areaId=' + area.id + '&popup=1';
+        overlay.style.display = 'block';
+      }
+    });
+
+    card.appendChild(header);
+    card.appendChild(body);
+    grid.appendChild(card);
+
+    nameInput.addEventListener('click', e => e.stopPropagation());
+    nameInput.addEventListener('input', () => {
+      area.label = nameInput.value;
+      save();
+      renderLabels();
+      // Update {area} placeholders live in this card's question labels
+      body.querySelectorAll('.area-qa-question').forEach((ql, qi) => {
+        ql.textContent = QUESTIONS[qi]
+          ? QUESTIONS[qi].replace(/\{area\}/gi, area.label || 'quest\'area')
+          : ql.textContent;
+      });
+    });
+    _updateBodyVisibility();
+    delBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      if (data.areas.length <= 1) return;
+      data.areas = data.areas.filter(a => a.id !== area.id);
+      save(); mkPts(); renderLabels(); renderCards();
+    });
+  });
+}
+
+// ── ADD AREA ──────────────────────────────────────────────────────────────────
+function addArea() {
+  const used  = new Set(data.areas.map(a => a.color));
+  const color = PALETTE.find(c => !used.has(c)) || PALETTE[data.areas.length % PALETTE.length];
+  const newId = data.nextId;
+  data.areas.push({ id: data.nextId++, color, label: '', answers: ['', '', ''] });
+  save(); mkPts(); renderLabels(); renderCards();
+  // Auto-expand and enter edit mode for the new card
+  const newCard = document.getElementById('area-card-' + newId);
+  if (newCard) {
+    newCard.classList.add('expanded');
+    const ni = newCard.querySelector('.area-card-name');
+    if (ni) ni.focus();
+  }
+}
+
+// ── RING CLICK → OPEN CARD ───────────────────────────────────────────────────
+wrap.addEventListener('click', e => {
+  const rect = wrap.getBoundingClientRect();
+  const dx = e.clientX - rect.left  - WRAP_SIZE / 2;
+  const dy = e.clientY - rect.top   - WRAP_SIZE / 2;
+  const dist = Math.hypot(dx, dy);
+  if (dist < RING_R_IN || dist > RING_R_OUT) return; // outside ring band
+  let angle = Math.atan2(dy, dx);
+  const arcStart = -Math.PI / 2 + ADD_SLOT / 2;
+  const totalArc = 2 * Math.PI - ADD_SLOT;
+  const segStep  = totalArc / data.areas.length;
+  // Normalise angle into [arcStart, arcStart+totalArc)
+  while (angle < arcStart)          angle += 2 * Math.PI;
+  while (angle > arcStart + 2*Math.PI) angle -= 2 * Math.PI;
+  if (angle > arcStart + totalArc) return; // inside the ADD_SLOT gap
+  const idx = Math.floor((angle - arcStart) / segStep);
+  if (idx < 0 || idx >= data.areas.length) return;
+  const targetCard = document.getElementById('area-card-' + data.areas[idx].id);
+  if (!targetCard) return;
+  e.stopPropagation();
+  const wasExpanded = targetCard.classList.contains('expanded');
+  document.querySelectorAll('.area-card.expanded').forEach(c => c.classList.remove('expanded'));
+  if (!wasExpanded) targetCard.classList.add('expanded');
+});
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+renderLabels();
+renderCards();
+// ── DIARY POPUP (life-wheel edit) ──────────────────────────────────────
+window.addEventListener('message', e => {
+  if (!e.data || typeof e.data !== 'object') return;
+  const ov = document.getElementById('lwDiaryOverlay');
+  const fr = document.getElementById('lwDiaryFrame');
+  if (e.data.type === 'lw-diary-saved') {
+    if (ov) ov.style.display = 'none';
+    if (fr) fr.src = 'about:blank';
+    // Refresh questions in case user edited them in the popup
+    try {
+      const _sq = localStorage.getItem('vv_lw_questions');
+      if (_sq) {
+        const _arr = JSON.parse(_sq);
+        if (Array.isArray(_arr) && _arr.length > 0) {
+          QUESTIONS.length = 0;
+          _arr.forEach(q => QUESTIONS.push(typeof q === 'string' ? q : q.text || ''));
+        }
+      }
+    } catch(e) {}
+    data = loadData();
+    mkPts(); renderLabels(); renderCards();
+  } else if (e.data.type === 'lw-diary-close') {
+    if (ov) ov.style.display = 'none';
+    if (fr) fr.src = 'about:blank';
+  }
+});
+// ── EMBED MODE ───────────────────────────────────────────────────────────────
+if (new URLSearchParams(location.search).get('embed') === '1') {
+  document.querySelector('.header-row').style.display = 'none';
+  document.body.style.padding = '.5rem .5rem 1rem';
+  function notifyHeight() {
+    const h = document.body.scrollHeight;
+    if (window.parent !== window) window.parent.postMessage({ type: 'lw-height', h }, '*');
+  }
+  new ResizeObserver(notifyHeight).observe(document.body);
+  notifyHeight();
+}
+</script>
+
+<!-- DIARY POPUP OVERLAY -->
+<div id="lwDiaryOverlay" style="display:none;position:fixed;inset:0;z-index:200;background:#0a0a0f;">
+  <iframe id="lwDiaryFrame" style="width:100%;height:100%;border:none;" src="about:blank" allow="microphone"></iframe>
+</div>
+
+</body>
+</html>

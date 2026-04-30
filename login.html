@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Voce Viva — Accedi</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0a0a0f">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0a0a0f; --surface: #111118; --border: #1e1e2e;
+  --accent: #f55036; --text: #e8e8f0; --muted: #5a5a7a; --live: #4ade80;
+}
+body {
+  min-height: 100vh; background: var(--bg); color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  display: flex; align-items: center; justify-content: center;
+  padding: 1.5rem 1rem;
+}
+body::before {
+  content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 80% 50% at 5% 95%, rgba(245,80,54,.08) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 95% 5%, rgba(245,80,54,.05) 0%, transparent 60%);
+}
+.card {
+  position: relative; z-index: 1;
+  width: 100%; max-width: 380px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 1.2rem; padding: 2rem 1.8rem;
+  display: flex; flex-direction: column; gap: 1.1rem;
+}
+.logo h1 {
+  font-family: 'DM Serif Display', serif; font-size: 2rem;
+  letter-spacing: -.03em; line-height: 1;
+}
+.logo h1 em { font-style: italic; color: var(--accent); }
+.logo p { font-size: .58rem; color: var(--muted); text-transform: uppercase; letter-spacing: .18em; margin-top: .3rem; }
+.tabs {
+  display: flex; gap: .3rem;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: .6rem; padding: .2rem;
+}
+.tab {
+  flex: 1; background: none; border: none; color: var(--muted);
+  font-family: 'JetBrains Mono', monospace; font-size: .65rem;
+  text-transform: uppercase; letter-spacing: .1em;
+  padding: .45rem; border-radius: .4rem; cursor: pointer;
+  transition: background .2s, color .2s;
+}
+.tab.active { background: var(--accent); color: #fff; }
+.fields { display: flex; flex-direction: column; gap: .6rem; }
+.field-label { font-size: .58rem; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); display: block; margin-bottom: .22rem; }
+input[type="email"], input[type="password"], input[type="text"] {
+  width: 100%; background: var(--bg); border: 1px solid var(--border);
+  border-radius: .5rem; color: var(--text);
+  font-family: 'JetBrains Mono', monospace; font-size: .78rem;
+  padding: .62rem .8rem; outline: none; transition: border-color .2s;
+}
+input:focus { border-color: var(--accent); }
+input::placeholder { color: var(--muted); }
+.btn-primary {
+  width: 100%; background: var(--accent); color: #fff; border: none;
+  padding: .7rem; border-radius: .55rem;
+  font-family: 'JetBrains Mono', monospace; font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .1em;
+  cursor: pointer; transition: opacity .2s;
+}
+.btn-primary:hover { opacity: .88; }
+.btn-primary:disabled { opacity: .45; cursor: default; }
+.divider {
+  display: flex; align-items: center; gap: .6rem;
+  color: var(--muted); font-size: .58rem; text-transform: uppercase; letter-spacing: .1em;
+}
+.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.btn-google {
+  width: 100%; background: none; border: 1px solid var(--border);
+  color: var(--text); padding: .62rem; border-radius: .55rem;
+  font-family: 'JetBrains Mono', monospace; font-size: .72rem;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  gap: .5rem; transition: border-color .2s, background .2s;
+}
+.btn-google:hover { border-color: rgba(245,80,54,.4); background: rgba(245,80,54,.04); }
+.btn-google:disabled { opacity: .5; cursor: default; }
+.btn-google svg { width: 15px; height: 15px; flex-shrink: 0; }
+.msg {
+  border-radius: .55rem; padding: .55rem .75rem; font-size: .66rem;
+  line-height: 1.65; display: none;
+}
+.msg.show { display: block; }
+.msg.error { background: rgba(240,106,106,.08); border: 1px solid rgba(240,106,106,.25); color: #f06a6a; }
+.msg.success { background: rgba(74,222,128,.08); border: 1px solid rgba(74,222,128,.25); color: var(--live); }
+.hint { font-size: .6rem; color: var(--muted); text-align: center; line-height: 1.7; }
+.hint-link { color: var(--accent); cursor: pointer; text-decoration: none; }
+.hint-link:hover { text-decoration: underline; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner { display: inline-block; width: 11px; height: 11px; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; margin-right: .3rem; vertical-align: middle; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <h1>Voce <em>Viva</em></h1>
+    <p>Il tuo diario personale</p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" id="tabSignIn">Accedi</button>
+    <button class="tab" id="tabSignUp">Registrati</button>
+  </div>
+
+  <div class="fields">
+    <div id="nameField" style="display:none">
+      <label class="field-label">Nome (opzionale)</label>
+      <input type="text" id="nameInput" placeholder="Il tuo nome" autocomplete="name">
+    </div>
+    <div>
+      <label class="field-label">Email</label>
+      <input type="email" id="emailInput" placeholder="nome@email.com" autocomplete="email">
+    </div>
+    <div>
+      <label class="field-label">Password</label>
+      <input type="password" id="passwordInput" placeholder="••••••••" autocomplete="current-password">
+    </div>
+  </div>
+
+  <div class="msg error" id="errorMsg"></div>
+  <div class="msg success" id="successMsg"></div>
+
+  <button class="btn-primary" id="submitBtn">Accedi</button>
+
+  <div class="divider">oppure</div>
+
+  <button class="btn-google" id="googleBtn">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+    </svg>
+    Continua con Google
+  </button>
+
+  <p class="hint" id="hintText">
+    Non hai un account? <span class="hint-link" id="hintLink">Registrati</span>
+  </p>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://ezycobgovadcgvnyqcew.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_ASHxxToKJyMy4CpBAqseqA_mepXAAJ-';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// URL di destinazione dopo il login
+const HOME = window.location.href.replace(/login\.html.*$/, 'index.html');
+
+// Se già autenticato vai direttamente a index.html
+sb.auth.getSession().then(({ data: { session } }) => {
+  if (session?.user) window.location.replace(HOME);
+});
+
+// Gestisce il redirect OAuth (Google manda token nell'URL)
+sb.auth.onAuthStateChange((event, session) => {
+  if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
+    window.location.replace(HOME);
+  }
+});
+
+// ── Elementi DOM ─────────────────────────────────────────────────────────────
+const emailInput    = document.getElementById('emailInput');
+const passwordInput = document.getElementById('passwordInput');
+const nameInput     = document.getElementById('nameInput');
+const nameField     = document.getElementById('nameField');
+const submitBtn     = document.getElementById('submitBtn');
+const googleBtn     = document.getElementById('googleBtn');
+const errorMsg      = document.getElementById('errorMsg');
+const successMsg    = document.getElementById('successMsg');
+const tabSignIn     = document.getElementById('tabSignIn');
+const tabSignUp     = document.getElementById('tabSignUp');
+
+let mode = 'signin';
+
+function setMode(m) {
+  mode = m;
+  hideMessages();
+  if (m === 'signup') {
+    tabSignIn.classList.remove('active');
+    tabSignUp.classList.add('active');
+    nameField.style.display = '';
+    submitBtn.textContent = 'Crea account';
+    passwordInput.setAttribute('autocomplete', 'new-password');
+    document.getElementById('hintText').innerHTML =
+      'Hai già un account? <span class="hint-link" id="hintLink">Accedi</span>';
+  } else {
+    tabSignIn.classList.add('active');
+    tabSignUp.classList.remove('active');
+    nameField.style.display = 'none';
+    submitBtn.textContent = 'Accedi';
+    passwordInput.setAttribute('autocomplete', 'current-password');
+    document.getElementById('hintText').innerHTML =
+      'Non hai un account? <span class="hint-link" id="hintLink">Registrati</span>';
+  }
+  document.getElementById('hintLink').onclick = () => setMode(mode === 'signin' ? 'signup' : 'signin');
+}
+
+tabSignIn.onclick = () => setMode('signin');
+tabSignUp.onclick = () => setMode('signup');
+document.getElementById('hintLink').onclick = () => setMode('signup');
+
+function showError(msg)   { errorMsg.textContent = msg; errorMsg.classList.add('show'); successMsg.classList.remove('show'); }
+function showSuccess(msg) { successMsg.textContent = msg; successMsg.classList.add('show'); errorMsg.classList.remove('show'); }
+function hideMessages()   { errorMsg.classList.remove('show'); successMsg.classList.remove('show'); }
+
+function setLoading(on) {
+  submitBtn.disabled = on;
+  const label = mode === 'signup' ? 'Creo account...' : 'Accedo...';
+  submitBtn.innerHTML = on ? '<span class="spinner"></span>' + label
+    : (mode === 'signup' ? 'Crea account' : 'Accedi');
+}
+
+// ── Accesso / Registrazione email+password ────────────────────────────────
+submitBtn.onclick = async () => {
+  const email    = emailInput.value.trim();
+  const password = passwordInput.value;
+  const name     = nameInput.value.trim();
+
+  if (!email)           { showError('Inserisci la tua email.'); return; }
+  if (!password)        { showError('Inserisci la password.'); return; }
+  if (password.length < 6) { showError('La password deve avere almeno 6 caratteri.'); return; }
+
+  setLoading(true); hideMessages();
+
+  if (mode === 'signup') {
+    const { error } = await sb.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: name || email.split('@')[0] } }
+    });
+    if (error) { showError(_err(error.message)); setLoading(false); return; }
+    showSuccess('Account creato! Controlla la tua email per confermare l\'indirizzo, poi accedi.');
+    setLoading(false);
+    setMode('signin');
+
+  } else {
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) { showError(_err(error.message)); setLoading(false); return; }
+    // onAuthStateChange gestisce il redirect a index.html
+  }
+};
+
+passwordInput.onkeydown = e => { if (e.key === 'Enter') submitBtn.click(); };
+emailInput.onkeydown    = e => { if (e.key === 'Enter') passwordInput.focus(); };
+
+// ── Google OAuth ──────────────────────────────────────────────────────────
+googleBtn.onclick = async () => {
+  googleBtn.disabled = true;
+  googleBtn.innerHTML = '<span class="spinner" style="border-top-color:var(--text)"></span> Apertura Google...';
+
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: HOME }
+  });
+
+  if (error) {
+    showError('Google non disponibile: ' + _err(error.message));
+    googleBtn.disabled = false;
+    googleBtn.innerHTML = _googleBtnHTML();
+  }
+};
+
+function _googleBtnHTML() {
+  return `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+  </svg> Continua con Google`;
+}
+
+function _err(msg) {
+  if (!msg) return 'Errore sconosciuto.';
+  if (msg.includes('Invalid login credentials'))  return 'Email o password non corretti.';
+  if (msg.includes('Email not confirmed'))         return 'Conferma prima la tua email, poi riprova.';
+  if (msg.includes('User already registered'))     return 'Email già registrata. Prova ad accedere.';
+  if (msg.includes('Password should'))             return 'La password deve avere almeno 6 caratteri.';
+  if (msg.includes('Unable to validate'))          return 'Formato email non valido.';
+  if (msg.includes('provider is not enabled'))     return 'Google non è configurato. Usa email e password.';
+  return msg;
+}
+</script>
+</body>
+</html>

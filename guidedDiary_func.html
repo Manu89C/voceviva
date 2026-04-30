@@ -1,0 +1,1616 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Voce Viva — Diario Guidato</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0a0a0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="VoceViva">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400;1,600&family=EB+Garamond:ital,wght@1,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="vv-auth.js"></script>
+<script src="vv-memory.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+[contenteditable] { background:transparent; }
+:root { --bg:#0a0a0f; --surface:#111118; --border:#1e1e2e; --accent:#f55036; --text:#e8e8f0; --muted:#5a5a7a; --live:#4ade80; --warn:#f59e0b; }
+body { min-height:100vh; background:var(--bg); color:var(--text); font-family:'JetBrains Mono',monospace; display:flex; flex-direction:column; align-items:center; -webkit-tap-highlight-color:transparent; }
+body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:none; background:radial-gradient(ellipse 80% 50% at 5% 95%,rgba(245,80,54,.08) 0%,transparent 60%),radial-gradient(ellipse 50% 40% at 95% 5%,rgba(245,80,54,.05) 0%,transparent 60%); }
+
+/* Error */
+.error-msg { position:fixed; bottom:1rem; left:1rem; right:1rem; z-index:300; background:rgba(240,106,106,.08); border:1px solid rgba(240,106,106,.25); border-radius:.6rem; padding:.65rem .85rem; font-size:.68rem; color:#f06a6a; line-height:1.6; display:none; }
+.error-msg.show { display:block; }
+
+/* Processing pill */
+.processing-pill { display:none; background:rgba(245,80,54,.12); border:1px solid rgba(245,80,54,.25); border-radius:2rem; padding:.25rem .65rem; font-size:.58rem; color:var(--accent); text-transform:uppercase; letter-spacing:.1em; align-items:center; gap:.35rem; }
+.processing-pill.show { display:flex; }
+.pill-dot { width:4px; height:4px; border-radius:50%; background:var(--accent); animation:blink .6s ease-in-out infinite; }
+
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+@keyframes slideUp { from{transform:translateY(100%);opacity:0} to{transform:translateY(0);opacity:1} }
+@keyframes pulse { 0%,100%{box-shadow:0 6px 36px rgba(192,57,43,.55)} 50%{box-shadow:0 6px 50px rgba(192,57,43,.85),0 0 0 10px rgba(192,57,43,.1)} }
+@keyframes spin { to{transform:rotate(360deg)} }
+.spinner { width:15px; height:15px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite; }
+
+/* Formatting toolbar */
+.fmt-toolbar { display:flex; align-items:center; gap:.2rem; flex-wrap:nowrap; justify-content:space-between; width:100%; }
+.fmt-btn { background:none; border:1px solid var(--border); color:var(--muted); padding:.3rem 0; border-radius:.4rem; font-family:'JetBrains Mono',monospace; font-size:.62rem; cursor:pointer; touch-action:manipulation; transition:all .12s; white-space:nowrap; line-height:1.4; user-select:none; -webkit-user-select:none; text-transform:uppercase; letter-spacing:.04em; flex:1; text-align:center; }
+.fmt-btn:hover:not(.active) { background:var(--surface); color:var(--text); border-color:var(--border); }
+.fmt-btn.active { background:rgba(245,80,54,.15); color:var(--accent); border-color:rgba(245,80,54,.45); }
+.fmt-sep { width:1px; height:14px; background:var(--border); margin:0 2px; flex-shrink:0; }
+
+/* ── GUIDED DIARY ── */
+.guided-overlay { display:flex; position:fixed; inset:0; z-index:200; background:var(--bg); align-items:stretch; justify-content:center; }
+.guided-card { background:var(--surface); border:none; border-radius:0; width:100%; max-width:100%; display:flex; flex-direction:column; animation:fadeIn .2s ease-out; height:100%; overflow:hidden; position:relative; }
+.guided-fixed-top { flex-shrink:0; display:flex; flex-direction:column; gap:.55rem; padding:1rem 1.2rem .4rem; }
+.guided-body { flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; display:flex; flex-direction:column; gap:.55rem; padding:.2rem 1.2rem max(.6rem, env(safe-area-inset-bottom)); }
+.guided-fixed-bottom { flex-shrink:0; display:flex; flex-direction:column; gap:.4rem; padding:.5rem 1.2rem; padding-bottom:max(1rem, env(safe-area-inset-bottom)); border-top:1px solid var(--border); background:var(--surface); }
+.guided-header { display:flex; justify-content:space-between; align-items:center; }
+.guided-header-left { display:flex; flex-direction:column; gap:.2rem; }
+.guided-title { font-family:'DM Serif Display',serif; font-size:1.1rem; color:var(--text); }
+.guided-progress { font-size:.55rem; text-transform:uppercase; letter-spacing:.12em; color:var(--muted); }
+.guided-close { background:none; border:1px solid var(--border); color:var(--muted); width:30px; height:30px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:.85rem; transition:all .15s; flex-shrink:0; }
+.guided-close:hover { border-color:var(--accent); color:var(--accent); }
+.guided-progress-bar { height:3px; background:var(--border); border-radius:2px; overflow:hidden; }
+.guided-progress-fill { height:100%; background:var(--accent); border-radius:2px; transition:width .4s ease; }
+/* ── Keyboard-open compact mode ── */
+.guided-card.kbd .guided-fixed-top { padding:.3rem 1.2rem .2rem; gap:0; }
+.guided-card.kbd .guided-header-left { gap:0; }
+.guided-card.kbd .guided-title { display:none; }
+.guided-card.kbd .guided-progress { display:none; }
+.guided-card.kbd .guided-progress-bar { display:none; }
+.guided-card.kbd .guided-mood-row { display:none; }
+.guided-card.kbd .guided-question { font-size:1.1rem; line-height:1.25; padding:.15rem 0 .25rem; min-height:0; }
+.guided-card.kbd .guided-body { gap:.25rem; padding-bottom:.25rem; flex:1; min-height:0; }
+.guided-card.kbd .guided-editor-wrap { flex:1; min-height:80px; height:auto; }
+.guided-card.kbd .guided-mic-status { display:none; }
+.guided-card.kbd .guided-fixed-bottom { padding:.35rem 1.2rem .35rem; }
+
+/* ── Floating REC button shown on scroll-down when kbd is open ── */
+.guided-fab-rec { display:none; position:absolute; bottom:calc(var(--guided-bottom-h, 64px) + .75rem); right:1.2rem; width:44px; height:44px; border-radius:50%; border:none; background:var(--accent); color:#fff; cursor:pointer; align-items:center; justify-content:center; box-shadow:0 4px 18px rgba(245,80,54,.45); touch-action:manipulation; transition:opacity .2s,transform .2s; z-index:10; }
+.guided-fab-rec svg { width:20px; height:20px; }
+.guided-fab-rec.visible { display:flex; }
+.guided-fab-rec.recording { background:#c0392b; animation:pulse 1.4s ease-in-out infinite; }
+/* ── Inline mic button in guided-nav ── */
+.guided-mic-nav { border-radius:.45rem !important; width:auto !important; height:auto !important; padding:.42rem .7rem !important; box-shadow:0 2px 10px rgba(245,80,54,.3) !important; flex:0 0 auto !important; }
+/* ── Question navigation arrows ── */
+.guided-q-nav { display:flex; align-items:center; gap:.3rem; flex-shrink:0; }
+.guided-q-nav-btn { background:none; border:1px solid var(--border); color:var(--muted); width:32px; height:auto; padding:.55rem .3rem; border-radius:.35rem; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:.9rem; touch-action:manipulation; transition:border-color .15s,color .15s; line-height:1; box-sizing:border-box; }
+.guided-q-nav-btn:hover { border-color:var(--accent); color:var(--accent); }
+.guided-q-nav-btn:disabled { opacity:.3; cursor:not-allowed; pointer-events:none; }
+.guided-q-counter { font-size:.65rem; font-family:'JetBrains Mono',monospace; color:var(--muted); min-width:38px; text-align:center; letter-spacing:.05em; white-space:nowrap; }
+.guided-question { font-family:'Crimson Pro',Georgia,serif; font-size:1.45rem; line-height:1.3; color:var(--text); padding:.6rem 0; min-height:2.5rem; font-weight:400; }
+.guided-question em { color:var(--accent); font-style:normal; font-weight:500; }
+.guided-mood-row { display:flex; gap:.5rem; justify-content:center; padding:.3rem 0; }
+.guided-mood-btn { width:32px; height:32px; border-radius:50%; border:2px solid var(--border); background:var(--bg); color:var(--muted); font-size:.65rem; cursor:pointer; transition:all .2s; display:flex; align-items:center; justify-content:center; touch-action:manipulation; }
+.guided-mood-btn:hover { border-color:rgba(255,255,255,.25); }
+.guided-mood-btn.selected { transform:scale(1.15); }
+.guided-mood-btn[data-mood="1"].selected { border-color:#818cf8; background:rgba(129,140,248,.18); box-shadow:0 0 10px rgba(129,140,248,.35); }
+.guided-mood-btn[data-mood="2"].selected { border-color:#60a5fa; background:rgba(96,165,250,.18); box-shadow:0 0 10px rgba(96,165,250,.35); }
+.guided-mood-btn[data-mood="3"].selected { border-color:#94a3b8; background:rgba(148,163,184,.18); box-shadow:0 0 10px rgba(148,163,184,.35); }
+.guided-mood-btn[data-mood="4"].selected { border-color:#fbbf24; background:rgba(251,191,36,.18); box-shadow:0 0 10px rgba(251,191,36,.35); }
+.guided-mood-btn[data-mood="5"].selected { border-color:#4ade80; background:rgba(74,222,128,.18); box-shadow:0 0 10px rgba(74,222,128,.35); }
+.guided-editor-wrap { flex:1; min-height:100px; display:flex; flex-direction:column; background:var(--bg); border:1px solid var(--border); border-radius:.8rem; padding:.8rem; transition:border-color .2s; overflow:hidden; }
+.guided-editor-wrap:focus-within { border-color:rgba(245,80,54,.4); }
+.guided-editor { background:transparent; border:none; color:var(--text); font-family:'Crimson Pro',Georgia,serif; font-size:1.05rem; line-height:1.85; outline:none; width:100%; min-height:60px; flex:1; overflow-y:auto; caret-color:var(--accent); }
+.guided-editor:empty::before { content:attr(data-placeholder); color:var(--muted); pointer-events:none; display:block; }
+.guided-editor p { margin-bottom:.35rem; }
+.guided-editor strong { color:#fff; font-weight:600; }
+.guided-editor em { color:#fff; font-style:italic; font-family:'EB Garamond',Georgia,serif; }
+.guided-editor ul, .guided-editor ol { margin:.3em 0 .3em 1.5em; padding:0; }
+.guided-editor li { margin:.15em 0; }
+.guided-mic-row { display:flex; flex-direction:column; align-items:center; gap:.35rem; padding:.3rem 0; }
+.guided-mic-btn { width:44px; height:44px; border-radius:50%; border:none; background:var(--accent); color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:transform .12s,box-shadow .25s; box-shadow:0 4px 16px rgba(245,80,54,.35); touch-action:manipulation; }
+.guided-mic-btn:active { transform:scale(.92); }
+.guided-mic-btn.recording { background:#c0392b; animation:pulse 1.4s ease-in-out infinite; }
+.guided-mic-btn svg { width:20px; height:20px; }
+.guided-mic-status { font-size:.55rem; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); display:flex; align-items:center; gap:.35rem; min-height:1rem; }
+.guided-mic-status .pill-dot { width:4px; height:4px; border-radius:50%; background:var(--accent); animation:blink .6s ease-in-out infinite; }
+.guided-nav { display:flex; gap:.3rem; width:100%; }
+.guided-nav-btn { flex:1; padding:.5rem; border-radius:.5rem; font-family:'JetBrains Mono',monospace; font-size:.62rem; text-transform:uppercase; letter-spacing:.08em; cursor:pointer; touch-action:manipulation; text-align:center; transition:all .15s; }
+.guided-later { background:rgba(245,158,11,.12); border:1px solid rgba(245,158,11,.4); color:var(--warn); }
+.guided-later:hover { background:rgba(245,158,11,.2); }
+.guided-later:active { background:none; border-color:var(--border); color:var(--muted); }
+.guided-continue { background:var(--accent); border:1px solid var(--accent); color:#fff; flex:1; font-weight:500; display:flex; align-items:center; justify-content:center; gap:.4rem; }
+.guided-continue:hover { opacity:.9; }
+.guided-continue.complete { background:var(--live); border-color:var(--live); color:#0a0a0f; }
+.guided-editor-fmt { margin-top:.4rem; }
+.guided-editor-fmt .fmt-btn { color:#a8a8cc; border-color:#3c3c58; }
+.guided-editor-fmt .fmt-btn:hover:not(.active) { color:#d0d0e8; border-color:#5a5a80; background:rgba(255,255,255,.05); }
+.guided-editor-fmt .fmt-sep { background:#3c3c58; }
+/* ── EDIT QUESTIONS BUTTON & PANEL ── */
+.guided-edit-btn { background:none; border:1px solid var(--border); color:var(--muted); padding:.32rem .6rem; border-radius:.4rem; font-family:'JetBrains Mono',monospace; font-size:.57rem; text-transform:uppercase; letter-spacing:.08em; cursor:pointer; touch-action:manipulation; transition:all .15s; white-space:nowrap; flex-shrink:0; }
+.guided-edit-btn:hover { border-color:var(--accent); color:var(--accent); }
+.guided-header-actions { display:flex; align-items:center; gap:.35rem; flex-shrink:0; }
+.guided-edit-panel { display:none; position:absolute; inset:0; z-index:20; background:var(--bg); flex-direction:column; overflow:hidden; }
+.guided-edit-panel.show { display:flex; }
+.guided-edit-panel-header { flex-shrink:0; display:flex; align-items:center; justify-content:space-between; padding:1rem 1.2rem .65rem; border-bottom:1px solid var(--border); }
+.guided-edit-panel-title { font-family:'DM Serif Display',serif; font-size:1.1rem; color:var(--text); }
+.guided-edit-list { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:.6rem 1.2rem; display:flex; flex-direction:column; gap:.45rem; }
+.guided-edit-item { display:flex; align-items:flex-start; gap:.45rem; background:var(--surface); border:1px solid var(--border); border-radius:.7rem; padding:.55rem .65rem; transition:border-color .15s; touch-action:pan-y; }
+.guided-edit-item.dragging { opacity:.45; border-color:var(--accent); }
+.guided-edit-item.drag-target-above { border-top:2px solid var(--accent); }
+.guided-edit-item.drag-target-below { border-bottom:2px solid var(--accent); }
+.drag-drop-indicator { height:2px; background:var(--accent); border-radius:2px; margin:.06rem 0; flex-shrink:0; box-shadow:0 0 8px rgba(245,80,54,.6); pointer-events:none; }
+.guided-edit-item-num { font-size:.58rem; font-family:'JetBrains Mono',monospace; color:var(--muted); padding-top:.25rem; min-width:16px; flex-shrink:0; }
+.guided-edit-item-drag { color:var(--muted); cursor:grab; flex-shrink:0; padding:.2rem .1rem; display:flex; align-items:center; touch-action:none; user-select:none; -webkit-user-select:none; }
+.guided-edit-item-drag:active { cursor:grabbing; }
+.guided-edit-item-input { flex:1; background:transparent; border:none; color:var(--text); font-family:'Crimson Pro',Georgia,serif; font-size:.97rem; line-height:1.5; outline:none; resize:none; min-height:36px; padding:0; overflow:hidden; }
+.guided-edit-item-input::placeholder { color:var(--muted); }
+.guided-edit-item-delete { background:none; border:none; color:var(--muted); cursor:pointer; font-size:.8rem; padding:.2rem .25rem; flex-shrink:0; transition:color .15s; line-height:1; }
+.guided-edit-item-delete:hover { color:var(--accent); }
+.guided-edit-add-btn { flex-shrink:0; margin:.1rem 1.2rem .4rem; background:none; border:1px dashed rgba(255,255,255,.12); border-radius:.6rem; color:var(--muted); font-family:'JetBrains Mono',monospace; font-size:.6rem; text-transform:uppercase; letter-spacing:.08em; padding:.5rem; cursor:pointer; transition:border-color .15s,color .15s; }
+.guided-edit-add-btn:hover { border-color:var(--accent); color:var(--accent); }
+.guided-edit-panel-footer { flex-shrink:0; padding:.65rem 1.2rem; padding-bottom:max(1rem, env(safe-area-inset-bottom)); border-top:1px solid var(--border); background:var(--surface); }
+.guided-edit-save-btn { width:100%; padding:.58rem; background:var(--live); border:none; border-radius:.6rem; color:#0a0a0f; font-family:'JetBrains Mono',monospace; font-size:.65rem; text-transform:uppercase; letter-spacing:.1em; cursor:pointer; font-weight:600; transition:opacity .15s; }
+.guided-edit-save-btn:hover { opacity:.88; }
+
+/* ── LIFE-WHEEL area title input ── */
+.guided-title-lw {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.4rem; letter-spacing: -.02em; font-style: italic;
+  color: var(--accent);
+  background: none; border: none;
+  border-bottom: 1px solid transparent;
+  outline: none; padding: .05rem 0; width: 100%;
+  transition: border-color .2s;
+}
+.guided-title-lw:focus { border-bottom-color: var(--lw-color, var(--accent)); }
+.guided-title-lw::placeholder { opacity: .4; font-style: italic; }
+
+/* Modal input (date) */
+.modal-input { background:var(--bg); border:1px solid var(--border); border-radius:.6rem; color:var(--text); font-family:'JetBrains Mono',monospace; font-size:.78rem; padding:.55rem .7rem; outline:none; transition:border-color .2s; width:100%; color-scheme:dark; }
+.modal-input:focus { border-color:var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- ERROR MSG -->
+<div class="error-msg" id="errorMsg"></div>
+
+<!-- GUIDED DIARY OVERLAY (always visible on this page) -->
+<div class="guided-overlay" id="guidedOverlay" style="display:flex;">
+  <div class="guided-card">
+    <div class="guided-fixed-top">
+    <div class="guided-header">
+      <div class="guided-header-left">
+        <div class="guided-title">Diario <em style="color:var(--accent);font-style:italic;">Guidato</em></div>
+        <div class="guided-progress" id="guidedProgress">Domanda 1 di 8</div>
+        <div style="margin-top:.3rem;display:flex;align-items:flex-end;justify-content:space-between;gap:.5rem;">
+          <div>
+            <label id="guidedDateLabel" style="font-size:.55rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);">Data</label>
+            <input type="date" id="guidedDateInput" class="modal-input" style="margin-top:.15rem;">
+            <div id="guidedDateDisplay" style="display:none;font-size:.65rem;color:var(--muted);font-family:'JetBrains Mono',monospace;letter-spacing:.05em;padding:.55rem 0;"></div>
+          </div>
+          <div class="guided-q-nav" id="guidedQNav">
+            <button class="guided-q-nav-btn" id="guidedPrevBtn" title="Domanda precedente" disabled>&#8592;</button>
+            <span class="guided-q-counter" id="guidedQCounter">1 / 8</span>
+            <button class="guided-q-nav-btn" id="guidedNextBtn" title="Domanda successiva">&#8594;</button>
+          </div>
+        </div>
+      </div>
+      <div class="guided-header-actions">
+        <button class="guided-edit-btn" id="guidedEditBtn" title="Impostazioni" style="padding:.32rem .45rem;display:flex;align-items:center;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;"><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+        <button class="guided-close" id="guidedClose">&#x2715;</button>
+      </div>
+    </div>
+    <div class="guided-progress-bar"><div class="guided-progress-fill" id="guidedProgressFill" style="width:12.5%"></div></div>
+    </div>
+    <!-- FAB REC: visible on scroll when keyboard is open -->
+    <button class="guided-fab-rec" id="guidedFabRec" title="Registra">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+    </button>
+    <div class="guided-body">
+    <div class="guided-question" id="guidedQuestion">Qual è il tuo umore oggi? <em>(1 a 5)</em></div>
+    <div class="guided-mood-row" id="guidedMoodRow">
+      <!-- Mood 1: Molto basso — indigo -->
+      <button class="guided-mood-btn" data-mood="1" title="Molto basso">
+        <svg viewBox="0 0 36 36" fill="none" width="52" height="52">
+          <circle cx="18" cy="18" r="16" stroke="#818cf8" stroke-width="2"/>
+          <line x1="9" y1="12" x2="13" y2="14" stroke="#818cf8" stroke-width="1.8" stroke-linecap="round"/>
+          <line x1="27" y1="12" x2="23" y2="14" stroke="#818cf8" stroke-width="1.8" stroke-linecap="round"/>
+          <ellipse cx="13" cy="17" rx="2" ry="1.5" fill="#818cf8"/>
+          <ellipse cx="23" cy="17" rx="2" ry="1.5" fill="#818cf8"/>
+          <path d="M11 27 Q18 21 25 27" stroke="#818cf8" stroke-width="2" stroke-linecap="round"/>
+          <path d="M13 20 C12.4 21.5 12.4 23 13 23 C13.6 23 13.6 21.5 13 20Z" fill="#818cf8"/>
+        </svg>
+      </button>
+      <!-- Mood 2: Basso — blue -->
+      <button class="guided-mood-btn" data-mood="2" title="Basso">
+        <svg viewBox="0 0 36 36" fill="none" width="52" height="52">
+          <circle cx="18" cy="18" r="16" stroke="#60a5fa" stroke-width="2"/>
+          <path d="M9.5 12.5 Q11.5 11 13.5 12.5" stroke="#60a5fa" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M22.5 12.5 Q24.5 11 26.5 12.5" stroke="#60a5fa" stroke-width="1.8" stroke-linecap="round"/>
+          <circle cx="13" cy="17" r="1.8" fill="#60a5fa"/>
+          <circle cx="23" cy="17" r="1.8" fill="#60a5fa"/>
+          <path d="M11 26 Q18 22 25 26" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <!-- Mood 3: Neutro — slate -->
+      <button class="guided-mood-btn" data-mood="3" title="Neutro">
+        <svg viewBox="0 0 36 36" fill="none" width="52" height="52">
+          <circle cx="18" cy="18" r="16" stroke="#94a3b8" stroke-width="2"/>
+          <line x1="10" y1="12" x2="14" y2="12" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round"/>
+          <line x1="22" y1="12" x2="26" y2="12" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round"/>
+          <circle cx="13" cy="17" r="1.8" fill="#94a3b8"/>
+          <circle cx="23" cy="17" r="1.8" fill="#94a3b8"/>
+          <line x1="11" y1="24" x2="25" y2="24" stroke="#94a3b8" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <!-- Mood 4: Buono — amber -->
+      <button class="guided-mood-btn" data-mood="4" title="Buono">
+        <svg viewBox="0 0 36 36" fill="none" width="52" height="52">
+          <circle cx="18" cy="18" r="16" stroke="#fbbf24" stroke-width="2"/>
+          <path d="M9.5 13.5 Q11.5 11.5 13.5 13.5" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M22.5 13.5 Q24.5 11.5 26.5 13.5" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round"/>
+          <circle cx="13" cy="17" r="1.8" fill="#fbbf24"/>
+          <circle cx="23" cy="17" r="1.8" fill="#fbbf24"/>
+          <path d="M11 23 Q18 28 25 23" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <!-- Mood 5: Ottimo — green -->
+      <button class="guided-mood-btn" data-mood="5" title="Ottimo">
+        <svg viewBox="0 0 36 36" fill="none" width="52" height="52">
+          <circle cx="18" cy="18" r="16" stroke="#4ade80" stroke-width="2"/>
+          <path d="M9 13 Q11 10.5 13 13" stroke="#4ade80" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M23 13 Q25 10.5 27 13" stroke="#4ade80" stroke-width="1.8" stroke-linecap="round"/>
+          <circle cx="13" cy="17" r="2" fill="#4ade80"/>
+          <circle cx="23" cy="17" r="2" fill="#4ade80"/>
+          <path d="M10 22 C10 30 26 30 26 22" stroke="#4ade80" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+    <div class="guided-editor-wrap">
+      <div class="guided-editor" id="guidedEditor" contenteditable="true" spellcheck="true" data-placeholder="Scrivi qui o usa il microfono per dettare..."></div>
+    </div>
+    <div class="fmt-toolbar guided-editor-fmt">
+      <button class="fmt-btn" id="gFmtH1">𝐓 H¹</button>
+      <button class="fmt-btn" id="gFmtH2">𝐓 H²</button>
+      <button class="fmt-btn" id="gFmtH3">𝐓 H³</button>
+      <span class="fmt-sep"></span>
+      <button class="fmt-btn" id="gFmtBold">𝐁</button>
+      <button class="fmt-btn" id="gFmtItalic">𝐼</button>
+      <span class="fmt-sep"></span>
+      <button class="fmt-btn" id="gFmtUl"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:middle"><circle cx="2" cy="4" r="1.5"/><rect x="5" y="3" width="10" height="2" rx="1"/><circle cx="2" cy="8" r="1.5"/><rect x="5" y="7" width="10" height="2" rx="1"/><circle cx="2" cy="12" r="1.5"/><rect x="5" y="11" width="10" height="2" rx="1"/></svg></button>
+      <button class="fmt-btn" id="gFmtOl"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:middle"><text x="0" y="5" font-size="5" font-family="monospace">1.</text><rect x="5" y="3" width="10" height="2" rx="1"/><text x="0" y="9" font-size="5" font-family="monospace">2.</text><rect x="5" y="7" width="10" height="2" rx="1"/><text x="0" y="13" font-size="5" font-family="monospace">3.</text><rect x="5" y="11" width="10" height="2" rx="1"/></svg></button>
+    </div>
+    </div><!-- /guided-body -->
+    <div class="guided-fixed-bottom" id="guidedFixedBottom">
+    <div class="guided-nav">
+      <button class="guided-nav-btn guided-later" id="guidedLater">Rispondi dopo</button>
+      <button class="guided-mic-btn guided-mic-nav" id="guidedMicBtn" title="Registra">
+        <svg id="guidedMicIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        <svg id="guidedStopIcon" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+      </button>
+      <button class="guided-nav-btn guided-continue" id="guidedContinue">Salta <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;vertical-align:middle"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button>
+    </div>
+    <div class="guided-mic-status" id="guidedMicStatus"></div>
+    </div>
+
+  <!-- EDIT QUESTIONS PANEL -->
+  <div class="guided-edit-panel" id="guidedEditPanel">
+    <div class="guided-edit-panel-header">
+      <span class="guided-edit-panel-title">Impostazioni <em style="color:var(--accent);font-style:italic;">domande</em></span>
+      <button class="guided-close" id="guidedEditPanelClose">&#x2715;</button>
+    </div>
+    <div class="guided-edit-list" id="guidedEditList"></div>
+    <button class="guided-edit-add-btn" id="guidedEditAddBtn">+ Aggiungi domanda</button>
+    <div class="guided-edit-panel-footer">
+      <button class="guided-edit-save-btn" id="guidedEditSaveBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;vertical-align:middle;margin-right:.35em"><polyline points="20 6 9 17 4 12"/></svg>Salva impostazioni
+      </button>
+    </div>
+  </div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────────────────────────
+let GROQ_KEY = (localStorage.getItem('vv_groq') || '').trim();
+const CHUNK_MS       = 20000;
+const OVERLAP_MS     = 4000;
+const MIN_BLOB_BYTES = 12000;
+const MAX_BLOB_BYTES = 8 * 1024 * 1024;
+const SILENCE_THR    = 0.007;
+const SPEECH_RATIO   = 0.12;
+
+// ── SUPABASE ─────────────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://ezycobgovadcgvnyqcew.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_ASHxxToKJyMy4CpBAqseqA_mepXAAJ-';
+let sb = null;
+try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) {}
+
+// ── AUTH + INIT ───────────────────────────────────────────────────────────────────
+let currentUserId = null;
+(async () => {
+  if (sb) {
+    const { userId } = await VvAuth.init(sb);
+    if (!userId) return;
+    currentUserId = userId;
+  }
+  await MemoryManager.init(currentUserId);
+})();
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function showErr(m) { const el = $('errorMsg'); el.textContent = m; el.classList.add('show'); }
+function hideErr() { $('errorMsg').classList.remove('show'); }
+
+function hasSpeech(arr) { return arr.length > 0 && arr.filter(v => v > SILENCE_THR).length / arr.length > SPEECH_RATIO; }
+
+function deduplicateOverlap(existing, incoming) {
+  const ew = existing.trim().split(/\s+/), iw = incoming.trim().split(/\s+/);
+  if (!ew.length || !existing.trim()) return incoming.trim();
+  const maxCheck = Math.min(25, ew.length, iw.length);
+  let best = 0;
+  for (let len = maxCheck; len >= 2; len--) {
+    if (ew.slice(-len).join(' ').toLowerCase() === iw.slice(0, len).join(' ').toLowerCase()) { best = len; break; }
+  }
+  if (best > 0) return iw.slice(best).join(' ').trim();
+  for (let len = Math.min(15, iw.length); len >= 3; len--) {
+    if (existing.toLowerCase().endsWith(iw.slice(0, len).join(' ').toLowerCase())) return iw.slice(len).join(' ').trim();
+  }
+  return incoming.trim();
+}
+
+// ── RNNOISE ───────────────────────────────────────────────────────────────────
+let rnnoiseModule = null, rnnoiseState = null;
+let apiWarmedUp = false;
+let rnnoiseScriptPromise = null;
+
+function ensureRNNoiseLoaded() {
+  if (typeof createRNNWasmModule !== 'undefined') return Promise.resolve(true);
+  if (rnnoiseScriptPromise) return rnnoiseScriptPromise;
+  rnnoiseScriptPromise = new Promise(resolve => {
+    const script = document.createElement('script');
+    script.src = 'rnnoise-sync.js';
+    script.async = true;
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.head.appendChild(script);
+  });
+  return rnnoiseScriptPromise;
+}
+
+async function initRNNoise() {
+  if (rnnoiseModule) return true;
+  try {
+    const loaded = await ensureRNNoiseLoaded();
+    if (!loaded) return false;
+    if (typeof createRNNWasmModule === 'undefined') return false;
+    rnnoiseModule = await createRNNWasmModule();
+    rnnoiseState = rnnoiseModule._rnnoise_create(0);
+    return true;
+  } catch(e) { return false; }
+}
+
+async function applyRNNoise(blob) {
+  try {
+    const arrayBuf = await blob.arrayBuffer();
+    const tmpCtx = new OfflineAudioContext(1, 1, 48000);
+    const decoded = await tmpCtx.decodeAudioData(arrayBuf);
+    const sr = decoded.sampleRate, raw = decoded.getChannelData(0);
+    const frameSize = 480;
+    const resampledLen = Math.round(raw.length * 48000 / sr);
+    const outCtx = new OfflineAudioContext(1, resampledLen, 48000);
+    const srcBuf = outCtx.createBuffer(1, raw.length, sr);
+    srcBuf.copyToChannel(raw, 0);
+    const srcNode = outCtx.createBufferSource();
+    srcNode.buffer = srcBuf; srcNode.connect(outCtx.destination); srcNode.start();
+    const resampled = (await outCtx.startRendering()).getChannelData(0);
+    const frames = Math.floor(resampled.length / frameSize);
+    const output = new Float32Array(frames * frameSize);
+    const framePtr = rnnoiseModule._malloc(frameSize * 4);
+    for (let i = 0; i < frames; i++) {
+      const frame = resampled.subarray(i * frameSize, (i + 1) * frameSize);
+      rnnoiseModule.HEAPF32.set(frame, framePtr >> 2);
+      rnnoiseModule._rnnoise_process_frame(rnnoiseState, framePtr, framePtr);
+      const processed = rnnoiseModule.HEAPF32.subarray(framePtr >> 2, (framePtr >> 2) + frameSize);
+      output.set(processed, i * frameSize);
+    }
+    rnnoiseModule._free(framePtr);
+    const outBuf = new AudioBuffer({ numberOfChannels: 1, length: output.length, sampleRate: 48000 });
+    outBuf.copyToChannel(output, 0);
+    return await audioBufferToWav(outBuf);
+  } catch(e) { return blob; }
+}
+
+async function audioBufferToWav(buffer) {
+  const sr = buffer.sampleRate, n = buffer.length, ch = buffer.numberOfChannels;
+  const data = buffer.getChannelData(0);
+  const int16 = new Int16Array(n);
+  for (let i = 0; i < n; i++) int16[i] = Math.max(-32768, Math.min(32767, data[i] * 32767));
+  const buf = new ArrayBuffer(44 + n * 2); const v = new DataView(buf);
+  const ws = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  ws(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); ws(8, 'WAVE'); ws(12, 'fmt '); v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true); v.setUint16(22, ch, true); v.setUint32(24, sr, true); v.setUint32(28, sr * ch * 2, true);
+  v.setUint16(32, ch * 2, true); v.setUint16(34, 16, true); ws(36, 'data'); v.setUint32(40, n * 2, true);
+  new Int16Array(buf, 44).set(int16);
+  return new Blob([buf], { type: 'audio/wav' });
+}
+
+async function warmupAPI() {
+  const makeWav = () => {
+    const sr = 16000, n = sr * 0.5, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+    const ws = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+    ws(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); ws(8, 'WAVE'); ws(12, 'fmt '); v.setUint32(16, 16, true);
+    v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true);
+    v.setUint16(32, 2, true); v.setUint16(34, 16, true); ws(36, 'data'); v.setUint32(40, n * 2, true);
+    return new Blob([buf], { type: 'audio/wav' });
+  };
+  for (let a = 1; a <= 2; a++) {
+    try {
+      const form = new FormData();
+      form.append('file', makeWav(), 'warmup.wav');
+      form.append('model', 'whisper-large-v3');
+      form.append('language', 'it');
+      form.append('response_format', 'text');
+      const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', { method: 'POST', headers: { 'Authorization': 'Bearer ' + GROQ_KEY }, body: form, signal: AbortSignal.timeout(10000) });
+      if (res.ok || res.status === 400) return;
+      if (res.status === 429) { const w = parseInt(res.headers.get('retry-after') || '10', 10); await sleep(Math.min(w, 15) * 1000); }
+    } catch(e) { if (a === 1) await sleep(1000); }
+  }
+}
+
+// ── DIARIO GUIDATO ────────────────────────────────────────────────────────────
+(async () => {
+  // ── MODE PARAMS ───────────────────────────────────────────────────────────
+  const _urlP     = new URLSearchParams(location.search);
+  const GD_MODE    = _urlP.get('mode') || 'diary';  // 'diary' | 'life-wheel'
+  const GD_AREA_ID = _urlP.get('areaId') ? parseInt(_urlP.get('areaId'), 10) : null;
+  const GD_POPUP   = _urlP.get('popup') === '1';
+
+  // Check API key (only needed for diary mode)
+  if (!GROQ_KEY && GD_MODE !== 'life-wheel') {
+    showErr('Chiave Groq API mancante. Torna alla pagina principale per inserirla.');
+  }
+
+  const GQ_STORAGE_KEY  = GD_MODE === 'life-wheel' ? 'vv_lw_questions' : 'vv_guided_questions';
+  const GQ_DEFAULT_FILE = GD_MODE === 'life-wheel' ? 'questions-life-wheel.json' : 'questions-diary.json';
+
+  const _GQ_FALLBACK_DIARY = [
+    { text: 'Qual è il tuo umore oggi?', hasMood: true, placeholder: 'Aggiungi un commento sul tuo umore (opzionale)...' },
+    { text: 'Cosa ti è successo oggi?', hasMood: false, placeholder: 'Racconta cosa è accaduto...' },
+    { text: 'Quanto di ciò che ti è successo ha condizionato il tuo umore ed in che modo?', hasMood: false, placeholder: 'Descrivi l\'impatto sul tuo umore...' },
+    { text: 'Cosa di ciò che non ti è accaduto ha condizionato il tuo umore ed in che modo lo influenza?', hasMood: false, placeholder: 'Pensa a ciò che non è successo...' },
+    { text: 'Cosa degli avvenimenti o delle motivazioni sopra elencate dipende da te?', hasMood: false, placeholder: 'Cosa è sotto il tuo controllo...' },
+    { text: 'Cosa invece non dipende da te?', hasMood: false, placeholder: 'Cosa non puoi controllare...' },
+    { text: 'Quali azioni piccole potresti attuare per allinearti all\'idea di te che vuoi raggiungere?', hasMood: false, placeholder: 'Pensa ad azioni concrete e piccole...' },
+    { text: 'Cosa hai imparato oggi sia da ciò che puoi cambiare che da ciò che non puoi cambiare?', hasMood: false, placeholder: 'Rifletti su ciò che hai appreso...' }
+  ];
+  const _GQ_FALLBACK_LW = [
+    { text: 'Qual è la tua situazione attuale in {area}?', hasMood: false, placeholder: 'Descrivi la tua situazione attuale in quest\'area...' },
+    { text: 'Quali traguardi vuoi raggiungere in {area}?', hasMood: false, placeholder: 'Indica gli obiettivi che vuoi raggiungere in quest\'area...' },
+    { text: 'Chi sono i tuoi punti di riferimento in {area}?', hasMood: false, placeholder: 'Chi ti ispira o ti guida in quest\'area?' }
+  ];
+
+  // Load questions from JSON file, then allow localStorage custom override
+  let _GQ_DEFAULTS = GD_MODE === 'life-wheel' ? [..._GQ_FALLBACK_LW] : [..._GQ_FALLBACK_DIARY];
+  try {
+    const _qResp = await fetch(GQ_DEFAULT_FILE);
+    if (_qResp.ok) {
+      const _qArr = await _qResp.json();
+      if (Array.isArray(_qArr) && _qArr.length > 0) _GQ_DEFAULTS = _qArr;
+    }
+  } catch(e) {}
+
+  let GUIDED_QUESTIONS = [..._GQ_DEFAULTS];
+  try {
+    const stored = localStorage.getItem(GQ_STORAGE_KEY);
+    if (stored) {
+      const arr = JSON.parse(stored);
+      if (Array.isArray(arr) && arr.length > 0) GUIDED_QUESTIONS = arr;
+    }
+  } catch(e) {}
+
+  let gCurrentIdx = 0;
+  let gAnswers = new Array(GUIDED_QUESTIONS.length).fill(null);
+  let gMoodValue = null;
+  let gIsRecording = false;
+  let gMediaRecorder = null;
+  let gActiveStream = null;
+  let gAudioCtx = null;
+  let gAnalyser = null;
+  let gPendingChunks = [];
+  let gIsTranscribing = false;
+  let gSkippedNow = new Set();
+  let gResumeMode = false;
+  let gResumeContext = null;
+  let gResumeIndices = [];
+  let gResumeConfirmedIndices = new Set();
+  let gChunkTimer = null;
+
+  // DOM
+  const gOverlay = $('guidedOverlay');
+  const gProgress = $('guidedProgress');
+  const gProgressFill = $('guidedProgressFill');
+  const gQuestion = $('guidedQuestion');
+  const gMoodRow = $('guidedMoodRow');
+  const gEditor = $('guidedEditor');
+  const gMicBtn = $('guidedMicBtn');
+  const gMicIcon = $('guidedMicIcon');
+  const gStopIcon = $('guidedStopIcon');
+  const gMicStatus = $('guidedMicStatus');
+  const gLaterBtn = $('guidedLater');
+  const gContinueBtn = $('guidedContinue');
+  const gCloseBtn = $('guidedClose');
+
+  // ── Navigate back ──
+  let _cameFromDiary = !!localStorage.getItem('vv_new_note_date');
+  function goBack() {
+    if (GD_POPUP && window.parent !== window) {
+      window.parent.postMessage({ type: 'lw-diary-close' }, '*');
+      return;
+    }
+    if (GD_MODE === 'life-wheel') { window.location.replace('life_wheel.html'); return; }
+    window.location.replace(_cameFromDiary ? 'diary.html' : 'index.html');
+  }
+
+  // ── CLOSE ──
+  gCloseBtn.onclick = async () => {
+    gCleanupRecording();
+    const wasResumeMode = gResumeMode;
+
+    if (wasResumeMode && gResumeContext) {
+      $('guidedDateInput').style.display = '';
+      $('guidedDateLabel').style.display = '';
+      $('guidedDateDisplay').style.display = 'none';
+
+      const stillSkipped = gResumeIndices.filter(origIdx => !gResumeConfirmedIndices.has(origIdx));
+
+      if (gResumeConfirmedIndices.size > 0 && gResumeContext.noteId && sb) {
+        try {
+          const dateStr = gResumeContext.noteDate || new Date().toISOString().split('T')[0];
+          const chosenDate = new Date(dateStr + 'T12:00:00');
+          const MOOD_L = ['', '\uD83D\uDE14 Molto basso', '\uD83D\uDE15 Basso', '\uD83D\uDE10 Neutro', '\uD83D\uDE42 Buono', '\uD83D\uDE0A Ottimo'];
+          let newHtml = '<h2>Diario Guidato \u2014 ' + chosenDate.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }) + '</h2>';
+          if (gMoodValue) newHtml += '<p><strong>Umore: ' + MOOD_L[gMoodValue] + ' (' + gMoodValue + '/5)</strong></p>';
+          for (let i = 0; i < GUIDED_QUESTIONS.length; i++) {
+            const q = GUIDED_QUESTIONS[i];
+            if (gAnswers[i] && gAnswers[i].trim() && !stillSkipped.includes(i)) {
+              newHtml += '<h3>' + q.text + '</h3>';
+              newHtml += gAnswers[i];
+            }
+          }
+          if (stillSkipped.length > 0) newHtml += '\n' + _pendingEncode(stillSkipped, [...gAnswers], gMoodValue);
+          await sb.from('notes').update({ content: newHtml, updated_at: new Date().toISOString() }).eq('id', gResumeContext.noteId);
+          // Update pending item in localStorage
+          try {
+            const _PKEY = 'vv_pending_questions';
+            const _praw = localStorage.getItem(_PKEY);
+            let _plist = _praw ? JSON.parse(_praw) : [];
+            if (stillSkipped.length > 0) {
+              const _existIdx = _plist.findIndex(p => p.noteId === gResumeContext.noteId);
+              const _dateStr2 = gResumeContext.noteDate || new Date().toISOString().split('T')[0];
+              const _updated = { id: gResumeContext.pendingId || Date.now(), noteId: gResumeContext.noteId,
+                noteDate: _dateStr2, skippedIndices: stillSkipped, allAnswers: [...gAnswers],
+                moodValue: gMoodValue, createdAt: new Date().toISOString(), noteTitle: gResumeContext.noteTitle || 'Diario Guidato' };
+              if (_existIdx >= 0) _plist[_existIdx] = _updated; else _plist.push(_updated);
+            } else {
+              _plist = _plist.filter(p => p.noteId !== gResumeContext.noteId);
+            }
+            localStorage.setItem(_PKEY, JSON.stringify(_plist));
+          } catch(ex) {}
+        } catch(e) {
+          showErr('Errore aggiornamento: ' + (e.message || e));
+        }
+      }
+
+      goBack();
+      return;
+    }
+
+    // ── NORMAL MODE ──
+    gSaveCurrentAnswer();
+    const hasAny = gAnswers.some(a => a && a.trim()) || gMoodValue;
+    if (hasAny) {
+      for (let i = 0; i < GUIDED_QUESTIONS.length; i++) {
+        if ((!gAnswers[i] || !gAnswers[i].trim()) && !gSkippedNow.has(i)) {
+          gSkippedNow.add(i);
+        }
+      }
+      await gCompleteAndSave();
+      return;
+    }
+    goBack();
+  };
+
+  const _svgArrow = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;vertical-align:middle"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>';
+  const _svgCheck = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg>';
+  const _checkSVG = 'Salva e completa ' + _svgCheck;
+  const _skipSVG          = 'Salta '          + _svgArrow;
+  const _skipCompleteSVG  = 'Salta e completa ' + _svgCheck;
+  const _saveContinueSVG  = 'Salva e continua ' + _svgArrow;
+  const _saveCompleteSVG  = 'Salva e completa ' + _svgCheck;
+
+  function gUpdateNavButtons() {
+    const hasContent = (gEditor.innerText || '').trim().length > 0;
+    const total = gResumeMode ? gResumeIndices.length : GUIDED_QUESTIONS.length;
+    const isLast = gCurrentIdx >= total - 1;
+    if (GD_MODE === 'life-wheel') {
+      gLaterBtn.textContent = 'Salta';
+    } else {
+      gLaterBtn.textContent = hasContent ? 'Completa dopo' : 'Rispondi dopo';
+    }
+    if (isLast) {
+      gContinueBtn.classList.add('complete');
+      gContinueBtn.innerHTML = hasContent ? _saveCompleteSVG : _skipCompleteSVG;
+    } else {
+      gContinueBtn.classList.remove('complete');
+      gContinueBtn.innerHTML = hasContent ? _saveContinueSVG : _skipSVG;
+    }
+  }
+
+  // resolve {area} placeholder in question text
+  let _gAreaLabel = '';
+  let _gAreaColor = 'var(--accent)';
+  function _gInterpolate(text) {
+    if (!text) return text;
+    const raw = _gAreaLabel || 'quest\'area';
+    const label = raw.charAt(0).toUpperCase() + raw.slice(1);
+    return text.replace(/\{area\}/gi,
+      '<em style="color:#fff;font-style:italic;font-weight:500;">' + label + '</em>');
+  }
+  function _gRefreshQuestionText() {
+    const origIdx = gCurrentOrigIdx ? gCurrentOrigIdx() : gCurrentIdx;
+    const q = GUIDED_QUESTIONS[origIdx];
+    if (q && gQuestion) gQuestion.innerHTML = _gInterpolate(q.text);
+  }
+
+  function gUpdateQNav() {
+    const total = gResumeMode ? gResumeIndices.length : GUIDED_QUESTIONS.length;
+    var counter = document.getElementById('guidedQCounter');
+    var prevBtn = document.getElementById('guidedPrevBtn');
+    var nextBtn = document.getElementById('guidedNextBtn');
+    if (counter) counter.textContent = (gCurrentIdx + 1) + ' / ' + total;
+    if (prevBtn) prevBtn.disabled = gCurrentIdx === 0;
+    if (nextBtn) nextBtn.disabled = gCurrentIdx >= total - 1;
+  }
+
+  function gRenderQuestion() {
+    if (gResumeMode) { gRenderResumeQuestion(); return; }
+    const q = GUIDED_QUESTIONS[gCurrentIdx];
+    const total = GUIDED_QUESTIONS.length;
+    gProgress.textContent = `Domanda ${gCurrentIdx + 1} di ${total}`;
+    gProgressFill.style.width = ((gCurrentIdx + 1) / total * 100) + '%';
+    gQuestion.innerHTML = _gInterpolate(q.text);
+    gEditor.innerHTML = gAnswers[gCurrentIdx] || '';
+    gEditor.setAttribute('data-placeholder', q.placeholder);
+    gMoodRow.style.display = q.hasMood ? 'flex' : 'none';
+    if (q.hasMood) {
+      gMoodRow.querySelectorAll('.guided-mood-btn').forEach(btn => {
+        btn.classList.toggle('selected', parseInt(btn.dataset.mood) === gMoodValue);
+      });
+    }
+    gUpdateNavButtons();
+    gUpdateQNav();
+    gEditor.focus();
+  }
+
+  function gRenderResumeQuestion() {
+    const resumeStep = gCurrentIdx;
+    const origIdx = gResumeIndices[resumeStep];
+    const q = GUIDED_QUESTIONS[origIdx];
+    const total = gResumeIndices.length;
+    gProgress.textContent = `Domanda sospesa ${resumeStep + 1} di ${total}`;
+    gProgressFill.style.width = ((resumeStep + 1) / total * 100) + '%';
+    gQuestion.innerHTML = _gInterpolate(q.text);
+    gEditor.innerHTML = gAnswers[origIdx] || '';
+    gEditor.setAttribute('data-placeholder', q.placeholder);
+    gMoodRow.style.display = q.hasMood ? 'flex' : 'none';
+    if (q.hasMood) {
+      gMoodRow.querySelectorAll('.guided-mood-btn').forEach(btn => {
+        btn.classList.toggle('selected', parseInt(btn.dataset.mood) === gMoodValue);
+      });
+    }
+    gUpdateNavButtons();
+    gUpdateQNav();
+    gEditor.focus();
+  }
+
+  function gCurrentOrigIdx() {
+    return gResumeMode ? gResumeIndices[gCurrentIdx] : gCurrentIdx;
+  }
+
+  // ── MOOD BUTTONS ──
+  gMoodRow.addEventListener('click', e => {
+    const btn = e.target.closest('.guided-mood-btn');
+    if (!btn) return;
+    gMoodValue = parseInt(btn.dataset.mood);
+    gMoodRow.querySelectorAll('.guided-mood-btn').forEach(b => {
+      b.classList.toggle('selected', parseInt(b.dataset.mood) === gMoodValue);
+    });
+  });
+
+  // ── NAVIGATION ──
+  function gGetEditorContent() {
+    return (gEditor.innerHTML || '').trim();
+  }
+
+  function gSaveCurrentAnswer() {
+    const content = gGetEditorContent();
+    const origIdx = gCurrentOrigIdx();
+    if (content && content !== '<br>') {
+      gAnswers[origIdx] = content;
+    }
+  }
+
+  gContinueBtn.onclick = async () => {
+    gSaveCurrentAnswer();
+    if (gIsRecording) await gStopRecording();
+    const limit = gResumeMode ? gResumeIndices.length - 1 : GUIDED_QUESTIONS.length - 1;
+    if (gCurrentIdx < limit) {
+      if (gResumeMode) gResumeConfirmedIndices.add(gCurrentOrigIdx());
+      gCurrentIdx++;
+      gRenderQuestion();
+    } else {
+      await gCompleteAndSave();
+    }
+  };
+
+  gLaterBtn.onclick = async () => {
+    if (gIsRecording) await gStopRecording();
+    const origIdx = gCurrentOrigIdx();
+    const content = gGetEditorContent();
+    if (content && content !== '<br>') {
+      gAnswers[origIdx] = content;
+    } else {
+      gAnswers[origIdx] = null;
+    }
+    if (!gResumeMode) gSkippedNow.add(origIdx);
+    const limit = gResumeMode ? gResumeIndices.length - 1 : GUIDED_QUESTIONS.length - 1;
+    if (gCurrentIdx < limit) {
+      gCurrentIdx++;
+      gRenderQuestion();
+    } else {
+      await gCompleteAndSave();
+    }
+  };
+
+  // ── ASSEMBLE & SAVE ──
+  async function gCompleteAndSave() {
+    const hasAny = gAnswers.some(a => a && a.trim()) || gMoodValue;
+    if (!hasAny) {
+      goBack();
+      return;
+    }
+
+    gContinueBtn.disabled = true;
+    gContinueBtn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;"></div>';
+
+    // ── LIFE-WHEEL MODE ──
+    if (GD_MODE === 'life-wheel' && GD_AREA_ID !== null) {
+      try {
+        const lwRaw = localStorage.getItem('vv_life_wheel');
+        const lwData = lwRaw ? JSON.parse(lwRaw) : { areas: [] };
+        const area = (lwData.areas || []).find(a => a.id === GD_AREA_ID);
+        if (area) {
+          area.answers = GUIDED_QUESTIONS.map((q, i) => gAnswers[i] || '');
+          localStorage.setItem('vv_life_wheel', JSON.stringify(lwData));
+        }
+      } catch(e) {}
+      if (GD_POPUP && window.parent !== window) {
+        window.parent.postMessage({ type: 'lw-diary-saved', areaId: GD_AREA_ID }, '*');
+      } else {
+        window.location.replace('life_wheel.html');
+      }
+      return;
+    }
+
+    const dateStr = $('guidedDateInput').value || new Date().toISOString().split('T')[0];
+    const chosenDate = new Date(dateStr + 'T12:00:00');
+    const MOOD_LABELS = ['', '😔 Molto basso', '😕 Basso', '😐 Neutro', '🙂 Buono', '😊 Ottimo'];
+
+    // ── RESUME MODE ──
+    if (gResumeMode && gResumeContext && gResumeContext.noteId) {
+      try {
+        const { data: existingNote, error: fetchErr } = await sb
+          .from('notes').select('content, title').eq('id', gResumeContext.noteId).single();
+        if (fetchErr) throw fetchErr;
+
+        const MOOD_L = ['', '😔 Molto basso', '😕 Basso', '😐 Neutro', '🙂 Buono', '😊 Ottimo'];
+        let newHtml = '<h2>Diario Guidato — ' + chosenDate.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }) + '</h2>';
+        if (gMoodValue) newHtml += '<p><strong>Umore: ' + MOOD_L[gMoodValue] + ' (' + gMoodValue + '/5)</strong></p>';
+        for (let i = 0; i < GUIDED_QUESTIONS.length; i++) {
+          const q = GUIDED_QUESTIONS[i];
+          if (gAnswers[i] && gAnswers[i].trim()) {
+            newHtml += '<h3>' + q.text + '</h3>';
+            newHtml += gAnswers[i];
+          }
+        }
+
+        const stillSkipped = [];
+        for (let i = 0; i < GUIDED_QUESTIONS.length; i++) {
+          if (!gAnswers[i] || !gAnswers[i].trim()) stillSkipped.push(i);
+        }
+        if (stillSkipped.length > 0) newHtml += '\n' + _pendingEncode(stillSkipped, [...gAnswers], gMoodValue);
+
+        const { error: updateErr } = await sb.from('notes')
+          .update({ content: newHtml, updated_at: new Date().toISOString() })
+          .eq('id', gResumeContext.noteId);
+        if (updateErr) throw updateErr;
+
+        // Update or remove pending item in localStorage
+        try {
+          const _PKEY = 'vv_pending_questions';
+          const _praw = localStorage.getItem(_PKEY);
+          let _plist = _praw ? JSON.parse(_praw) : [];
+          if (stillSkipped.length > 0) {
+            const _existIdx = _plist.findIndex(p => p.noteId === gResumeContext.noteId);
+            const _updated = { id: gResumeContext.pendingId || Date.now(), noteId: gResumeContext.noteId,
+              noteDate: dateStr, skippedIndices: stillSkipped, allAnswers: [...gAnswers],
+              moodValue: gMoodValue, createdAt: new Date().toISOString(), noteTitle: gResumeContext.noteTitle || 'Diario Guidato' };
+            if (_existIdx >= 0) _plist[_existIdx] = _updated; else _plist.push(_updated);
+          } else {
+            _plist = _plist.filter(p => p.noteId !== gResumeContext.noteId);
+          }
+          localStorage.setItem(_PKEY, JSON.stringify(_plist));
+        } catch(ex) {}
+
+        goBack();
+        return;
+      } catch(e) {
+        showErr('Errore aggiornamento nota: ' + (e.message || e));
+      }
+      gContinueBtn.disabled = false;
+      gContinueBtn.innerHTML = _checkSVG;
+      return;
+    }
+
+    // ── NORMAL MODE: assemble and save new note ──
+    let html = '<h2>Diario Guidato — ' + chosenDate.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }) + '</h2>';
+    if (gMoodValue) {
+      html += '<p><strong>Umore: ' + MOOD_LABELS[gMoodValue] + ' (' + gMoodValue + '/5)</strong></p>';
+    }
+    for (let i = 0; i < GUIDED_QUESTIONS.length; i++) {
+      const q = GUIDED_QUESTIONS[i];
+      if (gAnswers[i] && gAnswers[i].trim()) {
+        html += '<h3>' + q.text + '</h3>';
+        html += gAnswers[i];
+      }
+    }
+
+    // Generate title
+    let title = 'Diario Guidato — ' + chosenDate.toLocaleDateString('it-IT');
+    if (GROQ_KEY) {
+      try {
+        const plainText = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 400);
+        const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST', cache: 'no-store',
+          headers: { 'Authorization': 'Bearer ' + GROQ_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'meta-llama/llama-4-scout-17b-16e-instruct', max_tokens: 60, temperature: 0.5,
+            messages: [
+              { role: 'system', content: 'Genera un titolo breve (massimo 8 parole) in italiano per questa nota di diario guidato. Rispondi SOLO con il titolo, senza virgolette.' },
+              { role: 'user', content: plainText }
+            ]})
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const t = data?.choices?.[0]?.message?.content?.trim();
+          if (t && t.length > 2 && t.length < 100) title = t;
+        }
+      } catch(e) {}
+    }
+
+    // Save to Supabase
+    if (sb) {
+      try {
+        const noteRecord = { title, content: html, note_date: dateStr, mode: 'write' };
+        if (currentUserId) noteRecord.user_id = currentUserId;
+        const { data: savedNote, error } = await sb
+          .from('notes')
+          .insert([noteRecord])
+          .select()
+          .single();
+        if (error) throw error;
+        if (savedNote) MemoryManager.indexNote(savedNote);
+
+        const skippedNowArr = [...gSkippedNow];
+        if (skippedNowArr.length > 0 && savedNote) {
+          const marker = _pendingEncode(skippedNowArr, [...gAnswers], gMoodValue);
+          try { await sb.from('notes').update({ content: html + '\n' + marker }).eq('id', savedNote.id); } catch(e) {}
+          // Save pending item to localStorage so index.html can display it
+          try {
+            const _PKEY = 'vv_pending_questions';
+            const _praw = localStorage.getItem(_PKEY);
+            const _plist = _praw ? JSON.parse(_praw) : [];
+            _plist.push({ id: Date.now(), noteId: savedNote.id, noteDate: dateStr,
+              skippedIndices: skippedNowArr, allAnswers: [...gAnswers],
+              moodValue: gMoodValue, createdAt: new Date().toISOString(), noteTitle: title });
+            localStorage.setItem(_PKEY, JSON.stringify(_plist));
+          } catch(ex) {}
+        }
+
+        goBack();
+        return;
+      } catch(e) {
+        showErr('Errore salvataggio diario guidato: ' + (e.message || e));
+      }
+    }
+
+    gContinueBtn.disabled = false;
+    gContinueBtn.innerHTML = _checkSVG;
+  }
+
+  // ── VOICE RECORDING (GUIDED) ──
+  gMicBtn.onclick = () => {
+    if (!gIsRecording) gStartRecording();
+    else gStopRecording();
+  };
+
+  async function gStartRecording() {
+    if (!GROQ_KEY) { showErr('Inserisci prima la chiave Groq API.'); return; }
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, sampleRate: 48000, channelCount: 1 }
+      });
+    } catch(e) { showErr('Microfono: ' + e.message); return; }
+
+    gActiveStream = stream;
+    gAudioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000 });
+    const src = gAudioCtx.createMediaStreamSource(stream);
+    gAnalyser = gAudioCtx.createAnalyser();
+    gAnalyser.fftSize = 2048;
+    src.connect(gAnalyser);
+
+    if (!apiWarmedUp) { await warmupAPI(); apiWarmedUp = true; }
+    initRNNoise();
+
+    gPendingChunks = [];
+    gIsRecording = true;
+    gMicBtn.classList.add('recording');
+    gMicIcon.style.display = 'none';
+    gStopIcon.style.display = 'block';
+    gMicStatus.innerHTML = '<span class="pill-dot"></span> In ascolto…';
+
+    gDoSegment(stream);
+  }
+
+  function gDoSegment(stream) {
+    if (!gIsRecording) return;
+    const chunks = [], rmsVals = [];
+    let rmsInt = null;
+    let mr;
+    const mimes = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', ''];
+    const bestMime = mimes.find(m => !m || MediaRecorder.isTypeSupported(m));
+    try {
+      const o = { audioBitsPerSecond: 128000 };
+      if (bestMime) o.mimeType = bestMime;
+      mr = new MediaRecorder(stream, o);
+    } catch(e) { mr = new MediaRecorder(stream); }
+
+    const gAnalyserBuf = new Float32Array(2048);
+    function gGetRMS() {
+      if (!gAnalyser) return 0;
+      gAnalyser.getFloatTimeDomainData(gAnalyserBuf);
+      let s = 0;
+      for (let i = 0; i < gAnalyserBuf.length; i++) s += gAnalyserBuf[i] * gAnalyserBuf[i];
+      return Math.sqrt(s / gAnalyserBuf.length);
+    }
+
+    mr.ondataavailable = e => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+    mr.onstart = () => {
+      rmsInt = setInterval(() => rmsVals.push(gGetRMS()), 200);
+      setTimeout(() => { if (gIsRecording) gDoSegment(stream); }, CHUNK_MS - OVERLAP_MS);
+    };
+    mr.onstop = async () => {
+      clearInterval(rmsInt);
+      if (!chunks.length) return;
+      const mt = mr.mimeType || bestMime || 'audio/webm';
+      const blob = new Blob(chunks, { type: mt });
+      if (hasSpeech(rmsVals) && blob.size >= MIN_BLOB_BYTES && blob.size <= MAX_BLOB_BYTES) {
+        gPendingChunks.push(blob);
+      }
+      if (!gIsTranscribing) gDrainQueue();
+    };
+    mr.onerror = () => { clearInterval(rmsInt); if (gIsRecording) setTimeout(() => gDoSegment(stream), 500); };
+    gChunkTimer = setTimeout(() => { try { if (mr.state === 'recording') mr.stop(); } catch(e) {} }, CHUNK_MS);
+    try { mr.start(250); } catch(e) { showErr('Registrazione: ' + e.message); }
+    gMediaRecorder = mr;
+  }
+
+  async function gDrainQueue() {
+    if (gIsTranscribing || !gPendingChunks.length) return;
+    gIsTranscribing = true;
+    gMicStatus.innerHTML = '<span class="pill-dot"></span> Trascrivo…';
+    while (gPendingChunks.length) await gTranscribeBlob(gPendingChunks.shift());
+    gMicStatus.innerHTML = gIsRecording ? '<span class="pill-dot"></span> In ascolto…' : '';
+    gIsTranscribing = false;
+  }
+
+  async function gTranscribeBlob(blob) {
+    if (rnnoiseModule && rnnoiseState) blob = await applyRNNoise(blob);
+    const mt = blob.type || '';
+    const ext = mt.includes('wav') ? 'wav' : mt.includes('ogg') ? 'ogg' : mt.includes('mp4') ? 'mp4' : 'webm';
+    const form = new FormData();
+    form.append('file', blob, 'audio.' + ext);
+    form.append('model', 'whisper-large-v3');
+    form.append('language', 'it');
+    form.append('response_format', 'text');
+    const ctx = (gEditor.innerText || '').trim().split(/\s+/).slice(-60).join(' ');
+    const prompt = ctx
+      ? 'Trascrivi esattamente le parole dette in italiano. Contesto recente: ' + ctx
+      : 'Trascrivi esattamente le parole dette in italiano.';
+    form.append('prompt', prompt);
+
+    for (let a = 1; a <= 4; a++) {
+      try {
+        if (a > 1) await sleep(Math.min(1000 * Math.pow(2, a - 1), 10000));
+        const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+          method: 'POST', cache: 'no-store',
+          headers: { 'Authorization': 'Bearer ' + GROQ_KEY },
+          body: form
+        });
+        if (res.status === 429) {
+          const w = parseInt(res.headers.get('retry-after') || '30', 10);
+          const _ed = await res.json().catch(() => ({}));
+          const _m = _ed?.error?.message || '';
+          const _mt = _m.match(/try again in (\d+)m(\d+\.?\d*)s/) || _m.match(/try again in (\d+\.?\d*)s/);
+          let _ws = w;
+          if (_mt && _mt.length === 3) _ws = parseInt(_mt[1]) * 60 + Math.ceil(parseFloat(_mt[2]));
+          else if (_mt && _mt.length === 2) _ws = Math.ceil(parseFloat(_mt[1]));
+          await sleep(Math.min(_ws, 120) * 1000); a--; continue;
+        }
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const raw = (await res.text()).trim();
+        const txt = raw.replace(/\.{2,}/g, '').replace(/\u2026/g, '').replace(/\s{2,}/g, ' ').trim();
+        if (txt && txt !== '[BLANK_AUDIO]' && txt.length > 1) {
+          const existing = (gEditor.innerText || '').trim();
+          const np = deduplicateOverlap(existing, txt);
+          if (np) {
+            gEditor.focus();
+            const sel = window.getSelection(), range = document.createRange();
+            range.selectNodeContents(gEditor); range.collapse(false);
+            sel.removeAllRanges(); sel.addRange(range);
+            const prefix = existing && !/\s$/.test(gEditor.innerText) ? ' ' : '';
+            const tn = document.createTextNode(prefix + np);
+            range.insertNode(tn); range.setStartAfter(tn); range.collapse(true);
+            sel.removeAllRanges(); sel.addRange(range);
+            gEditor.scrollTop = gEditor.scrollHeight;
+            gUpdateNavButtons();
+          }
+        }
+        return;
+      } catch(e) {
+        if (a === 4) showErr('Trascrizione: ' + e.message);
+      }
+    }
+  }
+
+  async function gStopRecording() {
+    if (!gIsRecording) return;
+    gIsRecording = false;
+    clearTimeout(gChunkTimer);
+    try { if (gMediaRecorder && gMediaRecorder.state === 'recording') gMediaRecorder.stop(); } catch(e) {}
+    if (gActiveStream) { gActiveStream.getTracks().forEach(t => t.stop()); gActiveStream = null; }
+    if (gAudioCtx) { try { gAudioCtx.close(); } catch(e) {} gAudioCtx = null; gAnalyser = null; }
+    gMicBtn.classList.remove('recording');
+    gMicIcon.style.display = 'block';
+    gStopIcon.style.display = 'none';
+    gMicStatus.innerHTML = '<span class="pill-dot"></span> Completamento…';
+    await sleep(300);
+    while (gPendingChunks.length) await gTranscribeBlob(gPendingChunks.shift());
+    gMicStatus.innerHTML = '';
+  }
+
+  function gCleanupRecording() {
+    if (gIsRecording) {
+      gIsRecording = false;
+      clearTimeout(gChunkTimer);
+      try { if (gMediaRecorder && gMediaRecorder.state === 'recording') gMediaRecorder.stop(); } catch(e) {}
+      if (gActiveStream) { gActiveStream.getTracks().forEach(t => t.stop()); gActiveStream = null; }
+      if (gAudioCtx) { try { gAudioCtx.close(); } catch(e) {} gAudioCtx = null; gAnalyser = null; }
+      gMicBtn.classList.remove('recording');
+      gMicIcon.style.display = 'block';
+      gStopIcon.style.display = 'none';
+      gMicStatus.innerHTML = '';
+    }
+  }
+
+  // ── GUIDED FMT TOOLBAR ──
+  function gGetCurrentBlock() {
+    var sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return null;
+    var el = sel.anchorNode;
+    el = el && el.nodeType === 3 ? el.parentElement : el;
+    while (el && el !== gEditor) {
+      var t = el.tagName ? el.tagName.toLowerCase() : '';
+      if (['p','div','h1','h2','h3','li'].indexOf(t) !== -1) return el;
+      el = el.parentElement;
+    }
+    return null;
+  }
+
+  function gRefreshToolbar() {
+    var block = gGetCurrentBlock();
+    var tag = block ? block.tagName.toLowerCase() : '';
+    $('gFmtH1').classList.toggle('active', tag === 'h1');
+    $('gFmtH2').classList.toggle('active', tag === 'h2');
+    $('gFmtH3').classList.toggle('active', tag === 'h3');
+    $('gFmtBold').classList.toggle('active',   document.queryCommandState('bold'));
+    $('gFmtItalic').classList.toggle('active', document.queryCommandState('italic'));
+    $('gFmtUl').classList.toggle('active', document.queryCommandState('insertUnorderedList'));
+    $('gFmtOl').classList.toggle('active', document.queryCommandState('insertOrderedList'));
+  }
+
+  function gFmt(type) {
+    gEditor.focus();
+    if (type === 'bold') {
+      document.execCommand('bold', false, null);
+    } else if (type === 'italic') {
+      document.execCommand('italic', false, null);
+    } else if (type === 'ul') {
+      document.execCommand('insertUnorderedList', false, null);
+    } else if (type === 'ol') {
+      document.execCommand('insertOrderedList', false, null);
+    } else if (type === 'h1' || type === 'h2' || type === 'h3') {
+      var sel = window.getSelection();
+      if (!sel || !sel.rangeCount) return;
+      var block = gGetCurrentBlock();
+      if (block && block.tagName.toLowerCase() === type) {
+        document.execCommand('formatBlock', false, 'div');
+      } else {
+        document.execCommand('formatBlock', false, type);
+      }
+    }
+    gRefreshToolbar();
+  }
+
+  gEditor.addEventListener('keyup',   function() { gRefreshToolbar(); gUpdateNavButtons(); });
+  gEditor.addEventListener('mouseup', function() { gRefreshToolbar(); });
+  gEditor.addEventListener('input',   function() { gUpdateNavButtons(); });
+
+  // ── Prev / Next question navigation ──
+  (function() {
+    var prevBtn = document.getElementById('guidedPrevBtn');
+    var nextBtn = document.getElementById('guidedNextBtn');
+    if (prevBtn) {
+      prevBtn.addEventListener('click', function() {
+        if (gCurrentIdx <= 0) return;
+        gSaveCurrentAnswer();
+        if (gIsRecording) gStopRecording();
+        gCurrentIdx--;
+        gRenderQuestion();
+      });
+    }
+    if (nextBtn) {
+      nextBtn.addEventListener('click', function() {
+        var total = gResumeMode ? gResumeIndices.length : GUIDED_QUESTIONS.length;
+        if (gCurrentIdx >= total - 1) return;
+        gSaveCurrentAnswer();
+        if (gIsRecording) gStopRecording();
+        gCurrentIdx++;
+        gRenderQuestion();
+      });
+    }
+  })();
+
+  $('gFmtH1').addEventListener('mousedown',    function(e){ e.preventDefault(); gFmt('h1'); });
+  $('gFmtH2').addEventListener('mousedown',    function(e){ e.preventDefault(); gFmt('h2'); });
+  $('gFmtH3').addEventListener('mousedown',    function(e){ e.preventDefault(); gFmt('h3'); });
+  $('gFmtBold').addEventListener('mousedown',  function(e){ e.preventDefault(); gFmt('bold'); });
+  $('gFmtItalic').addEventListener('mousedown',function(e){ e.preventDefault(); gFmt('italic'); });
+  $('gFmtUl').addEventListener('mousedown',    function(e){ e.preventDefault(); gFmt('ul'); });
+  $('gFmtOl').addEventListener('mousedown',    function(e){ e.preventDefault(); gFmt('ol'); });
+  $('gFmtH1').addEventListener('touchstart',    function(e){ e.preventDefault(); gFmt('h1'); }, {passive:false});
+  $('gFmtH2').addEventListener('touchstart',    function(e){ e.preventDefault(); gFmt('h2'); }, {passive:false});
+  $('gFmtH3').addEventListener('touchstart',    function(e){ e.preventDefault(); gFmt('h3'); }, {passive:false});
+  $('gFmtBold').addEventListener('touchstart',  function(e){ e.preventDefault(); gFmt('bold'); }, {passive:false});
+  $('gFmtItalic').addEventListener('touchstart',function(e){ e.preventDefault(); gFmt('italic'); }, {passive:false});
+  $('gFmtUl').addEventListener('touchstart',    function(e){ e.preventDefault(); gFmt('ul'); }, {passive:false});
+  $('gFmtOl').addEventListener('touchstart',    function(e){ e.preventDefault(); gFmt('ol'); }, {passive:false});
+
+  // ── PENDING HELPERS ──
+  function _pendingEncode(skippedIndices, allAnswers, moodValue) {
+    var data = { s: skippedIndices, a: allAnswers, m: moodValue };
+    return '<!--VV_PENDING:' + btoa(unescape(encodeURIComponent(JSON.stringify(data)))) + '-->';
+  }
+  function _pendingDecode(content) {
+    if (!content) return null;
+    var match = content.match(/<!--VV_PENDING:(.*?)-->/);
+    if (!match) return null;
+    try { return JSON.parse(decodeURIComponent(escape(atob(match[1])))); } catch(e) { return null; }
+  }
+
+  // ── EDIT QUESTIONS PANEL ─────────────────────────────────────────────────────
+  const GQ_DEFAULTS = _GQ_DEFAULTS;
+
+  const gEditPanel    = document.getElementById('guidedEditPanel');
+  const gEditList     = document.getElementById('guidedEditList');
+  const gEditOpenBtn  = document.getElementById('guidedEditBtn');
+  const gEditCloseBtn = document.getElementById('guidedEditPanelClose');
+  const gEditAddBtn   = document.getElementById('guidedEditAddBtn');
+  const gEditSaveBtn  = document.getElementById('guidedEditSaveBtn');
+
+  let _dragEl = null, _dropIndicator = null, _dragStartY = 0, _dragOffsetY = 0, _dragPointerId = null;
+
+  function _autoResizeTextarea(ta) {
+    ta.style.height = 'auto';
+    ta.style.height = ta.scrollHeight + 'px';
+  }
+
+  function _createEditItem(text, idx) {
+    const item = document.createElement('div');
+    item.className = 'guided-edit-item';
+    item.innerHTML =
+      '<span class="guided-edit-item-num">' + (idx + 1) + '</span>' +
+      '<span class="guided-edit-item-drag" title="Trascina per riordinare">' +
+        '<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">' +
+          '<line x1="4" y1="6" x2="16" y2="6"/>' +
+          '<line x1="4" y1="10" x2="16" y2="10"/>' +
+          '<line x1="4" y1="14" x2="16" y2="14"/>' +
+        '</svg>' +
+      '</span>' +
+      '<textarea class="guided-edit-item-input" rows="1" placeholder="Testo della domanda..." spellcheck="true"></textarea>' +
+      '<button class="guided-edit-item-delete" title="Elimina">✕</button>';
+    const ta = item.querySelector('textarea');
+    ta.value = text;
+    ta.addEventListener('input', function() { _autoResizeTextarea(this); });
+    setTimeout(function() { _autoResizeTextarea(ta); }, 0);
+    item.querySelector('.guided-edit-item-delete').addEventListener('click', function() {
+      if (gEditList.children.length <= 1) return;
+      item.remove();
+      _renumberItems();
+    });
+    const handle = item.querySelector('.guided-edit-item-drag');
+    handle.addEventListener('pointerdown', function(e) {
+      e.preventDefault();
+      _startDrag(e, item);
+    }, { passive: false });
+    return item;
+  }
+
+  function _renumberItems() {
+    Array.from(gEditList.children).forEach(function(el, i) {
+      const num = el.querySelector('.guided-edit-item-num');
+      if (num) num.textContent = (i + 1);
+    });
+  }
+
+  function _renderEditList() {
+    gEditList.innerHTML = '';
+    GUIDED_QUESTIONS.forEach(function(q, i) {
+      gEditList.appendChild(_createEditItem(q.text, i));
+    });
+  }
+
+  gEditOpenBtn.addEventListener('click', function() {
+    _renderEditList();
+    gEditPanel.classList.add('show');
+  });
+
+  gEditCloseBtn.addEventListener('click', function() {
+    gEditPanel.classList.remove('show');
+  });
+
+  gEditAddBtn.addEventListener('click', function() {
+    const idx = gEditList.children.length;
+    const item = _createEditItem('', idx);
+    gEditList.appendChild(item);
+    item.querySelector('textarea').focus();
+    gEditList.scrollTop = gEditList.scrollHeight;
+  });
+
+  gEditSaveBtn.addEventListener('click', function() {
+    const items = Array.from(gEditList.children);
+    const newQuestions = [];
+    items.forEach(function(item, i) {
+      const text = (item.querySelector('textarea').value || '').trim();
+      if (!text) return;
+      const hasMood = i === 0 && GQ_DEFAULTS[0].hasMood ? true : false;
+      const defaultPla = GQ_DEFAULTS[i] ? GQ_DEFAULTS[i].placeholder : 'Scrivi la tua risposta...';
+      newQuestions.push({ text: text, hasMood: hasMood, placeholder: defaultPla });
+    });
+    if (newQuestions.length === 0) return;
+
+    GUIDED_QUESTIONS.length = 0;
+    newQuestions.forEach(function(q) { GUIDED_QUESTIONS.push(q); });
+    try { localStorage.setItem(GQ_STORAGE_KEY, JSON.stringify(GUIDED_QUESTIONS)); } catch(e) {}
+
+    const hasActiveSession = gAnswers.some(function(a) { return a && a.trim(); }) || gMoodValue;
+    if (!hasActiveSession) {
+      gAnswers = new Array(GUIDED_QUESTIONS.length).fill(null);
+      gCurrentIdx = 0;
+    } else {
+      const newAns = new Array(GUIDED_QUESTIONS.length).fill(null);
+      for (let i = 0; i < Math.min(newAns.length, gAnswers.length); i++) newAns[i] = gAnswers[i];
+      gAnswers = newAns;
+      if (gCurrentIdx >= GUIDED_QUESTIONS.length) gCurrentIdx = GUIDED_QUESTIONS.length - 1;
+    }
+
+    gUpdateQNav();
+
+    gEditSaveBtn.textContent = '✓ Salvato';
+    setTimeout(function() {
+      gEditSaveBtn.innerHTML =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;vertical-align:middle;margin-right:.35em"><polyline points="20 6 9 17 4 12"/></svg>Salva impostazioni';
+      gEditPanel.classList.remove('show');
+    }, 900);
+  });
+
+  // ── Drag-and-drop ──
+  function _startDrag(e, item) {
+    if (_dragEl) return;
+    _dragEl = item;
+    _dragPointerId = e.pointerId;
+    _dragStartY = e.clientY;
+    _dragOffsetY = 0;
+    _dropIndicator = document.createElement('div');
+    _dropIndicator.className = 'drag-drop-indicator';
+    item.classList.add('dragging');
+    item.style.position = 'relative';
+    item.style.zIndex = '30';
+    item.style.transition = 'none';
+    document.addEventListener('pointermove', _onDragMove, { passive: false });
+    document.addEventListener('pointerup',   _onDragEnd,  { passive: false });
+    document.addEventListener('pointercancel', _onDragEnd, { passive: false });
+  }
+
+  function _onDragMove(e) {
+    if (!_dragEl || e.pointerId !== _dragPointerId) return;
+    e.preventDefault();
+    _dragOffsetY = e.clientY - _dragStartY;
+    _dragEl.style.transform = 'translateY(' + _dragOffsetY + 'px)';
+    const items = Array.from(gEditList.children).filter(function(el) { return el !== _dragEl && el !== _dropIndicator; });
+    if (_dropIndicator.parentNode) _dropIndicator.remove();
+    let inserted = false;
+    for (const it of items) {
+      const r = it.getBoundingClientRect();
+      if (e.clientY < r.top + r.height / 2) {
+        gEditList.insertBefore(_dropIndicator, it);
+        inserted = true;
+        break;
+      }
+    }
+    if (!inserted) { gEditList.appendChild(_dropIndicator); }
+  }
+
+  function _onDragEnd(e) {
+    if (!_dragEl) return;
+    document.removeEventListener('pointermove', _onDragMove);
+    document.removeEventListener('pointerup',   _onDragEnd);
+    document.removeEventListener('pointercancel', _onDragEnd);
+    _dragEl.style.transform = '';
+    _dragEl.style.position = '';
+    _dragEl.style.zIndex = '';
+    _dragEl.style.transition = '';
+    _dragEl.classList.remove('dragging');
+    if (_dropIndicator && _dropIndicator.parentNode) {
+      gEditList.insertBefore(_dragEl, _dropIndicator);
+      _dropIndicator.remove();
+    }
+    _dropIndicator = null;
+    _dragEl = null;
+    _dragPointerId = null;
+    _renumberItems();
+  }
+
+  // ── INIT: check for resume context or start fresh ──
+  function initGuidedDiary() {
+    // ── LIFE-WHEEL MODE INIT ──
+    if (GD_MODE === 'life-wheel') {
+      gCurrentIdx = 0;
+      gMoodValue = null;
+      gSkippedNow = new Set();
+      gResumeMode = false;
+      gResumeContext = null;
+      gResumeIndices = [];
+      gResumeConfirmedIndices = new Set();
+      // Pre-populate answers from localStorage area
+      try {
+        const lwRaw = localStorage.getItem('vv_life_wheel');
+        const lwData = lwRaw ? JSON.parse(lwRaw) : { areas: [] };
+        const area = (lwData.areas || []).find(a => a.id === GD_AREA_ID);
+        gAnswers = new Array(GUIDED_QUESTIONS.length).fill(null);
+        if (area) {
+          _gAreaLabel = area.label || '';
+          _gAreaColor = area.color || 'var(--accent)';
+          // Set CSS variable so _gInterpolate em tags get the right color
+          const _card = document.querySelector('.guided-card');
+          if (_card) _card.style.setProperty('--lw-color', _gAreaColor);
+          GUIDED_QUESTIONS.forEach((q, i) => { gAnswers[i] = (area.answers && area.answers[i]) || null; });
+          // Replace static title with an editable input
+          const titleEl = document.querySelector('.guided-title');
+          if (titleEl) {
+            titleEl.innerHTML = '';
+            const titleInput = document.createElement('input');
+            titleInput.className = 'guided-title-lw';
+            titleInput.placeholder = 'Nome area…';
+            titleInput.value = _gAreaLabel ? (_gAreaLabel.charAt(0).toUpperCase() + _gAreaLabel.slice(1)) : '';
+            titleInput.addEventListener('input', () => {
+              _gAreaLabel = titleInput.value;
+              // Persist label to localStorage immediately
+              try {
+                const _lwr = localStorage.getItem('vv_life_wheel');
+                const _lwd = _lwr ? JSON.parse(_lwr) : { areas: [] };
+                const _la = (_lwd.areas || []).find(a => a.id === GD_AREA_ID);
+                if (_la) { _la.label = _gAreaLabel; localStorage.setItem('vv_life_wheel', JSON.stringify(_lwd)); }
+              } catch(e) {}
+              // Refresh only the question text (not the full question render)
+              _gRefreshQuestionText();
+            });
+            titleEl.appendChild(titleInput);
+          }
+        }
+      } catch(e) {}
+      // Hide date section
+      const _dateSection = $('guidedDateLabel') ? $('guidedDateLabel').parentElement : null;
+      if (_dateSection) _dateSection.style.display = 'none';
+      gRenderQuestion();
+      return;
+    }
+
+    // Check URL params for resume
+    const params = new URLSearchParams(window.location.search);
+    const resumeParam = params.get('resume_pending');
+
+    if (resumeParam) {
+      // Resume mode: load context from localStorage
+      try {
+        const ctx = JSON.parse(localStorage.getItem('vv_resume_pending'));
+        if (ctx) {
+          localStorage.removeItem('vv_resume_pending');
+          gResumeMode = true;
+          gResumeContext = ctx;
+          gResumeIndices = ctx.skippedIndices || [];
+          gAnswers = ctx.allAnswers ? [...ctx.allAnswers] : new Array(GUIDED_QUESTIONS.length).fill(null);
+          gMoodValue = ctx.moodValue || null;
+          gSkippedNow = new Set();
+          gResumeConfirmedIndices = new Set();
+          gCurrentIdx = 0;
+          const _resumeDateStr = ctx.noteDate || new Date().toISOString().split('T')[0];
+          $('guidedDateInput').value = _resumeDateStr;
+          $('guidedDateInput').style.display = 'none';
+          $('guidedDateLabel').style.display = 'none';
+          const _dd = $('guidedDateDisplay');
+          _dd.textContent = new Date(_resumeDateStr + 'T12:00:00').toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
+          _dd.style.display = 'block';
+          gRenderResumeQuestion();
+          return;
+        }
+      } catch(e) {}
+    }
+
+    // Normal mode: start fresh
+    gCurrentIdx = 0;
+    gAnswers = new Array(GUIDED_QUESTIONS.length).fill(null);
+    gMoodValue = null;
+    gSkippedNow = new Set();
+    gResumeMode = false;
+    gResumeContext = null;
+    gResumeIndices = [];
+    gResumeConfirmedIndices = new Set();
+    const _presetDate = localStorage.getItem('vv_new_note_date');
+    localStorage.removeItem('vv_new_note_date');
+    $('guidedDateInput').value = _presetDate || new Date().toISOString().split('T')[0];
+    gRenderQuestion();
+  }
+
+  initGuidedDiary();
+})();
+
+// ── Adatta overlay diario guidato alla tastiera mobile (Visual Viewport API) ──
+(function() {
+  var ov = document.getElementById('guidedOverlay');
+  var card = ov ? ov.querySelector('.guided-card') : null;
+  var fixedBottom = document.getElementById('guidedFixedBottom');
+  var fabRec = document.getElementById('guidedFabRec');
+  var guidedBody = ov ? ov.querySelector('.guided-body') : null;
+  if (!ov || !window.visualViewport) return;
+
+  var baseH = window.visualViewport.height;
+  var KBD_THR = 120;
+
+  function updateFabPos() {
+    if (!fixedBottom || !fabRec) return;
+    var h = fixedBottom.offsetHeight || 64;
+    card.style.setProperty('--guided-bottom-h', h + 'px');
+  }
+
+  function setKbd(on) {
+    if (!card) return;
+    var wasKbd = card.classList.contains('kbd');
+    card.classList.toggle('kbd', on);
+    if (on && !wasKbd) {
+      if (guidedBody) guidedBody.scrollTop = 0;
+    }
+    updateFabPos();
+  }
+
+  function sync() {
+    var vv = window.visualViewport;
+    ov.style.top    = vv.offsetTop + 'px';
+    ov.style.height = vv.height + 'px';
+    ov.style.bottom = 'auto';
+    setKbd((baseH - vv.height) > KBD_THR);
+  }
+
+  function reset() {
+    ov.style.top=''; ov.style.height=''; ov.style.bottom='';
+    setKbd(false);
+  }
+
+  window.visualViewport.addEventListener('resize', function() {
+    var h = window.visualViewport.height;
+    if (h > baseH) baseH = h;
+    sync();
+  });
+
+  window.visualViewport.addEventListener('scroll', function() {
+    sync();
+  });
+
+  // ── FAB REC ──
+  if (guidedBody && fabRec) {
+    guidedBody.addEventListener('scroll', function() {
+      if (!card.classList.contains('kbd')) return;
+      fabRec.classList.toggle('visible', guidedBody.scrollTop > 20);
+    });
+
+    fabRec.addEventListener('click', function() {
+      var guidedMicBtn = document.getElementById('guidedMicBtn');
+      if (guidedMicBtn) guidedMicBtn.click();
+    });
+
+    var guidedMicBtn = document.getElementById('guidedMicBtn');
+    if (guidedMicBtn) {
+      var obs = new MutationObserver(function() {
+        fabRec.classList.toggle('recording', guidedMicBtn.classList.contains('recording'));
+        var micIcon = fabRec.querySelector('svg');
+        if (micIcon) {
+          if (guidedMicBtn.classList.contains('recording')) {
+            micIcon.innerHTML = '<rect x="6" y="6" width="12" height="12" rx="2"/>';
+            micIcon.setAttribute('fill','currentColor');
+            micIcon.removeAttribute('stroke');
+          } else {
+            micIcon.setAttribute('fill','none');
+            micIcon.setAttribute('stroke','currentColor');
+            micIcon.setAttribute('stroke-width','2');
+            micIcon.setAttribute('stroke-linecap','round');
+            micIcon.setAttribute('stroke-linejoin','round');
+            micIcon.innerHTML = '<path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>';
+          }
+        }
+      });
+      obs.observe(guidedMicBtn, { attributes:true, attributeFilter:['class'] });
+    }
+  }
+})();
+
+// ── Scroll toolbar in view (mobile) ──
+(function() {
+  var guidedEd = document.getElementById('guidedEditor');
+  if (guidedEd) {
+    guidedEd.addEventListener('focus', function() {
+      setTimeout(function() {
+        var toolbar = document.querySelector('.guided-editor-fmt');
+        var body = document.querySelector('.guided-body');
+        if (!toolbar || !body) return;
+        var tbBottom = toolbar.getBoundingClientRect().bottom;
+        var bdBottom = body.getBoundingClientRect().bottom;
+        if (tbBottom > bdBottom) {
+          body.scrollTop += (tbBottom - bdBottom) + 8;
+        }
+      }, 350);
+    });
+  }
+})();
+
+// ── Blocca navigazione indietro alla nota già salvata/sospesa ──
+(function() {
+  history.pushState({ vvNote: true }, '', location.href);
+  window.addEventListener('popstate', function() {
+    window.location.replace(_cameFromDiary ? 'diary.html' : 'index.html');
+  });
+})();
+</script>
+</body>
+</html>

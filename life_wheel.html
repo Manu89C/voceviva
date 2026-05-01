@@ -191,8 +191,8 @@ body::before {
 const SUPABASE_URL = 'https://ezycobgovadcgvnyqcew.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_ASHxxToKJyMy4CpBAqseqA_mepXAAJ-';
 let sb = null;
+let currentUserId = null;
 try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) {}
-(async () => { if (sb) await VvAuth.init(sb); })();
 
 // ── DATA ──────────────────────────────────────────────────────────────────────
 const STORE = 'vv_life_wheel';
@@ -235,8 +235,100 @@ function loadData() {
     nextId: 5
   };
 }
-function save() { try { localStorage.setItem(STORE, JSON.stringify(data)); } catch(e) {} }
+
+function save() {
+  try { localStorage.setItem(STORE, JSON.stringify(data)); } catch(e) {}
+  saveToCloud();
+}
+
 let data = loadData();
+
+// ── CLOUD SYNC ────────────────────────────────────────────────────────────────
+async function loadFromCloud() {
+  if (!sb || !currentUserId) return;
+  try {
+    const { data: row, error } = await sb
+      .from('vv_life_wheel_state')
+      .select('areas, next_id, questions, updated_at')
+      .eq('user_id', currentUserId)
+      .maybeSingle();
+    if (error || !row) {
+      // Nessun record cloud → migra i dati locali
+      if (data.areas.some(a => a.label)) saveToCloud();
+      return;
+    }
+    // Il cloud è la fonte di verità per utenti autenticati
+    if (Array.isArray(row.areas) && row.areas.length > 0) {
+      const cloudData = { areas: row.areas, nextId: row.next_id || 5 };
+      cloudData.areas.forEach(a => {
+        if (!a.answers) a.answers = new Array(QUESTIONS.length).fill('');
+        while (a.answers.length < QUESTIONS.length) a.answers.push('');
+      });
+      localStorage.setItem(STORE, JSON.stringify(cloudData));
+      data = cloudData;
+    }
+    if (Array.isArray(row.questions) && row.questions.length > 0) {
+      const mapped = row.questions.map(q => (typeof q === 'string' ? q : q.text || ''));
+      if (mapped.some(q => /\{area\}/i.test(q))) {
+        QUESTIONS.length = 0;
+        mapped.forEach(q => QUESTIONS.push(q));
+        localStorage.setItem('vv_lw_questions', JSON.stringify(QUESTIONS));
+      }
+    }
+  } catch(e) {}
+}
+
+let _saveCloudTimer = null;
+function saveToCloud() {
+  if (!sb || !currentUserId) return;
+  // Debounce per evitare troppe scritture durante la digitazione
+  clearTimeout(_saveCloudTimer);
+  _saveCloudTimer = setTimeout(_doSaveToCloud, 1500);
+}
+
+async function _doSaveToCloud() {
+  if (!sb || !currentUserId) return;
+  try {
+    await sb.from('vv_life_wheel_state').upsert({
+      user_id:    currentUserId,
+      areas:      data.areas,
+      next_id:    data.nextId,
+      questions:  QUESTIONS,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id' });
+
+    // Upsert le risposte di ogni area come nota in 'notes' per la vettorializzazione
+    for (const area of data.areas) {
+      if (!area.label || !area.answers || !area.answers.some(a => a && a.trim())) continue;
+      const content = QUESTIONS.map((q, i) => {
+        const ans = (area.answers[i] || '').trim();
+        if (!ans) return '';
+        return '<h3>' + q.replace(/\{area\}/gi, area.label) + '</h3><p>' + ans + '</p>';
+      }).filter(Boolean).join('\n');
+      if (!content) continue;
+      const noteTitle = '[Life Wheel] ' + area.label;
+      const { data: existing } = await sb.from('notes')
+        .select('id')
+        .eq('user_id', currentUserId)
+        .eq('mode', 'life-wheel')
+        .eq('title', noteTitle)
+        .limit(1);
+      if (existing && existing.length > 0) {
+        await sb.from('notes')
+          .update({ content, updated_at: new Date().toISOString() })
+          .eq('id', existing[0].id);
+      } else {
+        await sb.from('notes').insert([{
+          title:     noteTitle,
+          content,
+          note_date: new Date().toISOString().split('T')[0],
+          mode:      'life-wheel',
+          user_id:   currentUserId
+        }]);
+      }
+    }
+  } catch(e) {}
+}
 
 // ── SPHERE ────────────────────────────────────────────────────────────────────
 const wrap   = document.getElementById('sphereWrap');
@@ -688,8 +780,18 @@ wrap.addEventListener('click', e => {
 });
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
-renderLabels();
-renderCards();
+(async () => {
+  if (sb) {
+    await VvAuth.init(sb);
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      currentUserId = session?.user?.id || null;
+      if (currentUserId) await loadFromCloud();
+    } catch(e) {}
+  }
+  renderLabels();
+  renderCards();
+})();
 // ── DIARY POPUP (life-wheel edit) ──────────────────────────────────────
 window.addEventListener('message', e => {
   if (!e.data || typeof e.data !== 'object') return;
@@ -698,17 +800,23 @@ window.addEventListener('message', e => {
   if (e.data.type === 'lw-diary-saved') {
     if (ov) ov.style.display = 'none';
     if (fr) fr.src = 'about:blank';
-    // Refresh questions in case user edited them in the popup
+    // Ricarica domande e dati dal cloud (il guidedDiary ha già salvato sul server)
     try {
-      const _sq = localStorage.getItem('vv_lw_questions');
-      if (_sq) {
-        const _arr = JSON.parse(_sq);
-        if (Array.isArray(_arr) && _arr.length > 0) {
-          QUESTIONS.length = 0;
-          _arr.forEach(q => QUESTIONS.push(typeof q === 'string' ? q : q.text || ''));
+      await loadFromCloud();
+    } catch(e) {
+      // Fallback su localStorage
+      try {
+        const _sq = localStorage.getItem('vv_lw_questions');
+        if (_sq) {
+          const _arr = JSON.parse(_sq);
+          if (Array.isArray(_arr) && _arr.length > 0) {
+            QUESTIONS.length = 0;
+            _arr.forEach(q => QUESTIONS.push(typeof q === 'string' ? q : q.text || ''));
+          }
         }
-      }
-    } catch(e) {}
+      } catch(e2) {}
+      data = loadData();
+    }
     data = loadData();
     mkPts(); renderLabels(); renderCards();
   } else if (e.data.type === 'lw-diary-close') {

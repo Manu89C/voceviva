@@ -794,6 +794,47 @@ async function warmupAPI() {
         if (area) {
           area.answers = GUIDED_QUESTIONS.map((q, i) => gAnswers[i] || '');
           localStorage.setItem('vv_life_wheel', JSON.stringify(lwData));
+
+          // ── Salva su Supabase per sincronizzazione cross-device ──
+          if (sb && currentUserId) {
+            // 1. Aggiorna lo stato della life wheel
+            sb.from('vv_life_wheel_state').upsert({
+              user_id:    currentUserId,
+              areas:      lwData.areas,
+              next_id:    lwData.nextId || 5,
+              updated_at: new Date().toISOString()
+            }, { onConflict: 'user_id' }).then(() => {}).catch(() => {});
+
+            // 2. Upsert le risposte come nota nella tabella 'notes' per la vettorializzazione
+            const areaLabel = area.label || ('Area ' + GD_AREA_ID);
+            const content = GUIDED_QUESTIONS.map((q, i) => {
+              const ans = (gAnswers[i] || '').trim();
+              if (!ans) return '';
+              return '<h3>' + (q.text || q).replace(/\{area\}/gi, areaLabel) + '</h3><p>' + ans + '</p>';
+            }).filter(Boolean).join('\n');
+            if (content) {
+              const noteTitle = '[Life Wheel] ' + areaLabel;
+              sb.from('notes').select('id')
+                .eq('user_id', currentUserId)
+                .eq('mode', 'life-wheel')
+                .eq('title', noteTitle)
+                .limit(1)
+                .then(({ data: existing }) => {
+                  if (existing && existing.length > 0) {
+                    sb.from('notes').update({ content, updated_at: new Date().toISOString() })
+                      .eq('id', existing[0].id).then(() => {}).catch(() => {});
+                  } else {
+                    sb.from('notes').insert([{
+                      title:     noteTitle,
+                      content,
+                      note_date: new Date().toISOString().split('T')[0],
+                      mode:      'life-wheel',
+                      user_id:   currentUserId
+                    }]).then(() => {}).catch(() => {});
+                  }
+                }).catch(() => {});
+            }
+          }
         }
       } catch(e) {}
       if (GD_POPUP && window.parent !== window) {

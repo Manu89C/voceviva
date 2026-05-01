@@ -237,6 +237,7 @@ function loadData() {
 }
 
 function save() {
+  data.lastModified = new Date().toISOString();
   try { localStorage.setItem(STORE, JSON.stringify(data)); } catch(e) {}
   saveToCloud();
 }
@@ -244,8 +245,8 @@ function save() {
 let data = loadData();
 
 // ── CLOUD SYNC ────────────────────────────────────────────────────────────────
-function _countAnswers(areas) {
-  return (areas || []).reduce((sum, a) => sum + (a.answers || []).filter(x => x && x.trim()).length, 0);
+function _hasLabels(areas) {
+  return Array.isArray(areas) && areas.some(a => a.label && a.label.trim());
 }
 
 async function loadFromCloud() {
@@ -256,29 +257,39 @@ async function loadFromCloud() {
       .select('areas, next_id, questions, updated_at')
       .eq('user_id', currentUserId)
       .maybeSingle();
-    if (error || !row) {
-      // Nessun record cloud → migra subito i dati locali (senza debounce)
-      if (data.areas.some(a => a.label)) await _doSaveToCloud();
+
+    const localHasData = _hasLabels(data.areas);
+    const cloudHasData = !error && row && _hasLabels(row.areas);
+
+    if (!cloudHasData) {
+      // Cloud vuoto o assente → se locale ha dati, caricali subito sul cloud
+      if (localHasData) await _doSaveToCloud();
       return;
     }
-    // Confronta quante risposte ha il cloud vs. il localStorage
-    const localCount = _countAnswers(data.areas);
-    const cloudCount = _countAnswers(row.areas);
-    if (localCount > cloudCount) {
-      // Il locale ha più dati: sovrascrive il cloud immediatamente
-      await _doSaveToCloud();
-      return;
+
+    if (!localHasData) {
+      // Solo il cloud ha dati → usa cloud
+    } else {
+      // Entrambi hanno dati → vince il più recente per timestamp
+      const localTs = data.lastModified || '1970-01-01T00:00:00.000Z';
+      const cloudTs = row.updated_at   || '1970-01-01T00:00:00.000Z';
+      if (localTs >= cloudTs) {
+        // Locale più recente → sovrascrive cloud
+        await _doSaveToCloud();
+        return;
+      }
+      // Cloud più recente → cade nel blocco sotto
     }
-    // Il cloud ha più dati (o pari): usa il cloud
-    if (Array.isArray(row.areas) && row.areas.length > 0) {
-      const cloudData = { areas: row.areas, nextId: row.next_id || 5 };
-      cloudData.areas.forEach(a => {
-        if (!a.answers) a.answers = new Array(QUESTIONS.length).fill('');
-        while (a.answers.length < QUESTIONS.length) a.answers.push('');
-      });
-      localStorage.setItem(STORE, JSON.stringify(cloudData));
-      data = cloudData;
-    }
+
+    // Carica i dati dal cloud
+    const cloudData = { areas: row.areas, nextId: row.next_id || 5, lastModified: row.updated_at };
+    cloudData.areas.forEach(a => {
+      if (!a.answers) a.answers = new Array(QUESTIONS.length).fill('');
+      while (a.answers.length < QUESTIONS.length) a.answers.push('');
+    });
+    localStorage.setItem(STORE, JSON.stringify(cloudData));
+    data = cloudData;
+
     if (Array.isArray(row.questions) && row.questions.length > 0) {
       const mapped = row.questions.map(q => (typeof q === 'string' ? q : q.text || ''));
       if (mapped.some(q => /\{area\}/i.test(q))) {
@@ -301,12 +312,15 @@ function saveToCloud() {
 async function _doSaveToCloud() {
   if (!sb || !currentUserId) return;
   try {
+    const _now = new Date().toISOString();
+    data.lastModified = _now;
+    try { localStorage.setItem(STORE, JSON.stringify(data)); } catch(e) {}
     await sb.from('vv_life_wheel_state').upsert({
       user_id:    currentUserId,
       areas:      data.areas,
       next_id:    data.nextId,
       questions:  QUESTIONS,
-      updated_at: new Date().toISOString()
+      updated_at: _now
     }, { onConflict: 'user_id' });
 
     // Upsert le risposte di ogni area come nota in 'notes' per la vettorializzazione

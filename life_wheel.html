@@ -203,15 +203,17 @@ const QUESTIONS_DEFAULT = [
   'Chi sono i tuoi punti di riferimento in {area}?'
 ];
 let QUESTIONS = [...QUESTIONS_DEFAULT];
+let _QUESTIONS_FULL = QUESTIONS_DEFAULT.map(t => ({ text: t, hasMood: false, placeholder: '' }));
 try {
   const _sq = localStorage.getItem('vv_lw_questions');
   if (_sq) {
     const _arr = JSON.parse(_sq);
     if (Array.isArray(_arr) && _arr.length > 0) {
-      const _mapped = _arr.map(q => (typeof q === 'string' ? q : q.text || ''));
-      // Usa le domande salvate solo se contengono {area}, altrimenti usa i default aggiornati
-      if (_mapped.some(q => /\{area\}/i.test(q))) {
-        QUESTIONS = _mapped;
+      const _objs = _arr.map(q => typeof q === 'string' ? { text: q, hasMood: false, placeholder: '' } : q);
+      const _texts = _objs.map(q => q.text || '');
+      if (_texts.some(q => /\{area\}/i.test(q))) {
+        QUESTIONS = _texts;
+        _QUESTIONS_FULL = _objs;
       }
     }
   }
@@ -291,11 +293,14 @@ async function loadFromCloud() {
     data = cloudData;
 
     if (Array.isArray(row.questions) && row.questions.length > 0) {
-      const mapped = row.questions.map(q => (typeof q === 'string' ? q : q.text || ''));
-      if (mapped.some(q => /\{area\}/i.test(q))) {
+      const _fullObjs = row.questions.map(q => typeof q === 'string' ? { text: q, hasMood: false, placeholder: '' } : q);
+      const _texts = _fullObjs.map(q => q.text || '');
+      if (_texts.some(q => /\{area\}/i.test(q))) {
         QUESTIONS.length = 0;
-        mapped.forEach(q => QUESTIONS.push(q));
-        localStorage.setItem('vv_lw_questions', JSON.stringify(QUESTIONS));
+        _QUESTIONS_FULL.length = 0;
+        _texts.forEach(q => QUESTIONS.push(q));
+        _fullObjs.forEach(q => _QUESTIONS_FULL.push(q));
+        localStorage.setItem('vv_lw_questions', JSON.stringify(_QUESTIONS_FULL));
       }
     }
   } catch(e) {}
@@ -319,7 +324,7 @@ async function _doSaveToCloud() {
       user_id:    currentUserId,
       areas:      data.areas,
       next_id:    data.nextId,
-      questions:  QUESTIONS,
+      questions:  _QUESTIONS_FULL,
       updated_at: _now
     }, { onConflict: 'user_id' });
 
@@ -822,10 +827,13 @@ renderCards();
       if (_qResp.ok) {
         const _qArr = await _qResp.json();
         if (Array.isArray(_qArr) && _qArr.length > 0) {
-          const _mapped = _qArr.map(q => (typeof q === 'string' ? q : q.text || '')).filter(q => q);
+          const _fullObjs = _qArr.map(q => typeof q === 'string' ? { text: q, hasMood: false, placeholder: '' } : q).filter(q => q.text);
+          const _mapped = _fullObjs.map(q => q.text);
           if (_mapped.some(q => /\{area\}/i.test(q))) {
             QUESTIONS.length = 0;
+            _QUESTIONS_FULL.length = 0;
             _mapped.forEach(q => QUESTIONS.push(q));
+            _fullObjs.forEach(q => _QUESTIONS_FULL.push(q));
           }
         }
       }
@@ -860,8 +868,11 @@ window.addEventListener('message', async e => {
         if (_sq) {
           const _arr = JSON.parse(_sq);
           if (Array.isArray(_arr) && _arr.length > 0) {
+            const _objs = _arr.map(q => typeof q === 'string' ? { text: q, hasMood: false, placeholder: '' } : q);
             QUESTIONS.length = 0;
-            _arr.forEach(q => QUESTIONS.push(typeof q === 'string' ? q : q.text || ''));
+            _QUESTIONS_FULL.length = 0;
+            _objs.map(q => q.text || '').forEach(q => QUESTIONS.push(q));
+            _objs.forEach(q => _QUESTIONS_FULL.push(q));
           }
         }
       } catch(e2) {}

@@ -506,7 +506,12 @@ async function warmupAPI() {
     const stored = localStorage.getItem(GQ_STORAGE_KEY);
     if (stored) {
       const arr = JSON.parse(stored);
-      if (Array.isArray(arr) && arr.length > 0) GUIDED_QUESTIONS = arr;
+      if (Array.isArray(arr) && arr.length > 0) {
+        // Normalizza: stringhe semplici → oggetti (compat con life_wheel.html che in passato salvava stringhe)
+        GUIDED_QUESTIONS = arr.map(q => typeof q === 'string'
+          ? { text: q, hasMood: false, placeholder: '' }
+          : q);
+      }
     }
   } catch(e) {}
 

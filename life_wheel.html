@@ -244,6 +244,10 @@ function save() {
 let data = loadData();
 
 // ── CLOUD SYNC ────────────────────────────────────────────────────────────────
+function _countAnswers(areas) {
+  return (areas || []).reduce((sum, a) => sum + (a.answers || []).filter(x => x && x.trim()).length, 0);
+}
+
 async function loadFromCloud() {
   if (!sb || !currentUserId) return;
   try {
@@ -253,11 +257,19 @@ async function loadFromCloud() {
       .eq('user_id', currentUserId)
       .maybeSingle();
     if (error || !row) {
-      // Nessun record cloud → migra i dati locali
-      if (data.areas.some(a => a.label)) saveToCloud();
+      // Nessun record cloud → migra subito i dati locali (senza debounce)
+      if (data.areas.some(a => a.label)) await _doSaveToCloud();
       return;
     }
-    // Il cloud è la fonte di verità per utenti autenticati
+    // Confronta quante risposte ha il cloud vs. il localStorage
+    const localCount = _countAnswers(data.areas);
+    const cloudCount = _countAnswers(row.areas);
+    if (localCount > cloudCount) {
+      // Il locale ha più dati: sovrascrive il cloud immediatamente
+      await _doSaveToCloud();
+      return;
+    }
+    // Il cloud ha più dati (o pari): usa il cloud
     if (Array.isArray(row.areas) && row.areas.length > 0) {
       const cloudData = { areas: row.areas, nextId: row.next_id || 5 };
       cloudData.areas.forEach(a => {
@@ -695,13 +707,6 @@ function renderCards() {
 
     // Name is always editable inline
 
-    function _updateBodyVisibility() {
-      body.querySelectorAll('.area-qa-item').forEach(itm => {
-        const ans = itm.querySelector('.area-qa-answer');
-        itm.style.display = (ans && ans.textContent.trim()) ? '' : 'none';
-      });
-    }
-
     editBtn.addEventListener('click', e => {
       e.stopPropagation();
       const overlay = document.getElementById('lwDiaryOverlay');
@@ -728,7 +733,8 @@ function renderCards() {
           : ql.textContent;
       });
     });
-    _updateBodyVisibility();
+    // Mostra sempre tutte le domande nelle card espanse
+    body.querySelectorAll('.area-qa-item').forEach(itm => { itm.style.display = ''; });
     delBtn.addEventListener('click', e => {
       e.stopPropagation();
       if (data.areas.length <= 1) return;

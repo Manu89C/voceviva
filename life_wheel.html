@@ -717,8 +717,15 @@ function renderCards() {
         : QUESTIONS[qi].replace(/\{area\}/gi, 'quest\'area'));
       const ans = document.createElement('div');
       ans.className = 'area-qa-answer';
-      const ansVal = (area.answers && area.answers[qi]) || '';
-      ans.textContent = ansVal;
+      const ansRaw = (area.answers && area.answers[qi]) || '';
+      // Answers may be stored as HTML (from contenteditable) — extract plain text safely
+      if (ansRaw && ansRaw.includes('<')) {
+        const _tmp = document.createElement('div');
+        _tmp.innerHTML = ansRaw;
+        ans.textContent = _tmp.textContent || '';
+      } else {
+        ans.textContent = ansRaw;
+      }
       item.appendChild(qlabel);
       item.appendChild(ans);
       body.appendChild(item);

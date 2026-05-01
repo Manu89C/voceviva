@@ -780,17 +780,22 @@ wrap.addEventListener('click', e => {
 });
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
+// Render immediato da localStorage (come prima, nessuna dipendenza da auth)
+renderLabels();
+renderCards();
+
+// Cloud sync in background: non blocca mai il rendering
 (async () => {
-  if (sb) {
-    await VvAuth.init(sb);
-    try {
-      const { data: { session } } = await sb.auth.getSession();
-      currentUserId = session?.user?.id || null;
-      if (currentUserId) await loadFromCloud();
-    } catch(e) {}
-  }
-  renderLabels();
-  renderCards();
+  if (!sb) return;
+  await VvAuth.init(sb);
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    currentUserId = session?.user?.id || null;
+    if (!currentUserId) return;
+    await loadFromCloud();
+    // Se il cloud ha restituito dati diversi da localStorage, ri-renderizza
+    mkPts(); renderLabels(); renderCards();
+  } catch(e) {}
 })();
 // ── DIARY POPUP (life-wheel edit) ──────────────────────────────────────
 window.addEventListener('message', e => {

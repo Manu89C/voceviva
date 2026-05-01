@@ -247,8 +247,11 @@ function _pendingDecodeInline(content) {
 
 async function syncAndRenderPending() {
   var PENDING_KEY = 'vv_pending_questions';
+  var DISMISSED_KEY = 'vv_dismissed_pending_ids';
   var localItems = [];
+  var dismissedIds = new Set();
   try { var raw = localStorage.getItem(PENDING_KEY); localItems = raw ? JSON.parse(raw) : []; } catch(e) {}
+  try { var dr = localStorage.getItem(DISMISSED_KEY); dismissedIds = new Set(dr ? JSON.parse(dr) : []); } catch(e) {}
 
   if (sb && currentUserId) {
     try {
@@ -261,7 +264,15 @@ async function syncAndRenderPending() {
       if (cloudNotes && cloudNotes.length > 0) {
         var localNoteIds = new Set(localItems.map(function(i) { return i.noteId; }));
         cloudNotes.forEach(function(note) {
-          if (localNoteIds.has(note.id)) return; // già in localStorage
+          // Ignora note già in localStorage o esplicitamente dismesse
+          if (localNoteIds.has(note.id) || dismissedIds.has(note.id)) {
+            // Pulisci marker su Supabase per le note dismesse (cleanup asincrono)
+            if (dismissedIds.has(note.id)) {
+              var cleaned = note.content.replace(/\s*<!--VV_PENDING:.*?-->/g, '');
+              sb.from('notes').update({ content: cleaned }).eq('id', note.id).then(function(){}).catch(function(){});
+            }
+            return;
+          }
           var decoded = _pendingDecodeInline(note.content);
           if (!decoded) return;
           localItems.push({
@@ -336,6 +347,13 @@ function renderPendingSection(items) {
       try { var r = localStorage.getItem(PENDING_KEY); updated = r ? JSON.parse(r) : []; } catch(ex) {}
       updated = updated.filter(function(i){ return i.id !== item.id; });
       try { localStorage.setItem(PENDING_KEY, JSON.stringify(updated)); } catch(ex) {}
+      // Memorizza come dismessa per non reimportarla dal cloud
+      if (item.noteId) {
+        var dismissed = [];
+        try { var _dr = localStorage.getItem('vv_dismissed_pending_ids'); dismissed = _dr ? JSON.parse(_dr) : []; } catch(ex) {}
+        if (!dismissed.includes(item.noteId)) dismissed.push(item.noteId);
+        try { localStorage.setItem('vv_dismissed_pending_ids', JSON.stringify(dismissed)); } catch(ex) {}
+      }
       // Rimuovi marker VV_PENDING dalla nota su Supabase
       if (sb && currentUserId && item.noteId) {
         sb.from('notes').select('content').eq('id', item.noteId).single()

@@ -223,7 +223,7 @@ let currentUserId = null;
   const rc = document.querySelector('.container');
   const ps = document.getElementById('pendingSection');
   await ReportManager.renderReportCard(rc, ps);
-  renderPendingSection();
+  await syncAndRenderPending();
   // Profile dropdown
   const _profileBtn = document.getElementById('profileBtn');
   const _profileDrop = document.getElementById('profileDropdown');
@@ -238,14 +238,60 @@ let currentUserId = null;
 })();
 
 // -- IN SOSPESO (pending guided diary entries) --------------------------------
-function renderPendingSection() {
+function _pendingDecodeInline(content) {
+  if (!content) return null;
+  var match = content.match(/<!--VV_PENDING:(.*?)-->/);
+  if (!match) return null;
+  try { return JSON.parse(decodeURIComponent(escape(atob(match[1])))); } catch(e) { return null; }
+}
+
+async function syncAndRenderPending() {
+  var PENDING_KEY = 'vv_pending_questions';
+  var localItems = [];
+  try { var raw = localStorage.getItem(PENDING_KEY); localItems = raw ? JSON.parse(raw) : []; } catch(e) {}
+
+  if (sb && currentUserId) {
+    try {
+      var { data: cloudNotes } = await sb.from('notes')
+        .select('id, title, content, note_date, created_at')
+        .eq('user_id', currentUserId)
+        .ilike('content', '%VV_PENDING:%')
+        .order('created_at', { ascending: false });
+
+      if (cloudNotes && cloudNotes.length > 0) {
+        var localNoteIds = new Set(localItems.map(function(i) { return i.noteId; }));
+        cloudNotes.forEach(function(note) {
+          if (localNoteIds.has(note.id)) return; // già in localStorage
+          var decoded = _pendingDecodeInline(note.content);
+          if (!decoded) return;
+          localItems.push({
+            id: note.id,
+            noteId: note.id,
+            noteDate: note.note_date,
+            skippedIndices: decoded.s || [],
+            allAnswers: decoded.a || [],
+            moodValue: decoded.m || null,
+            createdAt: note.created_at,
+            noteTitle: note.title || 'Diario Guidato'
+          });
+        });
+        try { localStorage.setItem(PENDING_KEY, JSON.stringify(localItems)); } catch(ex) {}
+      }
+    } catch(e) {}
+  }
+
+  renderPendingSection(localItems);
+}
+
+function renderPendingSection(items) {
   var PENDING_KEY = 'vv_pending_questions';
   var ps = document.getElementById('pendingSection');
   var badge = document.getElementById('pendingCountBadge');
   var list = document.getElementById('pendingCardsList');
   if (!ps || !list) return;
-  var items = [];
-  try { var raw = localStorage.getItem(PENDING_KEY); items = raw ? JSON.parse(raw) : []; } catch(e) {}
+  if (items === undefined) {
+    try { var raw = localStorage.getItem(PENDING_KEY); items = raw ? JSON.parse(raw) : []; } catch(e) { items = []; }
+  }
   if (!items.length) { ps.classList.remove('show'); return; }
   ps.classList.add('show');
   if (badge) badge.textContent = items.length;
@@ -290,7 +336,17 @@ function renderPendingSection() {
       try { var r = localStorage.getItem(PENDING_KEY); updated = r ? JSON.parse(r) : []; } catch(ex) {}
       updated = updated.filter(function(i){ return i.id !== item.id; });
       try { localStorage.setItem(PENDING_KEY, JSON.stringify(updated)); } catch(ex) {}
-      renderPendingSection();
+      // Rimuovi marker VV_PENDING dalla nota su Supabase
+      if (sb && currentUserId && item.noteId) {
+        sb.from('notes').select('content').eq('id', item.noteId).single()
+          .then(function(res) {
+            if (res.data && res.data.content) {
+              var cleaned = res.data.content.replace(/\s*<!--VV_PENDING:.*?-->/g, '');
+              sb.from('notes').update({ content: cleaned }).eq('id', item.noteId).then(function(){}).catch(function(){});
+            }
+          }).catch(function(){});
+      }
+      renderPendingSection(updated);
     });
     list.appendChild(card);
   });

@@ -806,7 +806,33 @@ renderCards();
 
 // Cloud sync in background: non blocca mai il rendering
 (async () => {
-  if (!sb) return;
+  // Carica i default delle domande dal JSON (stessa fonte usata da guidedDiary_func.html)
+  // Solo se localStorage non ha già domande personalizzate
+  const _hasCustomQ = (() => {
+    try {
+      const s = localStorage.getItem('vv_lw_questions');
+      if (!s) return false;
+      const a = JSON.parse(s);
+      return Array.isArray(a) && a.length > 0;
+    } catch(e) { return false; }
+  })();
+  if (!_hasCustomQ) {
+    try {
+      const _qResp = await fetch('questions-life-wheel.json');
+      if (_qResp.ok) {
+        const _qArr = await _qResp.json();
+        if (Array.isArray(_qArr) && _qArr.length > 0) {
+          const _mapped = _qArr.map(q => (typeof q === 'string' ? q : q.text || '')).filter(q => q);
+          if (_mapped.some(q => /\{area\}/i.test(q))) {
+            QUESTIONS.length = 0;
+            _mapped.forEach(q => QUESTIONS.push(q));
+          }
+        }
+      }
+    } catch(e) {}
+  }
+
+  if (!sb) { mkPts(); renderLabels(); renderCards(); return; }
   await VvAuth.init(sb);
   try {
     const { data: { session } } = await sb.auth.getSession();

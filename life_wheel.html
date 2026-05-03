@@ -115,7 +115,7 @@ body::before {
   border-right: none;
   border-left: 3px solid var(--area-color);
 }
-.area-card-handle-edit:hover { background: #60a5fa18; color: #60a5fa; }
+.area-card-handle-edit:hover { background: color-mix(in srgb, var(--area-color) 15%, transparent); color: var(--area-color); }
 /* Right handle = DELETE */
 .area-card-handle-del {
   border-radius: 0 .75rem .75rem 0;
@@ -207,7 +207,15 @@ body::before {
 
 /* Drag states */
 .area-card.dragging { opacity: .35; cursor: grabbing; }
-.area-card.drag-over { box-shadow: 0 -3px 0 0 var(--area-color); }
+/* Drop placeholder shown between rows */
+.drag-placeholder {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--drag-ph-color, #60a5fa);
+  box-shadow: 0 0 10px 3px var(--drag-ph-color, #60a5fa);
+  transition: opacity .15s;
+  pointer-events: none;
+}
 
 /* Swipe gestures */
 .area-card-swipe-wrap {
@@ -732,7 +740,8 @@ function renderCards() {
     const handleEdit = document.createElement('button');
     handleEdit.className = 'area-card-handle area-card-handle-edit';
     handleEdit.title = 'Modifica';
-    handleEdit.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>';
+    // Simple pencil (no underline), color follows --area-color via currentColor on hover
+    handleEdit.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>';
     handleEdit.addEventListener('click', e => {
       e.stopPropagation();
       const overlay = document.getElementById('lwDiaryOverlay');
@@ -750,7 +759,8 @@ function renderCards() {
     const handleDel = document.createElement('button');
     handleDel.className = 'area-card-handle area-card-handle-del';
     handleDel.title = 'Elimina';
-    handleDel.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>';
+    // Red X instead of trash
+    handleDel.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
     handleDel.addEventListener('click', e => {
       e.stopPropagation();
       if (data.areas.length <= 1) return;
@@ -782,21 +792,45 @@ function renderCards() {
     });
     card.addEventListener('dragend', () => {
       card.classList.remove('dragging');
-      document.querySelectorAll('.area-card.drag-over').forEach(c => c.classList.remove('drag-over'));
+      // Remove any leftover placeholder
+      document.querySelectorAll('.drag-placeholder').forEach(p => p.remove());
     });
     card.addEventListener('dragover', e => {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
-      document.querySelectorAll('.area-card.drag-over').forEach(c => c.classList.remove('drag-over'));
-      if (dragSrcIdx !== i) card.classList.add('drag-over');
+      if (dragSrcIdx === i) return;
+      // Remove existing placeholders
+      document.querySelectorAll('.drag-placeholder').forEach(p => p.remove());
+      // Determine if cursor is in top or bottom half of the row
+      const rect = row.getBoundingClientRect();
+      const mid  = rect.top + rect.height / 2;
+      const ph   = document.createElement('div');
+      ph.className = 'drag-placeholder';
+      ph.style.setProperty('--drag-ph-color', area.color);
+      if (e.clientY < mid) {
+        grid.insertBefore(ph, row);
+      } else {
+        grid.insertBefore(ph, row.nextSibling);
+      }
     });
-    card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
+    card.addEventListener('dragleave', e => {
+      // Only remove if leaving outside the grid entirely
+      if (!grid.contains(e.relatedTarget)) {
+        document.querySelectorAll('.drag-placeholder').forEach(p => p.remove());
+      }
+    });
     card.addEventListener('drop', e => {
       e.preventDefault(); e.stopPropagation();
-      card.classList.remove('drag-over');
+      document.querySelectorAll('.drag-placeholder').forEach(p => p.remove());
       if (dragSrcIdx === null || dragSrcIdx === i) return;
+      // Determine insert position (top/bottom half)
+      const rect = row.getBoundingClientRect();
+      const mid  = rect.top + rect.height / 2;
+      let targetIdx = i;
+      if (e.clientY >= mid && dragSrcIdx < i) targetIdx = i;
+      else if (e.clientY < mid && dragSrcIdx > i) targetIdx = i;
       const moved = data.areas.splice(dragSrcIdx, 1)[0];
-      data.areas.splice(i, 0, moved);
+      data.areas.splice(targetIdx, 0, moved);
       dragSrcIdx = null;
       save(); mkPts(); renderLabels(); renderCards();
     });
@@ -962,12 +996,11 @@ function addArea() {
   const newId = data.nextId;
   data.areas.push({ id: data.nextId++, color, label: '', answers: ['', '', ''] });
   save(); mkPts(); renderLabels(); renderCards();
-  // Auto-expand and enter edit mode for the new card
+  // Focus sul nome della nuova card senza espanderla
   const newCard = document.getElementById('area-card-' + newId);
   if (newCard) {
-    newCard.classList.add('expanded');
     const ni = newCard.querySelector('.area-card-name');
-    if (ni) ni.focus();
+    if (ni) { ni.focus(); ni.select(); }
   }
 }
 

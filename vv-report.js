@@ -515,18 +515,9 @@ Genera il report basandoti sui FATTI ESTRATTI sopra. Usa il testo delle note sol
     let q = _sb
       .from('notes')
       .select('id, title, content, note_date, created_at')
-      .eq('mode', REPORT_MODE)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
-    if (_userId) q = _sb
-      .from('notes')
-      .select('id, title, content, note_date, created_at')
-      .eq('mode', REPORT_MODE)
-      .eq('user_id', _userId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
+      .eq('mode', REPORT_MODE);
+    if (_userId) q = q.eq('user_id', _userId);
+    q = q.order('created_at', { ascending: false }).limit(1).single();
     const { data, error } = await q;
 
     if (error) console.log('[ReportManager] _fetchLatestReport: nessun report trovato');

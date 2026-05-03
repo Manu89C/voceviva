@@ -206,12 +206,14 @@ const ReportManager = (() => {
     let   from     = 0;
 
     while (true) {
-      const { data, error } = await _sb
+      let q = _sb
         .from('notes')
         .select('id, title, content, note_date, mode')
         .not('mode', 'eq', REPORT_MODE)
         .order('note_date', { ascending: true })
         .range(from, from + pageSize - 1);
+      if (_userId) q = q.eq('user_id', _userId);
+      const { data, error } = await q;
 
       if (error) { console.warn('[ReportManager] _fetchAllNotes page error:', error); break; }
       if (!data || data.length === 0) break;
@@ -495,26 +497,37 @@ Genera il report basandoti sui FATTI ESTRATTI sopra. Usa il testo delle note sol
     const startStr = _toLocalDateStr(weekStart);
     const endStr   = _toLocalDateStr(_getWeekEnd(weekStart));
 
-    const { data } = await _sb
+    let q = _sb
       .from('notes')
       .select('id')
       .eq('mode', REPORT_MODE)
       .gte('note_date', startStr)
       .lte('note_date', endStr)
       .limit(1);
+    if (_userId) q = q.eq('user_id', _userId);
+    const { data } = await q;
 
     return data && data.length > 0;
   }
 
   // ── FETCH ULTIMO REPORT ───────────────────────────────────────────────────────
   async function _fetchLatestReport() {
-    const { data, error } = await _sb
+    let q = _sb
       .from('notes')
       .select('id, title, content, note_date, created_at')
       .eq('mode', REPORT_MODE)
       .order('created_at', { ascending: false })
       .limit(1)
       .single();
+    if (_userId) q = _sb
+      .from('notes')
+      .select('id, title, content, note_date, created_at')
+      .eq('mode', REPORT_MODE)
+      .eq('user_id', _userId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+    const { data, error } = await q;
 
     if (error) console.log('[ReportManager] _fetchLatestReport: nessun report trovato');
     return data || null;
@@ -633,10 +646,12 @@ Genera il report basandoti sui FATTI ESTRATTI sopra. Usa il testo delle note sol
     const weekStart = _getWeekStart(new Date(noteDate + 'T12:00:00'));
     const startStr  = _toLocalDateStr(weekStart);
     const endStr    = _toLocalDateStr(_getWeekEnd(weekStart));
-    const { error } = await _sb.from('notes').delete()
+    let q = _sb.from('notes').delete()
       .eq('mode', REPORT_MODE)
       .gte('note_date', startStr)
       .lte('note_date', endStr);
+    if (_userId) q = q.eq('user_id', _userId);
+    const { error } = await q;
     if (error) throw new Error('Supabase: ' + (error.message || JSON.stringify(error)));
     // Resetta il localStorage così può essere rigenerato
     localStorage.removeItem(LAST_CHECK_KEY);

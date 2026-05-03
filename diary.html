@@ -240,6 +240,7 @@ try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) 
 let allNotes = [], currentYear, currentMonth;
 let selectedDay = null, currentView = 'calendar';
 let readingNote = null;
+let currentUserId = null;
 
 const MONTHS_IT=['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
 const DAYS_IT=['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
@@ -281,8 +282,11 @@ $('readOverlayDelete').onclick = async () => {
 async function loadNotes() {
   loadingState.style.display='block'; hideErr();
   if(!sb) { showErr('Supabase non inizializzato.'); loadingState.style.display='none'; return; }
+  if(!currentUserId) { loadingState.style.display='none'; return; }
   try {
-    const{data,error}=await sb.from('notes').select('*').order('note_date',{ascending:false});
+    const{data,error}=await sb.from('notes').select('*')
+      .eq('user_id', currentUserId)
+      .order('note_date',{ascending:false});
     if(error) throw error;
     allNotes=data||[]; loadingState.style.display='none';
     if(currentView==='calendar') renderCalendar(); else renderList();
@@ -528,6 +532,7 @@ if('serviceWorker' in navigator){
   if (sb) {
     const { userId } = await VvAuth.init(sb);
     if (!userId) return;
+    currentUserId = userId;
     // Profile dropdown
     const _profileBtn = document.getElementById('profileBtn');
     const _profileDrop = document.getElementById('profileDropdown');

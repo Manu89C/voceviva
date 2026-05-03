@@ -154,6 +154,18 @@ body::before {
   font-size: .88rem; line-height: 1.65; padding: 0;
   white-space: pre-wrap; word-break: break-word;
 }
+/* Swipe legend */
+.swipe-legend {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: .5rem; margin-top: .1rem; margin-bottom: .15rem;
+}
+.swipe-legend-item {
+  display: flex; align-items: center; gap: .3rem;
+  font-size: .58rem; text-transform: uppercase; letter-spacing: .08em;
+  color: #60a5fa; opacity: .75;
+}
+.swipe-legend-sep { color: var(--muted); font-size: .7rem; }
+
 /* Drag states */
 .area-card.dragging { opacity: .35; cursor: grabbing; }
 .area-card.drag-over { box-shadow: 0 -3px 0 0 var(--area-color); }
@@ -209,6 +221,17 @@ body::before {
 
   <div style="display:flex;flex-direction:column;gap:.5rem">
     <span class="section-label">Aree della vita</span>
+    <div class="swipe-legend">
+      <span class="swipe-legend-item">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 5 5 12 12 19"/></svg>
+        <span style="color:#60a5fa">← Scorri: elimina</span>
+      </span>
+      <span class="swipe-legend-sep">·</span>
+      <span class="swipe-legend-item">
+        <span style="color:#60a5fa">Scorri: modifica →</span>
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </span>
+    </div>
     <div class="areas-grid" id="areasGrid"></div>
   </div>
 

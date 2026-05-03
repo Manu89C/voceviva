@@ -563,6 +563,16 @@ async function warmupAPI() {
     gCleanupRecording();
     const wasResumeMode = gResumeMode;
 
+  // Ctrl+Z / Cmd+Z in life-wheel popup = chiudi
+  if (GD_MODE === 'life-wheel' && GD_POPUP) {
+    document.addEventListener('keydown', e => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        e.preventDefault();
+        gCloseBtn.click();
+      }
+    });
+  }
+
     if (wasResumeMode && gResumeContext) {
       $('guidedDateInput').style.display = '';
       $('guidedDateLabel').style.display = '';

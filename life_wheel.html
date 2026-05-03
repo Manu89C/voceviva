@@ -181,8 +181,8 @@ body::before {
   pointer-events: none;
   white-space: nowrap;
 }
-.swipe-hint-edit  { left: 0;  background: var(--area-color); color: #fff; border-radius: .75rem 0 0 .75rem; }
-.swipe-hint-del   { right: 0; background: #f06a6a;           color: #fff; border-radius: 0 .75rem .75rem 0; }
+.swipe-hint-edit  { left: 0;  background: #60a5fa; color: #fff; border-radius: .75rem 0 0 .75rem; }
+.swipe-hint-del   { right: 0; background: #f06a6a; color: #fff; border-radius: 0 .75rem .75rem 0; }
 .swipe-hint svg   { margin-right: .4rem; flex-shrink: 0; }
 .swipe-hint-del svg { margin-right: 0; margin-left: .4rem; }
 </style>
@@ -769,57 +769,78 @@ function renderCards() {
     wrap.appendChild(card);
     grid.appendChild(wrap);
 
-    // ── SWIPE GESTURE ──────────────────────────────────────────────────────
-    const SWIPE_THRESHOLD = 72; // px to trigger action
-    let _tx0 = 0, _ty0 = 0, _swiping = false, _swipeLocked = false;
-    card.addEventListener('touchstart', e => {
-      if (e.touches.length !== 1) return;
-      _tx0 = e.touches[0].clientX;
-      _ty0 = e.touches[0].clientY;
+    // ── SWIPE GESTURE (touch + mouse) ──────────────────────────────────
+    const SWIPE_THRESHOLD = () => window.innerWidth * 0.45;
+    let _tx0 = 0, _ty0 = 0, _swiping = false, _swipeLocked = false, _mouseDown = false;
+
+    function _onStart(clientX, clientY) {
+      _tx0 = clientX; _ty0 = clientY;
       _swiping = false; _swipeLocked = false;
-    }, { passive: true });
-    card.addEventListener('touchmove', e => {
-      if (e.touches.length !== 1 || _swipeLocked) return;
-      const dx = e.touches[0].clientX - _tx0;
-      const dy = e.touches[0].clientY - _ty0;
+    }
+    function _onMove(clientX, clientY, e) {
+      if (_swipeLocked) return;
+      const dx = clientX - _tx0;
+      const dy = clientY - _ty0;
       if (!_swiping && Math.abs(dy) > Math.abs(dx)) { _swipeLocked = true; return; }
       if (Math.abs(dx) > 6) _swiping = true;
       if (!_swiping) return;
-      e.preventDefault();
-      const clamped = Math.max(-SWIPE_THRESHOLD * 1.3, Math.min(SWIPE_THRESHOLD * 1.3, dx));
+      if (e && e.cancelable) e.preventDefault();
+      const thr = SWIPE_THRESHOLD();
+      const clamped = Math.max(-thr * 1.2, Math.min(thr * 1.2, dx));
       card.style.transform = 'translateX(' + clamped + 'px)';
-      const ratio = Math.min(1, Math.abs(dx) / SWIPE_THRESHOLD);
-      if (dx > 0) {
-        hintEdit.style.opacity = ratio;
-        hintDel.style.opacity = 0;
-      } else {
-        hintDel.style.opacity = ratio;
-        hintEdit.style.opacity = 0;
-      }
-    }, { passive: false });
-    card.addEventListener('touchend', e => {
+      const ratio = Math.min(1, Math.abs(dx) / thr);
+      if (dx > 0) { hintEdit.style.opacity = ratio; hintDel.style.opacity = 0; }
+      else        { hintDel.style.opacity = ratio;  hintEdit.style.opacity = 0; }
+    }
+    function _onEnd(clientX) {
       if (!_swiping) return;
-      const dx = e.changedTouches[0].clientX - _tx0;
-      card.style.transition = 'transform .25s ease, opacity .15s';
+      const dx = clientX - _tx0;
+      const thr = SWIPE_THRESHOLD();
+      card.style.transition = 'transform .25s ease';
       card.style.transform = '';
       hintEdit.style.opacity = 0;
       hintDel.style.opacity = 0;
       setTimeout(() => { card.style.transition = ''; }, 260);
-      if (dx > SWIPE_THRESHOLD) {
-        // swipe right → modifica
+      if (dx > thr) {
         const overlay = document.getElementById('lwDiaryOverlay');
         const frame   = document.getElementById('lwDiaryFrame');
         if (overlay && frame) {
           frame.src = 'guidedDiary_func.html?mode=life-wheel&areaId=' + area.id + '&popup=1';
           overlay.style.display = 'block';
         }
-      } else if (dx < -SWIPE_THRESHOLD) {
-        // swipe left → elimina
+      } else if (dx < -thr) {
         if (data.areas.length <= 1) return;
         data.areas = data.areas.filter(a => a.id !== area.id);
         save(); mkPts(); renderLabels(); renderCards();
       }
+    }
+
+    // Touch
+    card.addEventListener('touchstart', e => {
+      if (e.touches.length !== 1) return;
+      _onStart(e.touches[0].clientX, e.touches[0].clientY);
     }, { passive: true });
+    card.addEventListener('touchmove', e => {
+      if (e.touches.length !== 1) return;
+      _onMove(e.touches[0].clientX, e.touches[0].clientY, e);
+    }, { passive: false });
+    card.addEventListener('touchend', e => {
+      _onEnd(e.changedTouches[0].clientX);
+    }, { passive: true });
+
+    // Mouse (PC)
+    card.addEventListener('mousedown', e => {
+      if (e.button !== 0) return;
+      _mouseDown = true;
+      _onStart(e.clientX, e.clientY);
+    });
+    card.addEventListener('mousemove', e => {
+      if (!_mouseDown) return;
+      _onMove(e.clientX, e.clientY, e);
+    });
+    const _stopMouse = e => { if (!_mouseDown) return; _mouseDown = false; _onEnd(e.clientX); };
+    card.addEventListener('mouseup', _stopMouse);
+    card.addEventListener('mouseleave', _stopMouse);
 
     nameInput.addEventListener('click', e => e.stopPropagation());
     nameInput.addEventListener('input', () => {

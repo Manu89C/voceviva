@@ -91,28 +91,45 @@ body::before {
   flex-direction: column;
   gap: .75rem;
 }
-/* Row that contains handle-del | swipe-wrap | handle-edit */
+/* Row that contains handle-edit | swipe-wrap | handle-del */
 .area-card-row {
   display: flex;
   align-items: stretch;
-  gap: .35rem;
+  gap: 0;
 }
 .area-card-handle {
   flex-shrink: 0;
-  width: 22px;
-  border-radius: .55rem;
-  border: none;
+  width: 28px;
+  background: var(--surface);
+  border: 1px solid var(--border);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: .55;
-  transition: opacity .15s, transform .15s;
+  color: var(--text-muted, #888);
+  transition: background .2s, color .2s;
 }
-.area-card-handle:hover { opacity: 1; transform: scale(1.08); }
-.area-card-handle-del  { background: #f06a6a22; color: #f06a6a; }
-.area-card-handle-edit { background: #60a5fa22; color: #60a5fa; }
-.area-card-swipe-wrap  { flex: 1; min-width: 0; }
+/* Left handle = EDIT — carries the colored accent border */
+.area-card-handle-edit {
+  border-radius: .75rem 0 0 .75rem;
+  border-right: none;
+  border-left: 3px solid var(--area-color);
+}
+.area-card-handle-edit:hover { background: #60a5fa18; color: #60a5fa; }
+/* Right handle = DELETE */
+.area-card-handle-del {
+  border-radius: 0 .75rem .75rem 0;
+  border-left: none;
+}
+.area-card-handle-del:hover { background: #f06a6a18; color: #f06a6a; }
+.area-card-swipe-wrap { flex: 1; min-width: 0; }
+/* Flatten card sides that are joined to handles */
+.area-card-row .area-card-swipe-wrap { border-radius: 0; }
+.area-card-row .area-card-swipe-wrap .area-card {
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+}
 .area-card {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: .75rem; padding: .9rem;
@@ -711,22 +728,7 @@ function renderCards() {
     const row = document.createElement('div');
     row.className = 'area-card-row';
 
-    // Handle delete (left)
-    const handleDel = document.createElement('button');
-    handleDel.className = 'area-card-handle area-card-handle-del';
-    handleDel.title = 'Elimina';
-    handleDel.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>';
-    handleDel.addEventListener('click', e => {
-      e.stopPropagation();
-      if (data.areas.length <= 1) return;
-      data.areas = data.areas.filter(a => a.id !== area.id);
-      save(); mkPts(); renderLabels(); renderCards();
-    });
-
-    const wrap = document.createElement('div');
-    wrap.className = 'area-card-swipe-wrap';
-
-    // Handle edit (right)
+    // Handle EDIT (left)
     const handleEdit = document.createElement('button');
     handleEdit.className = 'area-card-handle area-card-handle-edit';
     handleEdit.title = 'Modifica';
@@ -739,6 +741,21 @@ function renderCards() {
         frame.src = 'guidedDiary_func.html?mode=life-wheel&areaId=' + area.id + '&popup=1';
         overlay.style.display = 'block';
       }
+    });
+
+    const wrap = document.createElement('div');
+    wrap.className = 'area-card-swipe-wrap';
+
+    // Handle DELETE (right)
+    const handleDel = document.createElement('button');
+    handleDel.className = 'area-card-handle area-card-handle-del';
+    handleDel.title = 'Elimina';
+    handleDel.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>';
+    handleDel.addEventListener('click', e => {
+      e.stopPropagation();
+      if (data.areas.length <= 1) return;
+      data.areas = data.areas.filter(a => a.id !== area.id);
+      save(); mkPts(); renderLabels(); renderCards();
     });
 
     const hintEdit = document.createElement('div');
@@ -755,6 +772,7 @@ function renderCards() {
     const card = document.createElement('div');
     card.className = 'area-card';
     card.id = 'area-card-' + area.id;
+    row.style.setProperty('--area-color', area.color);
     card.style.setProperty('--area-color', area.color);
     card.draggable = true;
     card.addEventListener('dragstart', e => {
@@ -842,9 +860,9 @@ function renderCards() {
     card.appendChild(header);
     card.appendChild(body);
     wrap.appendChild(card);
-    row.appendChild(handleDel);
-    row.appendChild(wrap);
     row.appendChild(handleEdit);
+    row.appendChild(wrap);
+    row.appendChild(handleDel);
     grid.appendChild(row);
 
     // ── SWIPE GESTURE (touch + mouse) ──────────────────────────────────

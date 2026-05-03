@@ -91,6 +91,28 @@ body::before {
   flex-direction: column;
   gap: .75rem;
 }
+/* Row that contains handle-del | swipe-wrap | handle-edit */
+.area-card-row {
+  display: flex;
+  align-items: stretch;
+  gap: .35rem;
+}
+.area-card-handle {
+  flex-shrink: 0;
+  width: 22px;
+  border-radius: .55rem;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: .55;
+  transition: opacity .15s, transform .15s;
+}
+.area-card-handle:hover { opacity: 1; transform: scale(1.08); }
+.area-card-handle-del  { background: #f06a6a22; color: #f06a6a; }
+.area-card-handle-edit { background: #60a5fa22; color: #60a5fa; }
+.area-card-swipe-wrap  { flex: 1; min-width: 0; }
 .area-card {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: .75rem; padding: .9rem;
@@ -686,8 +708,38 @@ function renderCards() {
   grid.innerHTML = '';
   data.areas.forEach((area, i) => {
     // ── swipe wrapper ──
+    const row = document.createElement('div');
+    row.className = 'area-card-row';
+
+    // Handle delete (left)
+    const handleDel = document.createElement('button');
+    handleDel.className = 'area-card-handle area-card-handle-del';
+    handleDel.title = 'Elimina';
+    handleDel.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>';
+    handleDel.addEventListener('click', e => {
+      e.stopPropagation();
+      if (data.areas.length <= 1) return;
+      data.areas = data.areas.filter(a => a.id !== area.id);
+      save(); mkPts(); renderLabels(); renderCards();
+    });
+
     const wrap = document.createElement('div');
     wrap.className = 'area-card-swipe-wrap';
+
+    // Handle edit (right)
+    const handleEdit = document.createElement('button');
+    handleEdit.className = 'area-card-handle area-card-handle-edit';
+    handleEdit.title = 'Modifica';
+    handleEdit.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>';
+    handleEdit.addEventListener('click', e => {
+      e.stopPropagation();
+      const overlay = document.getElementById('lwDiaryOverlay');
+      const frame   = document.getElementById('lwDiaryFrame');
+      if (overlay && frame) {
+        frame.src = 'guidedDiary_func.html?mode=life-wheel&areaId=' + area.id + '&popup=1';
+        overlay.style.display = 'block';
+      }
+    });
 
     const hintEdit = document.createElement('div');
     hintEdit.className = 'swipe-hint swipe-hint-edit';
@@ -790,7 +842,10 @@ function renderCards() {
     card.appendChild(header);
     card.appendChild(body);
     wrap.appendChild(card);
-    grid.appendChild(wrap);
+    row.appendChild(handleDel);
+    row.appendChild(wrap);
+    row.appendChild(handleEdit);
+    grid.appendChild(row);
 
     // ── SWIPE GESTURE (touch + mouse) ──────────────────────────────────
     const SWIPE_THRESHOLD = () => window.innerWidth * 0.45;

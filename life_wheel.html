@@ -109,13 +109,16 @@ body::before {
   color: var(--text-muted, #888);
   transition: background .2s, color .2s;
 }
-/* Left handle = EDIT — carries the colored accent border */
+/* Left handle = EDIT — always lit with area color */
 .area-card-handle-edit {
   border-radius: .75rem 0 0 .75rem;
   border-right: none;
   border-left: 3px solid var(--area-color);
+  background: color-mix(in srgb, var(--area-color) 12%, transparent);
+  color: var(--area-color);
+  opacity: 1;
 }
-.area-card-handle-edit:hover { background: color-mix(in srgb, var(--area-color) 15%, transparent); color: var(--area-color); }
+.area-card-handle-edit:hover { background: color-mix(in srgb, var(--area-color) 28%, transparent); }
 /* Right handle = DELETE */
 .area-card-handle-del {
   border-radius: 0 .75rem .75rem 0;

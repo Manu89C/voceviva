@@ -96,6 +96,8 @@ body::before {
   display: flex;
   align-items: stretch;
   gap: 0;
+  position: relative;
+  z-index: 1;
 }
 .area-card-handle {
   flex-shrink: 0;
@@ -221,9 +223,13 @@ body::before {
 }
 
 /* Swipe gestures */
-.area-card-swipe-wrap {
+.area-card-outer-wrap {
   position: relative;
   overflow: hidden;
+  border-radius: .75rem;
+}
+.area-card-swipe-wrap {
+  position: relative;
   border-radius: .75rem;
 }
 .area-card-swipe-wrap .area-card {
@@ -245,8 +251,7 @@ body::before {
 }
 .swipe-hint-edit  { left: 0;  background: #60a5fa; color: #fff; border-radius: .75rem 0 0 .75rem; }
 .swipe-hint-del   { right: 0; background: #f06a6a; color: #fff; border-radius: 0 .75rem .75rem 0; }
-.swipe-hint svg   { margin-right: .4rem; flex-shrink: 0; }
-.swipe-hint-del svg { margin-right: 0; margin-left: .4rem; }
+.swipe-hint svg   { flex-shrink: 0; }
 </style>
 </head>
 <body>
@@ -773,14 +778,11 @@ function renderCards() {
 
     const hintEdit = document.createElement('div');
     hintEdit.className = 'swipe-hint swipe-hint-edit';
-    hintEdit.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Modifica';
+    hintEdit.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>';
 
     const hintDel = document.createElement('div');
     hintDel.className = 'swipe-hint swipe-hint-del';
-    hintDel.innerHTML = 'Elimina<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>';
-
-    wrap.appendChild(hintEdit);
-    wrap.appendChild(hintDel);
+    hintDel.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>';
 
     const card = document.createElement('div');
     card.className = 'area-card';
@@ -900,11 +902,16 @@ function renderCards() {
     row.appendChild(handleEdit);
     row.appendChild(wrap);
     row.appendChild(handleDel);
-    grid.appendChild(row);
+    const outerWrap = document.createElement('div');
+    outerWrap.className = 'area-card-outer-wrap';
+    outerWrap.appendChild(hintEdit);
+    outerWrap.appendChild(hintDel);
+    outerWrap.appendChild(row);
+    grid.appendChild(outerWrap);
 
     // ── SWIPE GESTURE (touch + mouse) ──────────────────────────────────
     const SWIPE_THRESHOLD = () => window.innerWidth * 0.45;
-    let _tx0 = 0, _ty0 = 0, _swiping = false, _swipeLocked = false, _mouseDown = false;
+    let _tx0 = 0, _ty0 = 0, _swiping = false, _swipeLocked = false;
 
     function _onStart(clientX, clientY) {
       _tx0 = clientX; _ty0 = clientY;
@@ -920,7 +927,7 @@ function renderCards() {
       if (e && e.cancelable) e.preventDefault();
       const thr = SWIPE_THRESHOLD();
       const clamped = Math.max(-thr * 1.2, Math.min(thr * 1.2, dx));
-      card.style.transform = 'translateX(' + clamped + 'px)';
+      row.style.transform = 'translateX(' + clamped + 'px)';
       const ratio = Math.min(1, Math.abs(dx) / thr);
       if (dx > 0) { hintEdit.style.opacity = ratio; hintDel.style.opacity = 0; }
       else        { hintDel.style.opacity = ratio;  hintEdit.style.opacity = 0; }
@@ -929,11 +936,11 @@ function renderCards() {
       if (!_swiping) return;
       const dx = clientX - _tx0;
       const thr = SWIPE_THRESHOLD();
-      card.style.transition = 'transform .25s ease';
-      card.style.transform = '';
+      row.style.transition = 'transform .25s ease';
+      row.style.transform = '';
       hintEdit.style.opacity = 0;
       hintDel.style.opacity = 0;
-      setTimeout(() => { card.style.transition = ''; }, 260);
+      setTimeout(() => { row.style.transition = ''; }, 260);
       if (dx > thr) {
         const overlay = document.getElementById('lwDiaryOverlay');
         const frame   = document.getElementById('lwDiaryFrame');
@@ -948,32 +955,34 @@ function renderCards() {
       }
     }
 
-    // Touch
-    card.addEventListener('touchstart', e => {
+    // Touch — on row so entire row (handles included) can initiate swipe
+    row.addEventListener('touchstart', e => {
       if (e.touches.length !== 1) return;
+      if (e.target.closest('.area-card-handle')) return;
       _onStart(e.touches[0].clientX, e.touches[0].clientY);
     }, { passive: true });
-    card.addEventListener('touchmove', e => {
+    row.addEventListener('touchmove', e => {
       if (e.touches.length !== 1) return;
       _onMove(e.touches[0].clientX, e.touches[0].clientY, e);
     }, { passive: false });
-    card.addEventListener('touchend', e => {
+    row.addEventListener('touchend', e => {
       _onEnd(e.changedTouches[0].clientX);
     }, { passive: true });
 
-    // Mouse (PC)
-    card.addEventListener('mousedown', e => {
+    // Mouse (PC) — document listeners so tracking works as row translates
+    row.addEventListener('mousedown', e => {
       if (e.button !== 0) return;
-      _mouseDown = true;
+      if (e.target.closest('.area-card-handle')) return;
       _onStart(e.clientX, e.clientY);
+      const _onDocMove = ev => _onMove(ev.clientX, ev.clientY, ev);
+      const _onDocUp = ev => {
+        _onEnd(ev.clientX);
+        document.removeEventListener('mousemove', _onDocMove);
+        document.removeEventListener('mouseup', _onDocUp);
+      };
+      document.addEventListener('mousemove', _onDocMove);
+      document.addEventListener('mouseup', _onDocUp);
     });
-    card.addEventListener('mousemove', e => {
-      if (!_mouseDown) return;
-      _onMove(e.clientX, e.clientY, e);
-    });
-    const _stopMouse = e => { if (!_mouseDown) return; _mouseDown = false; _onEnd(e.clientX); };
-    card.addEventListener('mouseup', _stopMouse);
-    card.addEventListener('mouseleave', _stopMouse);
 
     nameInput.addEventListener('click', e => e.stopPropagation());
     nameInput.addEventListener('input', () => {

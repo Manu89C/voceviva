@@ -252,6 +252,36 @@ body::before {
 .swipe-hint-edit  { left: 0;  background: #60a5fa; color: #fff; border-radius: .75rem 0 0 .75rem; }
 .swipe-hint-del   { right: 0; background: #f06a6a; color: #fff; border-radius: 0 .75rem .75rem 0; }
 .swipe-hint svg   { flex-shrink: 0; }
+
+/* ── STAMPA ── */
+@media print {
+  body { background: #fff !important; color: #111 !important; padding: 1rem !important; }
+  body::before { display: none !important; }
+  .sphere-outer, .swipe-legend, .sphere-add-btn, .back-btn, .area-card-handle,
+  .swipe-hint, .area-card-chevron { display: none !important; }
+  .page-title { font-size: 1.4rem !important; color: #111 !important; }
+  .page-title em { color: #c0392b !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .section-label { color: #555 !important; font-size: .65rem !important; }
+  .areas-grid { gap: .6rem !important; }
+  .area-card-outer-wrap { break-inside: avoid !important; page-break-inside: avoid !important; margin-bottom: .5rem !important; }
+  .area-card-row { display: flex !important; }
+  .area-card-swipe-wrap { width: 100% !important; }
+  .area-card {
+    background: #fff !important;
+    border: 1px solid #ccc !important;
+    border-left: 3px solid var(--area-color) !important;
+    border-radius: .5rem !important;
+    padding: .75rem 1rem !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .area-card-body { display: flex !important; }
+  .area-card-dot { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  .area-card-name { color: #111 !important; font-size: .82rem !important; font-weight: 700 !important; border: none !important; }
+  .area-qa-item { padding: .4rem 0 .4rem 1rem !important; border-bottom: 1px solid #e8e8e8 !important; }
+  .area-qa-question { font-size: .6rem !important; color: #666 !important; margin-bottom: .2rem !important; }
+  .area-qa-answer { font-size: .85rem !important; color: #222 !important; line-height: 1.55 !important; padding-left: .75rem !important; white-space: pre-wrap !important; }
+}
 </style>
 </head>
 <body>

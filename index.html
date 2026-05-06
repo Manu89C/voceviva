@@ -99,6 +99,31 @@ h1 em { font-style:italic; color:var(--accent); }
 .btn-report:hover { border-color:rgba(74,222,128,.35); color:var(--live); background:rgba(74,222,128,.05); }
 .btn-report:disabled { opacity:.45; cursor:default; }
 .btn-report svg { width:14px; height:14px; flex-shrink:0; }
+/* Pinned note card */
+.pinned-card { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--warn); border-radius:.8rem; padding:.9rem 1.1rem; display:flex; flex-direction:column; gap:.4rem; }
+.pinned-card-header { display:flex; align-items:center; justify-content:space-between; }
+.pinned-card-meta { display:flex; align-items:center; gap:.45rem; }
+.pinned-card-label { font-size:.6rem; text-transform:uppercase; letter-spacing:.13em; color:var(--warn); display:flex; align-items:center; gap:.3rem; }
+.pinned-card-label svg { width:11px; height:11px; flex-shrink:0; }
+.pinned-card-date { font-size:.65rem; color:var(--muted); font-family:'JetBrains Mono',monospace; }
+.pinned-card-actions { display:flex; align-items:center; gap:.3rem; }
+.pinned-card-expand { background:none; border:1px solid var(--border); border-radius:.35rem; color:var(--muted); width:26px; height:26px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .15s; padding:0; }
+.pinned-card-expand svg { transition:transform .2s; }
+.pinned-card-expand:hover { border-color:var(--warn); color:var(--warn); }
+.pinned-card-expand.expanded svg { transform:rotate(180deg); }
+.pinned-card-unpin { background:none; border:none; color:var(--muted); font-size:.82rem; cursor:pointer; padding:.15rem .3rem; border-radius:.25rem; transition:color .12s; line-height:1; }
+.pinned-card-unpin:hover { color:var(--accent); }
+.pinned-card-title { font-family:'Crimson Pro',Georgia,serif; font-size:1.15rem; color:var(--text); line-height:1.3; }
+.pinned-card-excerpt { font-size:.82rem; color:var(--muted); line-height:1.65; }
+.pinned-card-full { display:none; font-size:.9rem; color:var(--text); line-height:1.75; border-top:1px solid var(--border); padding-top:.55rem; margin-top:.1rem; }
+.pinned-card.expanded .pinned-card-full { display:block; }
+.pinned-card.expanded .pinned-card-excerpt { display:none; }
+.pinned-card-full p { margin-bottom:.5rem; }
+.pinned-card-full h2 { font-family:'Crimson Pro',Georgia,serif; font-size:1.2em; font-weight:500; color:var(--text); margin:.7rem 0 .3rem; }
+.pinned-card-full h3 { font-family:'Crimson Pro',Georgia,serif; font-size:1.05em; font-weight:500; color:var(--text); margin:.6rem 0 .25rem; }
+.pinned-card-full ul { padding-left:1.1rem; margin-bottom:.4rem; }
+.pinned-card-full li { margin:.15rem 0; }
+.pinned-card-full strong { color:#fff; }
 /* Error */
 .error-msg { background:rgba(240,106,106,.08); border:1px solid rgba(240,106,106,.25); border-radius:.6rem; padding:.65rem .85rem; font-size:.68rem; color:#f06a6a; line-height:1.6; display:none; }
 .error-msg.show { display:block; }
@@ -162,6 +187,30 @@ h1 em { font-style:italic; color:var(--accent); }
     </iframe>
   </section>
 
+  <!-- NOTA FISSATA -->
+  <div id="pinnedNoteSection" style="display:none;">
+    <div class="pinned-card" id="pinnedNoteCard">
+      <div class="pinned-card-header">
+        <div class="pinned-card-meta">
+          <span class="pinned-card-label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17z"/></svg>
+            Nota Fissata
+          </span>
+          <span class="pinned-card-date" id="pinnedCardDate"></span>
+        </div>
+        <div class="pinned-card-actions">
+          <button class="pinned-card-expand" id="pinnedCardExpand" title="Espandi">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <button class="pinned-card-unpin" id="pinnedCardUnpin" title="Rimuovi">&#x2715;</button>
+        </div>
+      </div>
+      <div class="pinned-card-title" id="pinnedCardTitle"></div>
+      <div class="pinned-card-excerpt" id="pinnedCardExcerpt"></div>
+      <div class="pinned-card-full" id="pinnedCardFull"></div>
+    </div>
+  </div>
+
   <!-- FAB + BUTTON (Nuova nota) -->
   <button class="fab-plus" id="fabPlus" title="Nuova nota">+</button>
 
@@ -224,6 +273,7 @@ let currentUserId = null;
   const ps = document.getElementById('pendingSection');
   await ReportManager.renderReportCard(rc, ps);
   await syncAndRenderPending();
+  renderPinnedNote();
   // Profile dropdown
   const _profileBtn = document.getElementById('profileBtn');
   const _profileDrop = document.getElementById('profileDropdown');
@@ -240,7 +290,7 @@ let currentUserId = null;
 // -- IN SOSPESO (pending guided diary entries) --------------------------------
 function _pendingDecodeInline(content) {
   if (!content) return null;
-  var match = content.match(/<!--VV_PENDING:(.*?)-->/);
+  var match = content.match(new RegExp('<!--VV_PENDING:(.*?)-->'));
   if (!match) return null;
   try { return JSON.parse(decodeURIComponent(escape(atob(match[1])))); } catch(e) { return null; }
 }
@@ -368,6 +418,41 @@ function renderPendingSection(items) {
     });
     list.appendChild(card);
   });
+}
+
+// -- PINNED NOTE CARD --------------------------------------------------------
+function renderPinnedNote() {
+  var _raw = localStorage.getItem('vv_pinned_note');
+  var _section = document.getElementById('pinnedNoteSection');
+  if (!_section) return;
+  if (!_raw) { _section.style.display = 'none'; return; }
+  try {
+    var _note = JSON.parse(_raw);
+    _section.style.display = '';
+    var _MONTHS_PN = ['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
+    var _d = new Date((_note.date || new Date().toISOString().split('T')[0]) + 'T12:00:00');
+    document.getElementById('pinnedCardDate').textContent = _d.getDate() + ' ' + _MONTHS_PN[_d.getMonth()] + ' ' + _d.getFullYear();
+    document.getElementById('pinnedCardTitle').textContent = _note.title || '';
+    var _plain = _note.plainText || '';
+    document.getElementById('pinnedCardExcerpt').textContent = _plain.length > 140 ? _plain.slice(0, 140) + '\u2026' : _plain;
+    document.getElementById('pinnedCardFull').innerHTML = _note.content || '';
+  } catch(e) { _section.style.display = 'none'; }
+}
+
+{
+  var _expandBtn = document.getElementById('pinnedCardExpand');
+  var _unpinBtn  = document.getElementById('pinnedCardUnpin');
+  var _pinnedCard = document.getElementById('pinnedNoteCard');
+  if (_expandBtn && _unpinBtn && _pinnedCard) {
+    _expandBtn.onclick = function() {
+      _pinnedCard.classList.toggle('expanded');
+      _expandBtn.classList.toggle('expanded');
+    };
+    _unpinBtn.onclick = function() {
+      localStorage.removeItem('vv_pinned_note');
+      renderPinnedNote();
+    };
+  }
 }
 
 // -- HELPERS ------------------------------------------------------------------
@@ -507,6 +592,7 @@ if (sb) {
       const ps = document.getElementById('pendingSection');
       await ReportManager.renderReportCard(rc, ps);
       renderPendingSection();
+      renderPinnedNote();
     }, 600);
   });
 }

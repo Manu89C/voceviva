@@ -311,6 +311,10 @@ body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:no
 /* kbd compact override for panels */
 .guided-card.kbd .fn-panel { gap:.25rem; padding-bottom:.25rem; }
 .guided-card.kbd #panelAI .output-box { margin-bottom:0; }
+/* Pin note button */
+.fn-pin-btn { background:none; border:1px solid var(--border); border-radius:.5rem; color:var(--muted); font-family:'JetBrains Mono',monospace; font-size:.6rem; text-transform:uppercase; letter-spacing:.1em; padding:.45rem .65rem; cursor:pointer; display:flex; align-items:center; gap:.35rem; transition:all .15s; align-self:flex-end; touch-action:manipulation; white-space:nowrap; flex-shrink:0; }
+.fn-pin-btn:hover { border-color:var(--warn); color:var(--warn); }
+.fn-pin-btn.pinned { border-color:var(--warn); color:var(--warn); background:rgba(245,158,11,.1); }
 </style>
 </head>
 <body>
@@ -336,6 +340,10 @@ body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:no
             <label style="font-size:.55rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);">Data</label>
             <input type="date" id="noteDateInput" class="modal-input" style="margin-top:.15rem;">
           </div>
+          <button class="fn-pin-btn" id="pinNoteBtn" title="Fissa questa nota in home">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17z"/></svg>
+            Pin
+          </button>
           <div class="fn-timer-row" id="timerRow" style="padding:0;margin-left:.5rem;align-self:flex-end;">
             <div class="timer" id="timer">00:00</div>
             <div class="waveform">
@@ -1529,6 +1537,39 @@ async function uploadPhotoToStorage(base64) {
 
 // ── Blocca navigazione indietro alla nota già salvata/sospesa ──
 (function() {
+  // ── PIN NOTE ─────────────────────────────────────────────────────────────────
+  {
+    const _pinBtn = $('pinNoteBtn');
+    const _PIN_SVG_DEFAULT = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17z"/></svg>';
+    const _PIN_SVG_DONE   = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17z"/><line x1="12" y1="17" x2="12" y2="22" stroke="#f59e0b" stroke-width="2"/></svg>';
+
+    // Se già esiste una nota fissata con lo stesso noteId, segnalo visivamente
+    try {
+      const _existing = localStorage.getItem('vv_pinned_note');
+      if (_existing && _editNoteId) {
+        const _ep = JSON.parse(_existing);
+        if (_ep.noteId === _editNoteId) _pinBtn.classList.add('pinned');
+      }
+    } catch(e) {}
+
+    _pinBtn.onclick = () => {
+      const _plainText = getEditorText();
+      if (!_plainText) { showErr('Scrivi qualcosa prima di fissare la nota.'); return; }
+      const _pinData = {
+        title:     noteTitleInput.value.trim() || 'Nota senza titolo',
+        content:   getEditorHtml(),
+        plainText: _plainText,
+        date:      $('noteDateInput').value || new Date().toISOString().split('T')[0],
+        noteId:    _editNoteId || null,
+        pinnedAt:  new Date().toISOString()
+      };
+      try { localStorage.setItem('vv_pinned_note', JSON.stringify(_pinData)); } catch(e) { showErr('Impossibile fissare la nota.'); return; }
+      _pinBtn.classList.add('pinned');
+      _pinBtn.innerHTML = _PIN_SVG_DONE + ' Fissata ✓';
+      setTimeout(() => { _pinBtn.innerHTML = _PIN_SVG_DEFAULT + ' Pin'; }, 3500);
+    };
+  }
+
   // In edit mode non aggiungiamo una entry extra: dopo il salvataggio window.location.replace
   // rimuove l'unica entry di freeNote, quindi Back va direttamente al Diario.
   if (!_editNoteId) history.pushState({ vvNote: true }, '', location.href);

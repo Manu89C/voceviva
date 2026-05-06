@@ -78,6 +78,11 @@ h1 em { font-style:italic; color:var(--accent); }
 .btn-edit:active { background:none; border-color:var(--border); color:var(--muted); }
 .btn-delete-card { background:none; border:1px solid rgba(240,106,106,.3); color:#f06a6a; padding:.38rem .8rem; border-radius:.5rem; font-family:'JetBrains Mono',monospace; font-size:.62rem; cursor:pointer; text-transform:uppercase; letter-spacing:.1em; transition:border-color .2s,background .2s; }
 .btn-delete-card:hover { background:rgba(240,106,106,.1); }
+.btn-pin { background:none; border:1px solid rgba(245,158,11,.3); color:var(--warn); padding:.38rem .8rem; border-radius:.5rem; font-family:'JetBrains Mono',monospace; font-size:.62rem; cursor:pointer; text-transform:uppercase; letter-spacing:.1em; transition:border-color .2s,background .2s,color .2s; display:flex; align-items:center; gap:.3rem; }
+.btn-pin:hover { background:rgba(245,158,11,.12); border-color:rgba(245,158,11,.6); }
+.btn-pin.pinned { background:rgba(245,158,11,.12); border-color:var(--warn); }
+.note-card-btn.pin-btn { border-color:rgba(245,158,11,.3); color:var(--warn); }
+.note-card-btn.pin-btn:hover { background:rgba(245,158,11,.1); border-color:rgba(245,158,11,.6); }
 /* Cronologia */
 .notes-section { display:flex; flex-direction:column; gap:.6rem; }
 .month-header { display:flex; align-items:center; gap:.3rem; font-family:'DM Serif Display',serif; font-size:1.35rem; color:var(--text); padding:1rem 0 .4rem; margin-top:.8rem; cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
@@ -225,6 +230,7 @@ h1 em { font-style:italic; color:var(--accent); }
   <div class="read-overlay-body" id="readOverlayBody"></div>
   <div class="read-overlay-footer">
     <button class="btn-edit" id="readOverlayDelete" style="border-color:rgba(240,106,106,.3);color:#f06a6a;">Elimina</button>
+    <button class="btn-pin" id="readOverlayPin"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17z"/></svg>Pin</button>
     <button class="btn-edit" id="readOverlayEdit">Modifica</button>
   </div>
 </div>
@@ -270,6 +276,7 @@ $('nextMonth').onclick = () => { currentMonth++; if(currentMonth>11){currentMont
 
 $('readOverlayClose').onclick = () => { readOverlay.classList.remove('show'); readingNote=null; };
 $('readOverlayEdit').onclick  = () => { readOverlay.classList.remove('show'); if(readingNote) openEditInFreeNote(readingNote); };
+$('readOverlayPin').onclick   = () => { if(readingNote) pinNote(readingNote, $('readOverlayPin')); };
 $('readOverlayDelete').onclick = async () => {
   if(!readingNote || !confirm('Eliminare questa nota?')) return;
   try {
@@ -377,12 +384,16 @@ function showDayPanel(dateStr) {
       +'<div class="read-card-body">'+n.content+'</div>'
       +'<div class="read-card-footer">'
       +'<button class="btn-delete-card" data-id="'+n.id+'">Elimina</button>'
+      +'<button class="btn-pin" data-id="'+n.id+'"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17z"/></svg>Pin</button>'
       +'<button class="btn-edit" data-id="'+n.id+'">Modifica</button>'
       +'</div></div>';
   });
   dayPanel.innerHTML=html;
   dayPanel.querySelectorAll('.read-card-close').forEach(b=>{
     b.onclick=(e)=>{e.stopPropagation();dayPanel.innerHTML='';selectedDay=null;calGrid.querySelectorAll('.cal-day').forEach(c=>c.classList.remove('selected'));};
+  });
+  dayPanel.querySelectorAll('.btn-pin').forEach(b=>{
+    b.onclick=(e)=>{e.stopPropagation();pinNote(allNotes.find(n=>n.id===b.dataset.id),b);};
   });
   dayPanel.querySelectorAll('.btn-edit').forEach(b=>{
     b.onclick=(e)=>{e.stopPropagation();const note=allNotes.find(n=>n.id===b.dataset.id);if(note)openEditInFreeNote(note);};
@@ -433,6 +444,7 @@ function renderList() {
           +'</div>'
           +'<div class="note-card-actions" onclick="event.stopPropagation()">'
           +'<button class="note-card-btn del" data-id="'+n.id+'">Elimina</button>'
+          +'<button class="note-card-btn pin-btn" data-id="'+n.id+'">Pin</button>'
           +'<button class="note-card-btn" data-id="'+n.id+'">Modifica</button>'
           +'</div></div>';
       });
@@ -472,16 +484,37 @@ function renderList() {
   notesList.querySelectorAll('.note-card').forEach(c=>{
     c.onclick=()=>{const note=allNotes.find(n=>n.id===c.dataset.id);if(note)openReadOverlay(note);};
   });
-  notesList.querySelectorAll('.note-card-btn:not(.del)').forEach(b=>{
+  notesList.querySelectorAll('.note-card-btn:not(.del):not(.pin-btn)').forEach(b=>{
     b.onclick=(e)=>{e.stopPropagation();const note=allNotes.find(n=>n.id===b.dataset.id);if(note)openEditInFreeNote(note);};
   });
   notesList.querySelectorAll('.note-card-btn.del').forEach(b=>{
     b.onclick=(e)=>{e.stopPropagation();deleteNote(b.dataset.id);};
   });
+  notesList.querySelectorAll('.note-card-btn.pin-btn').forEach(b=>{
+    b.onclick=(e)=>{e.stopPropagation();pinNote(allNotes.find(n=>n.id===b.dataset.id),b);};
+  });
 }
 
 function getWeekStart(d){const day=d.getDay(),diff=d.getDate()-day+(day===0?-6:1);return new Date(d.getFullYear(),d.getMonth(),diff);}
 function openReadOverlay(note){readingNote=note;readOverlayTitle.textContent=note.title;readOverlayBody.innerHTML=note.content;readOverlay.classList.add('show');}
+
+function pinNote(note, btn) {
+  if (!note) return;
+  var _plain = (note.content||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+  var _pinData = {
+    title: note.title||'Nota senza titolo',
+    content: note.content||'',
+    plainText: _plain,
+    date: note.note_date||new Date().toISOString().split('T')[0],
+    noteId: note.id,
+    pinnedAt: new Date().toISOString()
+  };
+  try { localStorage.setItem('vv_pinned_note', JSON.stringify(_pinData)); } catch(e) { return; }
+  // Feedback visivo sul bottone cliccato
+  if (btn) { var _orig = btn.innerHTML; btn.classList.add('pinned'); btn.innerHTML = '✓ Fissata'; setTimeout(function(){ btn.classList.remove('pinned'); btn.innerHTML = _orig; }, 2500); }
+  var _pob = document.getElementById('readOverlayPin');
+  if (_pob && btn !== _pob) { var _o2 = _pob.innerHTML; _pob.classList.add('pinned'); _pob.innerHTML = '✓ Fissata'; setTimeout(function(){ _pob.classList.remove('pinned'); _pob.innerHTML = _o2; }, 2500); }
+}
 
 // ── ENTRY SWITCHER ────────────────────────────────────────────────────────────
 let _entrySwitcherDate = '';

@@ -7,7 +7,7 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0a0a0f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400;1,600&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="vv-auth.js"></script>
 <style>
@@ -190,12 +190,13 @@ body::before {
 }
 .area-qa-item:last-child { border-bottom: none; padding-bottom: .05rem; }
 .area-qa-question {
-  font-size: .62rem; text-transform: uppercase; letter-spacing: .08em;
+  font-size: .58rem; text-transform: uppercase; letter-spacing: .1em;
   color: var(--muted); line-height: 1.4; pointer-events: none;
+  font-family: 'JetBrains Mono', monospace; padding-bottom: .15rem;
 }
 .area-qa-answer {
-  color: var(--text); font-family: 'JetBrains Mono', monospace;
-  font-size: .88rem; line-height: 1.65; padding: 0;
+  color: var(--text); font-family: 'Crimson Pro', Georgia, serif;
+  font-size: 1rem; line-height: 1.8; padding: 0;
   white-space: pre-wrap; word-break: break-word;
 }
 /* Swipe legend */
@@ -279,8 +280,8 @@ body::before {
   .area-card-dot { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   .area-card-name { color: #111 !important; font-size: .82rem !important; font-weight: 700 !important; border: none !important; }
   .area-qa-item { padding: .4rem 0 .4rem 1rem !important; border-bottom: 1px solid #e8e8e8 !important; }
-  .area-qa-question { font-size: .6rem !important; color: #666 !important; margin-bottom: .2rem !important; }
-  .area-qa-answer { font-size: .85rem !important; color: #222 !important; line-height: 1.55 !important; padding-left: .75rem !important; white-space: pre-wrap !important; }
+  .area-qa-question { font-size: .6rem !important; color: #666 !important; margin-bottom: .2rem !important; font-family: 'JetBrains Mono', monospace !important; }
+  .area-qa-answer { font-family: 'Crimson Pro', Georgia, serif !important; font-size: 1rem !important; color: #222 !important; line-height: 1.6 !important; padding-left: .75rem !important; white-space: pre-wrap !important; }
 }
 </style>
 </head>

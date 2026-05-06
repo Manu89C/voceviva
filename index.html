@@ -115,15 +115,16 @@ h1 em { font-style:italic; color:var(--accent); }
 .pinned-card-unpin:hover { color:var(--accent); }
 .pinned-card-title { font-family:'Crimson Pro',Georgia,serif; font-size:1.15rem; color:var(--text); line-height:1.3; }
 .pinned-card-excerpt { font-size:.82rem; color:var(--muted); line-height:1.65; }
-.pinned-card-full { display:none; font-size:.9rem; color:var(--text); line-height:1.75; border-top:1px solid var(--border); padding-top:.55rem; margin-top:.1rem; }
+.pinned-card-full { display:none; font-family:'Crimson Pro',Georgia,serif; font-size:1rem; color:var(--text); line-height:1.85; border-top:1px solid var(--border); padding-top:.65rem; margin-top:.1rem; }
 .pinned-card.expanded .pinned-card-full { display:block; }
 .pinned-card.expanded .pinned-card-excerpt { display:none; }
-.pinned-card-full p { margin-bottom:.5rem; }
-.pinned-card-full h2 { font-family:'Crimson Pro',Georgia,serif; font-size:1.2em; font-weight:500; color:var(--text); margin:.7rem 0 .3rem; }
-.pinned-card-full h3 { font-family:'Crimson Pro',Georgia,serif; font-size:1.05em; font-weight:500; color:var(--text); margin:.6rem 0 .25rem; }
-.pinned-card-full ul { padding-left:1.1rem; margin-bottom:.4rem; }
-.pinned-card-full li { margin:.15rem 0; }
-.pinned-card-full strong { color:#fff; }
+.pinned-card-full p { margin-bottom:.6rem; }
+.pinned-card-full h2 { font-family:'Crimson Pro',Georgia,serif; font-size:1.15em; font-weight:500; color:#ddd; margin:.7rem 0 .3rem; }
+.pinned-card-full h3 { font-family:'DM Serif Display',serif; font-size:1.05em; color:#c8c8d4; margin:.6rem 0 .25rem; }
+.pinned-card-full ul, .pinned-card-full ol { padding-left:1.3rem; margin:.3rem 0 .4rem; }
+.pinned-card-full li { margin:.12rem 0; }
+.pinned-card-full strong { color:#c8c8d4; font-weight:600; }
+.pinned-card-full em { font-style:italic; font-family:'EB Garamond',Georgia,serif; color:#fff; }
 /* Error */
 .error-msg { background:rgba(240,106,106,.08); border:1px solid rgba(240,106,106,.25); border-radius:.6rem; padding:.65rem .85rem; font-size:.68rem; color:#f06a6a; line-height:1.6; display:none; }
 .error-msg.show { display:block; }
@@ -428,7 +429,7 @@ function renderPinnedNote() {
   if (!_raw) { _section.style.display = 'none'; return; }
   try {
     var _note = JSON.parse(_raw);
-    _section.style.display = '';
+    _section.style.display = 'block';
     var _MONTHS_PN = ['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
     var _d = new Date((_note.date || new Date().toISOString().split('T')[0]) + 'T12:00:00');
     document.getElementById('pinnedCardDate').textContent = _d.getDate() + ' ' + _MONTHS_PN[_d.getMonth()] + ' ' + _d.getFullYear();

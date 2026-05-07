@@ -427,6 +427,28 @@ function _getPinnedNoteId() {
   try { var r=localStorage.getItem('vv_pinned_note'); return r?JSON.parse(r).noteId||null:null; } catch(e){return null;}
 }
 
+// Converte il vecchio formato emoji umore nel nuovo formato a pallini
+function _normalizeMoodHtml(html) {
+  if(!html||html.indexOf('Umore:')===-1) return html;
+  var MOOD_COLORS = ['','#818cf8','#60a5fa','#94a3b8','#fbbf24','#4ade80'];
+  var MOOD_TEXT   = ['','Molto basso','Basso','Neutro','Buono','Ottimo'];
+  return html.replace(/<p[^>]*>\s*<strong[^>]*>Umore:[^(]*\(([1-5])\/5\)<\/strong>\s*<\/p>/gi, function(_, v) {
+    var val = parseInt(v);
+    var col = MOOD_COLORS[val] || '#888';
+    var dots = '';
+    for (var i = 1; i <= 5; i++) {
+      dots += i <= val
+        ? '<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:' + col + ';flex-shrink:0;"></span>'
+        : '<span style="display:inline-block;width:9px;height:9px;border-radius:50%;border:1.5px solid #444;flex-shrink:0;"></span>';
+    }
+    return '<p style="display:flex;align-items:center;gap:.55rem;margin:.4rem 0 .6rem;">'
+      + '<strong style="font-size:.6rem;text-transform:uppercase;letter-spacing:.1em;color:#888;font-family:\'JetBrains Mono\',monospace;white-space:nowrap;">Umore</strong>'
+      + '<span style="display:flex;gap:5px;align-items:center;">' + dots + '</span>'
+      + '<span style="font-size:.6rem;color:' + col + ';font-family:\'JetBrains Mono\',monospace;">' + (MOOD_TEXT[val]||'') + '</span>'
+      + '</p>';
+  });
+}
+
 function buildNoteVCard(n) {
   // Fallback per note pre-esistenti senza campo source
   var _isReport=n.mode==='report';
@@ -468,7 +490,7 @@ function buildNoteVCard(n) {
     +'</div>'
     +'<div class="note-vcard-title">'+esc(n.title||'')+'</div>'
     +'<div class="note-vcard-excerpt">'+esc(_ex)+'</div>'
-    +'<div class="note-vcard-full">'+(n.content||'')+'</div>'
+    +'<div class="note-vcard-full">'+_normalizeMoodHtml(n.content||'')+'</div>'
     +'<div class="note-vcard-footer">'
     +'<button class="note-vcard-delete-btn"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>Elimina</button>'
     +'</div>';

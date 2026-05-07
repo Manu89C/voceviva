@@ -288,8 +288,24 @@ let currentUserId = null;
   await syncAndRenderPending();
   await syncPinnedNoteFromCloud();
   renderPinnedNote();
-  // Realtime: aggiorna pinned note quando un altro dispositivo fa pin/unpin
+  // Realtime: aggiorna Report card + pinned note quando cambiano su altri dispositivi
   if (sb && currentUserId) {
+    sb.channel('vv-index-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notes' }, async function(payload) {
+        var _rc = document.querySelector('.container');
+        var _ps = document.getElementById('pendingSection');
+        if (payload.eventType === 'DELETE') {
+          // payload.old può non avere 'mode' senza REPLICA IDENTITY FULL:
+          // aggiorna solo se c'è già una report card visibile
+          if (document.getElementById('vv-report-card')) {
+            await ReportManager.renderReportCard(_rc, _ps);
+          }
+        } else {
+          if ((payload.new && payload.new.mode) !== 'report') return;
+          await ReportManager.renderReportCard(_rc, _ps);
+        }
+      })
+      .subscribe();
     sb.channel('vv-profile-pinned')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'vv_user_profile' },
         function(payload) {
@@ -681,24 +697,6 @@ saveKeyBtn.onclick = () => {
     setTimeout(() => { genBtn.disabled = false; genBtn.textContent = 'Genera Report Settimanale'; }, 5000);
   };
 })();
-
-// -- REALTIME SYNC -----------------------------------------------------------
-// Aggiorna la Report card quando un altro dispositivo salva/cancella un report
-if (sb) {
-  const _indexChannel = sb.channel('vv-index-realtime')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'notes' }, async (payload) => {
-      const mode = payload.new?.mode || payload.old?.mode;
-      if (mode !== 'report') return;
-      const rc = document.querySelector('.container');
-      const ps = document.getElementById('pendingSection');
-      await ReportManager.renderReportCard(rc, ps);
-    })
-    .subscribe((status, err) => {
-      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-        console.warn('[Index] Realtime subscribe error:', status, err);
-      }
-    });
-}
 
 // -- FALLBACK: aggiorna la Report card quando la tab torna in primo piano -----
 {

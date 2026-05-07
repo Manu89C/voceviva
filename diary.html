@@ -473,7 +473,7 @@ function buildNoteVCard(n) {
   var _ds=_d.getDate()+' '+_mo[_d.getMonth()]+' '+_d.getFullYear();
   var _pl=(n.content||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
   var _ex=_pl.length>140?_pl.slice(0,140)+'\u2026':_pl;
-  var _pid=_getPinnedNoteId(),_ip=_pid===n.id,_pac=_ip?' pin-active':'';
+
   var card=document.createElement('div');
   card.className='note-vcard note-vcard--'+_src; card.dataset.id=n.id;
   card.innerHTML=
@@ -485,7 +485,6 @@ function buildNoteVCard(n) {
     +'</div>'
     +'<div class="note-vcard-actions">'
     +'<button class="note-vcard-action-btn edit" title="Modifica nota"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>'
-    +'<button class="note-vcard-action-btn pin-btn'+_pac+'" title="'+(_ip?'Rimuovi pin':'Fissa nota')+'"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17z"/><line x1="12" y1="17" x2="12" y2="22"/></svg></button>'
     +'</div>'
     +'</div>'
     +'<div class="note-vcard-title">'+esc(n.title||'')+'</div>'
@@ -500,15 +499,6 @@ function buildNoteVCard(n) {
   });
   card.querySelector('.note-vcard-action-btn.edit').addEventListener('click',function(e){
     e.stopPropagation(); openEditInFreeNote(n);
-  });
-  card.querySelector('.pin-btn').addEventListener('click',function(e){
-    e.stopPropagation();
-    var b=this,nowPinned=b.classList.contains('pin-active');
-    if(nowPinned){
-      localStorage.removeItem('vv_pinned_note');
-      if(sb&&currentUserId){sb.from('vv_user_profile').upsert({user_id:currentUserId,pinned_note:null,updated_at:new Date().toISOString()},{onConflict:'user_id'}).then(function(){}).catch(function(){});}
-      b.classList.remove('pin-active'); b.title='Fissa nota';
-    } else { pinNote(n,b); }
   });
   card.querySelector('.note-vcard-delete-btn').addEventListener('click',function(e){
     e.stopPropagation(); deleteNote(n.id);

@@ -510,6 +510,12 @@ function pinNote(note, btn) {
     pinnedAt: new Date().toISOString()
   };
   try { localStorage.setItem('vv_pinned_note', JSON.stringify(_pinData)); } catch(e) { return; }
+  // Sync to cloud
+  if (typeof sb !== 'undefined' && sb && currentUserId) {
+    sb.from('vv_user_profile')
+      .upsert({ user_id: currentUserId, pinned_note: _pinData, updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
+      .then(() => {}).catch(() => {});
+  }
   // Feedback visivo sul bottone cliccato
   if (btn) { var _orig = btn.innerHTML; btn.classList.add('pinned'); btn.innerHTML = '✓ Fissata'; setTimeout(function(){ btn.classList.remove('pinned'); btn.innerHTML = _orig; }, 2500); }
   var _pob = document.getElementById('readOverlayPin');

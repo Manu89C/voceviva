@@ -1564,6 +1564,12 @@ async function uploadPhotoToStorage(base64) {
         pinnedAt:  new Date().toISOString()
       };
       try { localStorage.setItem('vv_pinned_note', JSON.stringify(_pinData)); } catch(e) { showErr('Impossibile fissare la nota.'); return; }
+      // Sync to cloud
+      if (sb && currentUserId) {
+        sb.from('vv_user_profile')
+          .upsert({ user_id: currentUserId, pinned_note: _pinData, updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
+          .then(() => {}).catch(() => {});
+      }
       _pinBtn.classList.add('pinned');
       _pinBtn.innerHTML = _PIN_SVG_DONE + ' Fissata ✓';
       setTimeout(() => { _pinBtn.innerHTML = _PIN_SVG_DEFAULT + ' Pin'; }, 3500);

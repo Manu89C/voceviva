@@ -100,17 +100,17 @@ h1 em { font-style:italic; color:var(--accent); }
 .btn-report:disabled { opacity:.45; cursor:default; }
 .btn-report svg { width:14px; height:14px; flex-shrink:0; }
 /* Pinned note card */
-.pinned-card { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--warn); border-radius:.8rem; padding:.9rem 1.1rem; display:flex; flex-direction:column; gap:.4rem; }
+.pinned-card { background:var(--surface); border:1px solid var(--border); border-left:3px solid #f97316; border-radius:.8rem; padding:.9rem 1.1rem; display:flex; flex-direction:column; gap:.4rem; }
 .pinned-card-header { display:flex; align-items:center; justify-content:space-between; }
 .pinned-card-meta { display:flex; align-items:center; gap:.45rem; }
-.pinned-card-label { font-size:.6rem; text-transform:uppercase; letter-spacing:.13em; color:var(--warn); display:flex; align-items:center; gap:.3rem; }
+.pinned-card-label { font-size:.6rem; text-transform:uppercase; letter-spacing:.13em; color:#f97316; display:flex; align-items:center; gap:.3rem; }
 .pinned-card-label svg { width:11px; height:11px; flex-shrink:0; }
 .pinned-card-date { font-size:.65rem; color:var(--muted); font-family:'JetBrains Mono',monospace; }
 .pinned-card-actions { display:flex; align-items:center; gap:.3rem; }
 .pinned-card-action-btn { background:none; border:1px solid var(--border); border-radius:.35rem; color:var(--muted); width:26px; height:26px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .15s; padding:0; flex-shrink:0; }
-.pinned-card-action-btn:hover { border-color:var(--warn); color:var(--warn); }
+.pinned-card-action-btn:hover { border-color:#f97316; color:#f97316; }
 .pinned-card-action-btn.edit:hover { border-color:var(--accent); color:var(--accent); }
-.pinned-card-action-btn.pin { color:var(--warn); border-color:rgba(245,158,11,.4); background:rgba(245,158,11,.08); }
+.pinned-card-action-btn.pin { color:#f97316; border-color:rgba(249,115,22,.4); background:rgba(249,115,22,.08); }
 .pinned-card-action-btn.pin:hover { color:var(--muted); border-color:var(--border); background:none; }
 .pinned-card { cursor:pointer; }
 .pinned-card-footer { display:flex; justify-content:flex-end; padding-top:.5rem; border-top:1px solid var(--border); margin-top:.15rem; }

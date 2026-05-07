@@ -84,11 +84,20 @@ h1 em { font-style:italic; color:var(--accent); }
 .note-card-btn.pin-btn { border-color:rgba(245,158,11,.3); color:var(--warn); }
 .note-card-btn.pin-btn:hover { background:rgba(245,158,11,.1); border-color:rgba(245,158,11,.6); }
 /* ── UNIFIED NOTE CARD ───────────────────────────────────────────────────── */
-.note-vcard { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent); border-radius:.8rem; padding:.9rem 1.1rem; display:flex; flex-direction:column; gap:.4rem; cursor:pointer; transition:border-color .2s; }
-.note-vcard:hover { border-color:rgba(245,80,54,.4); }
+.note-vcard { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--border); border-radius:.8rem; padding:.9rem 1.1rem; display:flex; flex-direction:column; gap:.4rem; cursor:pointer; transition:border-color .2s; }
+/* Diario Guidato → verde acqua */
+.note-vcard--guided { border-left-color:#2dd4bf; }
+.note-vcard--guided:hover { border-color:rgba(45,212,191,.35); }
+.note-vcard--guided .note-vcard-label { color:#2dd4bf; }
+.note-vcard--guided .note-vcard-action-btn.edit:hover { border-color:#2dd4bf; color:#2dd4bf; }
+/* Nota Libera → azzurro chiaro */
+.note-vcard--free { border-left-color:#38bdf8; }
+.note-vcard--free:hover { border-color:rgba(56,189,248,.35); }
+.note-vcard--free .note-vcard-label { color:#38bdf8; }
+.note-vcard--free .note-vcard-action-btn.edit:hover { border-color:#38bdf8; color:#38bdf8; }
 .note-vcard-header { display:flex; align-items:center; justify-content:space-between; }
 .note-vcard-meta { display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; }
-.note-vcard-label { font-size:.6rem; text-transform:uppercase; letter-spacing:.13em; color:var(--accent); display:flex; align-items:center; gap:.3rem; }
+.note-vcard-label { font-size:.6rem; text-transform:uppercase; letter-spacing:.13em; display:flex; align-items:center; gap:.3rem; }
 .note-vcard-label svg { width:11px; height:11px; flex-shrink:0; }
 .note-vcard-badge { font-size:.5rem; text-transform:uppercase; letter-spacing:.08em; padding:.1rem .35rem; border-radius:.25rem; }
 .note-vcard-badge.write { background:rgba(74,222,128,.08); color:var(--live); border:1px solid rgba(74,222,128,.2); }
@@ -97,7 +106,7 @@ h1 em { font-style:italic; color:var(--accent); }
 .note-vcard-date { font-size:.65rem; color:var(--muted); font-family:'JetBrains Mono',monospace; }
 .note-vcard-actions { display:flex; align-items:center; gap:.3rem; flex-shrink:0; }
 .note-vcard-action-btn { background:none; border:1px solid var(--border); border-radius:.35rem; color:var(--muted); width:26px; height:26px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .15s; padding:0; flex-shrink:0; }
-.note-vcard-action-btn.edit:hover { border-color:var(--accent); color:var(--accent); }
+.note-vcard-action-btn.edit:hover { border-color:inherit; color:inherit; }
 .note-vcard-action-btn.pin-btn:hover { border-color:rgba(245,158,11,.6); color:var(--warn); }
 .note-vcard-action-btn.pin-btn.pin-active { color:var(--warn); border-color:rgba(245,158,11,.4); background:rgba(245,158,11,.08); }
 .note-vcard-action-btn.pin-btn.pin-active:hover { color:var(--muted); border-color:var(--border); background:none; }
@@ -433,7 +442,7 @@ function buildNoteVCard(n) {
   var _ex=_pl.length>140?_pl.slice(0,140)+'\u2026':_pl;
   var _pid=_getPinnedNoteId(),_ip=_pid===n.id,_pac=_ip?' pin-active':'';
   var card=document.createElement('div');
-  card.className='note-vcard'; card.dataset.id=n.id;
+  card.className='note-vcard note-vcard--'+(_src==='guided'?'guided':'free'); card.dataset.id=n.id;
   card.innerHTML=
     '<div class="note-vcard-header">'
     +'<div class="note-vcard-meta">'

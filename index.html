@@ -288,6 +288,23 @@ let currentUserId = null;
   await syncAndRenderPending();
   await syncPinnedNoteFromCloud();
   renderPinnedNote();
+  // Realtime: aggiorna pinned note quando un altro dispositivo fa pin/unpin
+  if (sb && currentUserId) {
+    sb.channel('vv-profile-pinned')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'vv_user_profile' },
+        function(payload) {
+          if (!payload.new || payload.new.user_id !== currentUserId) return;
+          var _newPin = payload.new.pinned_note;
+          if (_newPin) {
+            try { localStorage.setItem('vv_pinned_note', JSON.stringify(_newPin)); } catch(e) {}
+          } else {
+            localStorage.removeItem('vv_pinned_note');
+          }
+          renderPinnedNote();
+        }
+      )
+      .subscribe();
+  }
   // Profile dropdown
   const _profileBtn = document.getElementById('profileBtn');
   const _profileDrop = document.getElementById('profileDropdown');
@@ -443,15 +460,18 @@ async function syncPinnedNoteFromCloud() {
       .eq('user_id', currentUserId)
       .maybeSingle();
     if (error) return;
-    if (data && data.pinned_note) {
-      // Cloud has a pin — use it (authoritative)
-      try { localStorage.setItem('vv_pinned_note', JSON.stringify(data.pinned_note)); } catch(e) {}
-    } else {
-      // Cloud has no pin — push local to cloud if present (first sync from this device)
+    if (data === null) {
+      // No cloud row at all — first device ever: push local to cloud if present
       var _localRaw = localStorage.getItem('vv_pinned_note');
       if (_localRaw) {
         try { savePinnedNoteToCloud(JSON.parse(_localRaw)); } catch(e) {}
       }
+    } else if (data.pinned_note) {
+      // Cloud has a pin — cloud is authoritative, overwrite local
+      try { localStorage.setItem('vv_pinned_note', JSON.stringify(data.pinned_note)); } catch(e) {}
+    } else {
+      // Cloud row exists with pinned_note=null — was explicitly unpinned on another device
+      localStorage.removeItem('vv_pinned_note');
     }
   } catch(e) {}
 }

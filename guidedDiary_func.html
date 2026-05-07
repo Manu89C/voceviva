@@ -586,7 +586,7 @@ async function warmupAPI() {
           const chosenDate = new Date(dateStr + 'T12:00:00');
           const MOOD_L = ['', '\uD83D\uDE14 Molto basso', '\uD83D\uDE15 Basso', '\uD83D\uDE10 Neutro', '\uD83D\uDE42 Buono', '\uD83D\uDE0A Ottimo'];
           let newHtml = '<h2>Diario Guidato \u2014 ' + chosenDate.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }) + '</h2>';
-          if (gMoodValue) newHtml += '<p><strong>Umore: ' + MOOD_L[gMoodValue] + ' (' + gMoodValue + '/5)</strong></p>';
+        if (gMoodValue) newHtml += _moodDotsHtml(gMoodValue);
           for (let i = 0; i < GUIDED_QUESTIONS.length; i++) {
             const q = GUIDED_QUESTIONS[i];
             if (gAnswers[i] && gAnswers[i].trim() && !stillSkipped.includes(i)) {
@@ -873,7 +873,7 @@ async function warmupAPI() {
 
         const MOOD_L = ['', '😔 Molto basso', '😕 Basso', '😐 Neutro', '🙂 Buono', '😊 Ottimo'];
         let newHtml = '<h2>Diario Guidato — ' + chosenDate.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }) + '</h2>';
-        if (gMoodValue) newHtml += '<p><strong>Umore: ' + MOOD_L[gMoodValue] + ' (' + gMoodValue + '/5)</strong></p>';
+        if (gMoodValue) newHtml += _moodDotsHtml(gMoodValue);
         for (let i = 0; i < GUIDED_QUESTIONS.length; i++) {
           const q = GUIDED_QUESTIONS[i];
           if (gAnswers[i] && gAnswers[i].trim()) {
@@ -923,7 +923,7 @@ async function warmupAPI() {
     // ── NORMAL MODE: assemble and save new note ──
     let html = '<h2>Diario Guidato — ' + chosenDate.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }) + '</h2>';
     if (gMoodValue) {
-      html += '<p><strong>Umore: ' + MOOD_LABELS[gMoodValue] + ' (' + gMoodValue + '/5)</strong></p>';
+      html += _moodDotsHtml(gMoodValue);
     }
     for (let i = 0; i < GUIDED_QUESTIONS.length; i++) {
       const q = GUIDED_QUESTIONS[i];
@@ -1265,6 +1265,22 @@ async function warmupAPI() {
   $('gFmtOl').addEventListener('touchstart',    function(e){ e.preventDefault(); gFmt('ol'); }, {passive:false});
 
   // ── PENDING HELPERS ──
+  function _moodDotsHtml(val) {
+    var MOOD_TEXT   = ['','Molto basso','Basso','Neutro','Buono','Ottimo'];
+    var MOOD_COLORS = ['','#818cf8','#60a5fa','#94a3b8','#fbbf24','#4ade80'];
+    var col = MOOD_COLORS[val] || '#888';
+    var dots = '';
+    for (var i = 1; i <= 5; i++) {
+      dots += i <= val
+        ? '<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:' + col + ';flex-shrink:0;"></span>'
+        : '<span style="display:inline-block;width:9px;height:9px;border-radius:50%;border:1.5px solid #444;flex-shrink:0;"></span>';
+    }
+    return '<p style="display:flex;align-items:center;gap:.55rem;margin:.4rem 0 .6rem;">'
+      + '<strong style="font-size:.6rem;text-transform:uppercase;letter-spacing:.1em;color:#888;font-family:\'JetBrains Mono\',monospace;white-space:nowrap;">Umore</strong>'
+      + '<span style="display:flex;gap:5px;align-items:center;">' + dots + '</span>'
+      + '<span style="font-size:.6rem;color:' + col + ';font-family:\'JetBrains Mono\',monospace;">' + (MOOD_TEXT[val] || '') + '</span>'
+      + '</p>';
+  }
   function _pendingEncode(skippedIndices, allAnswers, moodValue) {
     var data = { s: skippedIndices, a: allAnswers, m: moodValue };
     return '<!--VV_PENDING:' + btoa(unescape(encodeURIComponent(JSON.stringify(data)))) + '-->';

@@ -110,9 +110,13 @@ h1 em { font-style:italic; color:var(--accent); }
 .pinned-card-action-btn { background:none; border:1px solid var(--border); border-radius:.35rem; color:var(--muted); width:26px; height:26px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .15s; padding:0; flex-shrink:0; }
 .pinned-card-action-btn:hover { border-color:var(--warn); color:var(--warn); }
 .pinned-card-action-btn.edit:hover { border-color:var(--accent); color:var(--accent); }
-.pinned-card-unpin { background:none; border:none; color:var(--muted); font-size:.82rem; cursor:pointer; padding:.15rem .3rem; border-radius:.25rem; transition:color .12s; line-height:1; flex-shrink:0; }
-.pinned-card-unpin:hover { color:var(--accent); }
+.pinned-card-action-btn.pin { color:var(--warn); border-color:rgba(245,158,11,.4); background:rgba(245,158,11,.08); }
+.pinned-card-action-btn.pin:hover { color:var(--muted); border-color:var(--border); background:none; }
 .pinned-card { cursor:pointer; }
+.pinned-card-footer { display:flex; justify-content:flex-end; padding-top:.5rem; border-top:1px solid var(--border); margin-top:.15rem; }
+.pinned-card-delete-btn { background:none; border:1px solid rgba(240,106,106,.3); border-radius:.4rem; color:#f06a6a; font-family:'JetBrains Mono',monospace; font-size:.58rem; text-transform:uppercase; letter-spacing:.1em; padding:.28rem .6rem; cursor:pointer; display:flex; align-items:center; gap:.3rem; transition:all .15s; touch-action:manipulation; }
+.pinned-card-delete-btn:hover { background:rgba(240,106,106,.1); border-color:#f06a6a; }
+.pinned-card-delete-btn svg { flex-shrink:0; }
 .pinned-card-title { font-family:'Crimson Pro',Georgia,serif; font-size:1.15rem; color:var(--text); line-height:1.3; }
 .pinned-card-excerpt { font-size:.82rem; color:var(--muted); line-height:1.65; }
 .pinned-card-full { display:none; font-family:'Crimson Pro',Georgia,serif; font-size:1rem; color:var(--text); line-height:1.85; border-top:1px solid var(--border); padding-top:.65rem; margin-top:.1rem; }
@@ -203,15 +207,20 @@ h1 em { font-style:italic; color:var(--accent); }
           <button class="pinned-card-action-btn edit" id="pinnedCardEdit" title="Modifica nota">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           </button>
-          <button class="pinned-card-action-btn" id="pinnedCardUnpinBtn" title="Rimuovi pin">
+          <button class="pinned-card-action-btn pin" id="pinnedCardUnpinBtn" title="Rimuovi pin">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17z"/><line x1="12" y1="17" x2="12" y2="22" stroke="currentColor" stroke-width="2"/></svg>
           </button>
-          <button class="pinned-card-unpin" id="pinnedCardUnpin" title="Chiudi">&#x2715;</button>
         </div>
       </div>
       <div class="pinned-card-title" id="pinnedCardTitle"></div>
       <div class="pinned-card-excerpt" id="pinnedCardExcerpt"></div>
       <div class="pinned-card-full" id="pinnedCardFull"></div>
+      <div class="pinned-card-footer">
+        <button class="pinned-card-delete-btn" id="pinnedCardDelete" title="Elimina nota definitivamente">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+          Elimina
+        </button>
+      </div>
     </div>
   </div>
 
@@ -429,18 +438,21 @@ function renderPendingSection(items) {
 async function syncPinnedNoteFromCloud() {
   if (!sb || !currentUserId) return;
   try {
-    var { data } = await sb.from('vv_user_profile')
+    var { data, error } = await sb.from('vv_user_profile')
       .select('pinned_note')
       .eq('user_id', currentUserId)
       .maybeSingle();
+    if (error) return;
     if (data && data.pinned_note) {
-      // Cloud wins: overwrite localStorage
+      // Cloud has a pin — use it (authoritative)
       try { localStorage.setItem('vv_pinned_note', JSON.stringify(data.pinned_note)); } catch(e) {}
-    } else if (data && data.pinned_note === null) {
-      // Cloud says unpinned: clear localStorage too
-      localStorage.removeItem('vv_pinned_note');
+    } else {
+      // Cloud has no pin — push local to cloud if present (first sync from this device)
+      var _localRaw = localStorage.getItem('vv_pinned_note');
+      if (_localRaw) {
+        try { savePinnedNoteToCloud(JSON.parse(_localRaw)); } catch(e) {}
+      }
     }
-    // If cloud row doesn't exist yet, keep localStorage value (first device)
   } catch(e) {}
 }
 
@@ -480,30 +492,20 @@ function renderPinnedNote() {
 }
 
 {
-  var _unpinBtn     = document.getElementById('pinnedCardUnpin');
   var _unpinIconBtn = document.getElementById('pinnedCardUnpinBtn');
   var _editBtn      = document.getElementById('pinnedCardEdit');
+  var _deleteBtn    = document.getElementById('pinnedCardDelete');
   var _pinnedCard   = document.getElementById('pinnedNoteCard');
 
   if (_pinnedCard) {
-    // Click anywhere on card = expand/collapse (except action buttons)
+    // Click anywhere on card = expand/collapse (except action buttons and footer)
     _pinnedCard.addEventListener('click', function(e) {
-      if (e.target.closest('.pinned-card-actions')) return;
+      if (e.target.closest('.pinned-card-actions') || e.target.closest('.pinned-card-footer')) return;
       _pinnedCard.classList.toggle('expanded');
     });
   }
 
-  // X = dismiss without unpinning (just collapses/hides for the session)
-  if (_unpinBtn) {
-    _unpinBtn.onclick = function(e) {
-      e.stopPropagation();
-      _pinnedCard.classList.remove('expanded');
-      var _section = document.getElementById('pinnedNoteSection');
-      if (_section) _section.style.display = 'none';
-    };
-  }
-
-  // Pin icon = actually remove the pin (localStorage + cloud)
+  // Pin icon = unpin (localStorage + cloud)
   if (_unpinIconBtn) {
     _unpinIconBtn.onclick = function(e) {
       e.stopPropagation();
@@ -530,6 +532,24 @@ function renderPinnedNote() {
         }));
         window.location.href = 'freeNote_func.html';
       } catch(ex) { showErr('Impossibile aprire la nota.'); }
+    };
+  }
+
+  // Delete = permanently delete note from Supabase + unpin
+  if (_deleteBtn) {
+    _deleteBtn.onclick = function(e) {
+      e.stopPropagation();
+      if (!confirm('Eliminare definitivamente questa nota dal diario?')) return;
+      var _raw = localStorage.getItem('vv_pinned_note');
+      var _noteId = null;
+      try { if (_raw) _noteId = JSON.parse(_raw).noteId; } catch(ex) {}
+      localStorage.removeItem('vv_pinned_note');
+      removePinnedNoteFromCloud();
+      if (sb && currentUserId && _noteId) {
+        sb.from('notes').delete().eq('id', _noteId).eq('user_id', currentUserId)
+          .then(function(){}).catch(function(){});
+      }
+      renderPinnedNote();
     };
   }
 }

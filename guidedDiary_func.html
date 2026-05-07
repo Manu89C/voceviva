@@ -595,7 +595,7 @@ async function warmupAPI() {
             }
           }
           if (stillSkipped.length > 0) newHtml += '\n' + _pendingEncode(stillSkipped, [...gAnswers], gMoodValue);
-          await sb.from('notes').update({ content: newHtml, updated_at: new Date().toISOString() }).eq('id', gResumeContext.noteId);
+          await sb.from('notes').update({ content: newHtml, source: 'guided', updated_at: new Date().toISOString() }).eq('id', gResumeContext.noteId);
           // Update pending item in localStorage
           try {
             const _PKEY = 'vv_pending_questions';
@@ -889,7 +889,7 @@ async function warmupAPI() {
         if (stillSkipped.length > 0) newHtml += '\n' + _pendingEncode(stillSkipped, [...gAnswers], gMoodValue);
 
         const { error: updateErr } = await sb.from('notes')
-          .update({ content: newHtml, updated_at: new Date().toISOString() })
+          .update({ content: newHtml, source: 'guided', updated_at: new Date().toISOString() })
           .eq('id', gResumeContext.noteId);
         if (updateErr) throw updateErr;
 

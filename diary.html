@@ -83,6 +83,42 @@ h1 em { font-style:italic; color:var(--accent); }
 .btn-pin.pinned { background:rgba(245,158,11,.12); border-color:var(--warn); }
 .note-card-btn.pin-btn { border-color:rgba(245,158,11,.3); color:var(--warn); }
 .note-card-btn.pin-btn:hover { background:rgba(245,158,11,.1); border-color:rgba(245,158,11,.6); }
+/* ── UNIFIED NOTE CARD ───────────────────────────────────────────────────── */
+.note-vcard { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent); border-radius:.8rem; padding:.9rem 1.1rem; display:flex; flex-direction:column; gap:.4rem; cursor:pointer; transition:border-color .2s; }
+.note-vcard:hover { border-color:rgba(245,80,54,.4); }
+.note-vcard-header { display:flex; align-items:center; justify-content:space-between; }
+.note-vcard-meta { display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; }
+.note-vcard-label { font-size:.6rem; text-transform:uppercase; letter-spacing:.13em; color:var(--accent); display:flex; align-items:center; gap:.3rem; }
+.note-vcard-label svg { width:11px; height:11px; flex-shrink:0; }
+.note-vcard-badge { font-size:.5rem; text-transform:uppercase; letter-spacing:.08em; padding:.1rem .35rem; border-radius:.25rem; }
+.note-vcard-badge.write { background:rgba(74,222,128,.08); color:var(--live); border:1px solid rgba(74,222,128,.2); }
+.note-vcard-badge.ai { background:rgba(147,112,219,.1); color:#a78bfa; border:1px solid rgba(147,112,219,.2); }
+.note-vcard-badge.rec { background:rgba(245,80,54,.1); color:var(--accent); border:1px solid rgba(245,80,54,.25); }
+.note-vcard-date { font-size:.65rem; color:var(--muted); font-family:'JetBrains Mono',monospace; }
+.note-vcard-actions { display:flex; align-items:center; gap:.3rem; flex-shrink:0; }
+.note-vcard-action-btn { background:none; border:1px solid var(--border); border-radius:.35rem; color:var(--muted); width:26px; height:26px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .15s; padding:0; flex-shrink:0; }
+.note-vcard-action-btn.edit:hover { border-color:var(--accent); color:var(--accent); }
+.note-vcard-action-btn.pin-btn:hover { border-color:rgba(245,158,11,.6); color:var(--warn); }
+.note-vcard-action-btn.pin-btn.pin-active { color:var(--warn); border-color:rgba(245,158,11,.4); background:rgba(245,158,11,.08); }
+.note-vcard-action-btn.pin-btn.pin-active:hover { color:var(--muted); border-color:var(--border); background:none; }
+.note-vcard-action-btn.pin-btn.pin-active svg path { fill:currentColor; stroke:none; }
+.note-vcard-action-btn.pin-btn.pin-active svg line { stroke:currentColor; }
+.note-vcard-title { font-family:'Crimson Pro',Georgia,serif; font-size:1.15rem; color:var(--text); line-height:1.3; }
+.note-vcard-excerpt { font-size:.82rem; color:var(--muted); line-height:1.65; }
+.note-vcard-full { display:none; font-family:'Crimson Pro',Georgia,serif; font-size:1rem; color:var(--text); line-height:1.85; border-top:1px solid var(--border); padding-top:.65rem; margin-top:.1rem; overflow-wrap:break-word; word-break:break-word; }
+.note-vcard.expanded .note-vcard-full { display:block; }
+.note-vcard.expanded .note-vcard-excerpt { display:none; }
+.note-vcard-full p { margin-bottom:.6rem; }
+.note-vcard-full h2 { font-family:'Crimson Pro',Georgia,serif; font-size:1.15em; font-weight:500; color:#ddd; margin:.7rem 0 .3rem; }
+.note-vcard-full h3 { font-family:'DM Serif Display',serif; font-size:1.05em; color:#c8c8d4; margin:.6rem 0 .25rem; }
+.note-vcard-full ul,.note-vcard-full ol { padding-left:1.3rem; margin:.3rem 0 .4rem; }
+.note-vcard-full li { margin:.12rem 0; }
+.note-vcard-full strong { color:#c8c8d4; font-weight:600; }
+.note-vcard-full em { font-style:italic; font-family:'EB Garamond',Georgia,serif; color:#fff; }
+.note-vcard-footer { display:flex; justify-content:flex-end; padding-top:.5rem; border-top:1px solid var(--border); margin-top:.15rem; }
+.note-vcard-delete-btn { background:none; border:1px solid rgba(240,106,106,.3); border-radius:.4rem; color:#f06a6a; font-family:'JetBrains Mono',monospace; font-size:.58rem; text-transform:uppercase; letter-spacing:.1em; padding:.28rem .6rem; cursor:pointer; display:flex; align-items:center; gap:.3rem; transition:all .15s; }
+.note-vcard-delete-btn:hover { background:rgba(240,106,106,.1); border-color:#f06a6a; }
+.note-vcard-delete-btn svg { flex-shrink:0; }
 /* Cronologia */
 .notes-section { display:flex; flex-direction:column; gap:.6rem; }
 .month-header { display:flex; align-items:center; gap:.3rem; font-family:'DM Serif Display',serif; font-size:1.35rem; color:var(--text); padding:1rem 0 .4rem; margin-top:.8rem; cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
@@ -372,126 +408,133 @@ function tagsHtml(mode) {
   }).join('');
 }
 
+// ── HELPERS: NOTE CARD ────────────────────────────────────────────────────────
+function _getPinnedNoteId() {
+  try { var r=localStorage.getItem('vv_pinned_note'); return r?JSON.parse(r).noteId||null:null; } catch(e){return null;}
+}
+
+function buildNoteVCard(n) {
+  var _src=n.source;
+  var _typeLabel=_src==='guided'?'Diario Guidato':'Nota Libera';
+  var _typeIcon=_src==='guided'
+    ?'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>'
+    :'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+  var _modeBadges='';
+  if(n.mode&&n.mode!=='life-wheel'){
+    (n.mode||'').split('+').map(function(t){return t.trim();}).filter(Boolean).forEach(function(t){
+      var tc=t.toLowerCase(),cls=tc==='write'?'write':tc==='ai'?'ai':tc==='rec'?'rec':'';
+      if(cls) _modeBadges+='<span class="note-vcard-badge '+cls+'">'+esc(t)+'</span>';
+    });
+  }
+  var _d=new Date((n.note_date||new Date().toISOString().split('T')[0])+'T12:00:00');
+  var _mo=['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
+  var _ds=_d.getDate()+' '+_mo[_d.getMonth()]+' '+_d.getFullYear();
+  var _pl=(n.content||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+  var _ex=_pl.length>140?_pl.slice(0,140)+'\u2026':_pl;
+  var _pid=_getPinnedNoteId(),_ip=_pid===n.id,_pac=_ip?' pin-active':'';
+  var card=document.createElement('div');
+  card.className='note-vcard'; card.dataset.id=n.id;
+  card.innerHTML=
+    '<div class="note-vcard-header">'
+    +'<div class="note-vcard-meta">'
+    +'<span class="note-vcard-label">'+_typeIcon+_typeLabel+'</span>'
+    +_modeBadges
+    +'<span class="note-vcard-date">'+_ds+'</span>'
+    +'</div>'
+    +'<div class="note-vcard-actions">'
+    +'<button class="note-vcard-action-btn edit" title="Modifica nota"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>'
+    +'<button class="note-vcard-action-btn pin-btn'+_pac+'" title="'+(_ip?'Rimuovi pin':'Fissa nota')+'"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17z"/><line x1="12" y1="17" x2="12" y2="22"/></svg></button>'
+    +'</div>'
+    +'</div>'
+    +'<div class="note-vcard-title">'+esc(n.title||'')+'</div>'
+    +'<div class="note-vcard-excerpt">'+esc(_ex)+'</div>'
+    +'<div class="note-vcard-full">'+(n.content||'')+'</div>'
+    +'<div class="note-vcard-footer">'
+    +'<button class="note-vcard-delete-btn"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>Elimina</button>'
+    +'</div>';
+  card.addEventListener('click',function(e){
+    if(e.target.closest('.note-vcard-actions')||e.target.closest('.note-vcard-footer')) return;
+    card.classList.toggle('expanded');
+  });
+  card.querySelector('.note-vcard-action-btn.edit').addEventListener('click',function(e){
+    e.stopPropagation(); openEditInFreeNote(n);
+  });
+  card.querySelector('.pin-btn').addEventListener('click',function(e){
+    e.stopPropagation();
+    var b=this,nowPinned=b.classList.contains('pin-active');
+    if(nowPinned){
+      localStorage.removeItem('vv_pinned_note');
+      if(sb&&currentUserId){sb.from('vv_user_profile').upsert({user_id:currentUserId,pinned_note:null,updated_at:new Date().toISOString()},{onConflict:'user_id'}).then(function(){}).catch(function(){});}
+      b.classList.remove('pin-active'); b.title='Fissa nota';
+    } else { pinNote(n,b); }
+  });
+  card.querySelector('.note-vcard-delete-btn').addEventListener('click',function(e){
+    e.stopPropagation(); deleteNote(n.id);
+  });
+  return card;
+}
+
 function showDayPanel(dateStr) {
-  const notes=allNotes.filter(n=>n.note_date===dateStr);
+  var notes=allNotes.filter(function(n){return n.note_date===dateStr;});
   if(!notes.length){dayPanel.innerHTML='';return;}
-  const do2=new Date(dateStr+'T12:00:00');
-  let html='<div class="day-panel-header">'+do2.toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long'})+'</div>';
-  notes.forEach(n=>{
-    html+='<div class="read-card" data-id="'+n.id+'">'
-      +'<div class="read-card-top"><div class="read-card-title">'+esc(n.title)+'</div>'
-      +'<button class="read-card-close" data-id="'+n.id+'">&#x2715;</button></div>'
-      +'<div class="read-card-body">'+n.content+'</div>'
-      +'<div class="read-card-footer">'
-      +'<button class="btn-delete-card" data-id="'+n.id+'">Elimina</button>'
-      +'<button class="btn-pin" data-id="'+n.id+'"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17z"/></svg>Pin</button>'
-      +'<button class="btn-edit" data-id="'+n.id+'">Modifica</button>'
-      +'</div></div>';
-  });
-  dayPanel.innerHTML=html;
-  dayPanel.querySelectorAll('.read-card-close').forEach(b=>{
-    b.onclick=(e)=>{e.stopPropagation();dayPanel.innerHTML='';selectedDay=null;calGrid.querySelectorAll('.cal-day').forEach(c=>c.classList.remove('selected'));};
-  });
-  dayPanel.querySelectorAll('.btn-pin').forEach(b=>{
-    b.onclick=(e)=>{e.stopPropagation();pinNote(allNotes.find(n=>n.id===b.dataset.id),b);};
-  });
-  dayPanel.querySelectorAll('.btn-edit').forEach(b=>{
-    b.onclick=(e)=>{e.stopPropagation();const note=allNotes.find(n=>n.id===b.dataset.id);if(note)openEditInFreeNote(note);};
-  });
-  dayPanel.querySelectorAll('.btn-delete-card').forEach(b=>{
-    b.onclick=(e)=>{e.stopPropagation();deleteNote(b.dataset.id);};
-  });
+  var do2=new Date(dateStr+'T12:00:00');
+  dayPanel.innerHTML='<div class="day-panel-header" style="display:flex;align-items:center;justify-content:space-between;">'
+    +do2.toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long'})
+    +'<button style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem;padding:.1rem .3rem;line-height:1;" id="_dayPanelClose">&#x2715;</button>'
+    +'</div>';
+  notes.forEach(function(n){dayPanel.appendChild(buildNoteVCard(n));});
+  document.getElementById('_dayPanelClose').onclick=function(){
+    dayPanel.innerHTML=''; selectedDay=null;
+    calGrid.querySelectorAll('.cal-day').forEach(function(c){c.classList.remove('selected');});
+  };
 }
 
 // ── CRONOLOGIA ────────────────────────────────────────────────────────────────
 function renderList() {
+  notesList.innerHTML='';
   if(!allNotes.length){notesList.innerHTML='<div class="empty-state">Nessuna nota nel diario.<br>Registra o scrivi qualcosa e salvalo!</div>';return;}
-  // Raggruppa per mese
-  const months={};
-  allNotes.forEach(n=>{
-    const d=new Date(n.note_date+'T12:00:00');
-    const mk=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
-    if(!months[mk]) months[mk]=[];
-    months[mk].push(n);
+  var months={};
+  allNotes.forEach(function(n){
+    var d=new Date(n.note_date+'T12:00:00');
+    var mk=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    if(!months[mk]) months[mk]=[]; months[mk].push(n);
   });
-  const sortedMonths=Object.keys(months).sort((a,b)=>b.localeCompare(a));
-  let html='';
-  sortedMonths.forEach(mk=>{
-    const [y,m]=mk.split('-').map(Number), count=months[mk].length;
-    html+='<div class="month-header" data-month="'+mk+'">'
-      +'<span class="month-header-label">'+MONTHS_IT[m-1]+' '+y+'</span>'
+  var sortedMonths=Object.keys(months).sort(function(a,b){return b.localeCompare(a);});
+  sortedMonths.forEach(function(mk){
+    var parts=mk.split('-').map(Number),y=parts[0],m=parts[1],count=months[mk].length;
+    var mh=document.createElement('div'); mh.className='month-header'; mh.dataset.month=mk;
+    mh.innerHTML='<span class="month-header-label">'+MONTHS_IT[m-1]+' '+y+'</span>'
       +'<span class="month-header-chevron">&#x25BE;</span>'
-      +'<span class="month-header-count">'+count+' not'+(count===1?'a':'e')+'</span>'
-      +'</div>';
-    html+='<div class="month-group" data-month="'+mk+'">';
-    // Sottogruppi settimanali
-    const weeks={};
-    months[mk].forEach(n=>{
-      const d=new Date(n.note_date+'T12:00:00'), ws=getWeekStart(d), key=ws.toISOString().split('T')[0];
-      if(!weeks[key]) weeks[key]=[];
-      weeks[key].push(n);
+      +'<span class="month-header-count">'+count+' not'+(count===1?'a':'e')+'</span>';
+    notesList.appendChild(mh);
+    var mg=document.createElement('div'); mg.className='month-group'; mg.dataset.month=mk;
+    var weeks={};
+    months[mk].forEach(function(n){
+      var d=new Date(n.note_date+'T12:00:00'),ws=getWeekStart(d),key=ws.toISOString().split('T')[0];
+      if(!weeks[key]) weeks[key]=[]; weeks[key].push(n);
     });
-    const sw=Object.keys(weeks).sort((a,b)=>b.localeCompare(a));
-    sw.forEach(wk=>{
-      const ws=new Date(wk+'T12:00:00'), we=new Date(ws); we.setDate(we.getDate()+6);
-      html+='<div class="week-header">'+ws.toLocaleDateString('it-IT',{day:'numeric',month:'short'})+' \u2013 '+we.toLocaleDateString('it-IT',{day:'numeric',month:'short',year:'numeric'})+'</div>';
-      weeks[wk].forEach(n=>{
-        const ds=new Date(n.note_date+'T12:00:00').toLocaleDateString('it-IT',{day:'numeric',month:'short',year:'numeric'});
-        html+='<div class="note-card" data-id="'+n.id+'">'
-          +'<div class="note-card-main">'
-          +'<span class="note-title">'+esc(n.title)+'</span>'
-          +'<div class="note-meta"><span class="note-date">'+ds+'</span><div class="note-tags">'+tagsHtml(n.mode)+'</div></div>'
-          +'</div>'
-          +'<div class="note-card-actions" onclick="event.stopPropagation()">'
-          +'<button class="note-card-btn del" data-id="'+n.id+'">Elimina</button>'
-          +'<button class="note-card-btn pin-btn" data-id="'+n.id+'">Pin</button>'
-          +'<button class="note-card-btn" data-id="'+n.id+'">Modifica</button>'
-          +'</div></div>';
-      });
+    var sw=Object.keys(weeks).sort(function(a,b){return b.localeCompare(a);});
+    sw.forEach(function(wk){
+      var ws=new Date(wk+'T12:00:00'),we=new Date(ws); we.setDate(we.getDate()+6);
+      var wh=document.createElement('div'); wh.className='week-header';
+      wh.textContent=ws.toLocaleDateString('it-IT',{day:'numeric',month:'short'})+' \u2013 '+we.toLocaleDateString('it-IT',{day:'numeric',month:'short',year:'numeric'});
+      mg.appendChild(wh);
+      weeks[wk].forEach(function(n){mg.appendChild(buildNoteVCard(n));});
     });
-    html+='</div>';
-  });
-  notesList.innerHTML=html;
-  // Toggle fisarmonica mesi (animazione compress/stretch)
-  notesList.querySelectorAll('.month-header').forEach(mh=>{
-    mh.onclick=()=>{
-      const mk=mh.dataset.month;
-      const g=notesList.querySelector('.month-group[data-month="'+mk+'"]');
-      if(!g) return;
-      const isOpen=!mh.classList.contains('collapsed');
+    notesList.appendChild(mg);
+    mh.onclick=function(){
+      var isOpen=!mh.classList.contains('collapsed');
       if(isOpen){
         mh.classList.add('collapsed');
-        const h=g.scrollHeight;
-        g.style.height=h+'px';
-        g.offsetHeight; // force reflow
-        g.style.transition='height .35s ease, opacity .25s ease';
-        g.style.height='0px';
-        g.style.opacity='0';
+        var h=mg.scrollHeight; mg.style.height=h+'px'; mg.offsetHeight;
+        mg.style.transition='height .35s ease, opacity .25s ease'; mg.style.height='0px'; mg.style.opacity='0';
       } else {
         mh.classList.remove('collapsed');
-        const targetH=g.scrollHeight;
-        g.style.transition='height .35s ease, opacity .25s ease';
-        g.style.height=targetH+'px';
-        g.style.opacity='1';
-        setTimeout(()=>{
-          if(!mh.classList.contains('collapsed')){
-            g.style.height=''; g.style.transition=''; g.style.opacity='';
-          }
-        },370);
+        var targetH=mg.scrollHeight;
+        mg.style.transition='height .35s ease, opacity .25s ease'; mg.style.height=targetH+'px'; mg.style.opacity='1';
+        setTimeout(function(){if(!mh.classList.contains('collapsed')){mg.style.height='';mg.style.transition='';mg.style.opacity='';}},370);
       }
     };
-  });
-  notesList.querySelectorAll('.note-card').forEach(c=>{
-    c.onclick=()=>{const note=allNotes.find(n=>n.id===c.dataset.id);if(note)openReadOverlay(note);};
-  });
-  notesList.querySelectorAll('.note-card-btn:not(.del):not(.pin-btn)').forEach(b=>{
-    b.onclick=(e)=>{e.stopPropagation();const note=allNotes.find(n=>n.id===b.dataset.id);if(note)openEditInFreeNote(note);};
-  });
-  notesList.querySelectorAll('.note-card-btn.del').forEach(b=>{
-    b.onclick=(e)=>{e.stopPropagation();deleteNote(b.dataset.id);};
-  });
-  notesList.querySelectorAll('.note-card-btn.pin-btn').forEach(b=>{
-    b.onclick=(e)=>{e.stopPropagation();pinNote(allNotes.find(n=>n.id===b.dataset.id),b);};
   });
 }
 
@@ -499,27 +542,19 @@ function getWeekStart(d){const day=d.getDay(),diff=d.getDate()-day+(day===0?-6:1
 function openReadOverlay(note){readingNote=note;readOverlayTitle.textContent=note.title;readOverlayBody.innerHTML=note.content;readOverlay.classList.add('show');}
 
 function pinNote(note, btn) {
-  if (!note) return;
-  var _plain = (note.content||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
-  var _pinData = {
-    title: note.title||'Nota senza titolo',
-    content: note.content||'',
-    plainText: _plain,
-    date: note.note_date||new Date().toISOString().split('T')[0],
-    noteId: note.id,
-    pinnedAt: new Date().toISOString()
-  };
-  try { localStorage.setItem('vv_pinned_note', JSON.stringify(_pinData)); } catch(e) { return; }
-  // Sync to cloud
-  if (typeof sb !== 'undefined' && sb && currentUserId) {
-    sb.from('vv_user_profile')
-      .upsert({ user_id: currentUserId, pinned_note: _pinData, updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
-      .then(() => {}).catch(() => {});
-  }
-  // Feedback visivo sul bottone cliccato
-  if (btn) { var _orig = btn.innerHTML; btn.classList.add('pinned'); btn.innerHTML = '✓ Fissata'; setTimeout(function(){ btn.classList.remove('pinned'); btn.innerHTML = _orig; }, 2500); }
-  var _pob = document.getElementById('readOverlayPin');
-  if (_pob && btn !== _pob) { var _o2 = _pob.innerHTML; _pob.classList.add('pinned'); _pob.innerHTML = '✓ Fissata'; setTimeout(function(){ _pob.classList.remove('pinned'); _pob.innerHTML = _o2; }, 2500); }
+  if(!note) return;
+  var _plain=(note.content||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+  var _pinData={title:note.title||'Nota senza titolo',content:note.content||'',plainText:_plain,date:note.note_date||new Date().toISOString().split('T')[0],noteId:note.id,pinnedAt:new Date().toISOString()};
+  try{localStorage.setItem('vv_pinned_note',JSON.stringify(_pinData));}catch(e){return;}
+  if(typeof sb!=='undefined'&&sb&&currentUserId){sb.from('vv_user_profile').upsert({user_id:currentUserId,pinned_note:_pinData,updated_at:new Date().toISOString()},{onConflict:'user_id'}).then(function(){}).catch(function(){});}
+  document.querySelectorAll('.note-vcard-action-btn.pin-btn').forEach(function(b){
+    var cardEl=b.closest('[data-id]');
+    if(cardEl&&cardEl.dataset.id===note.id){
+      b.classList.add('pin-active'); b.title='Rimuovi pin';
+    } else {
+      b.classList.remove('pin-active'); b.title='Fissa nota';
+    }
+  });
 }
 
 // ── ENTRY SWITCHER ────────────────────────────────────────────────────────────

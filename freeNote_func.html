@@ -1399,7 +1399,7 @@ modalConfirm.onclick = async () => {
   try {
     let _imgUrl = null; if (_photoBase64 && _photoHasSchema) _imgUrl = await uploadPhotoToStorage(_photoBase64);
     const _mode = _saveMode === 'ai' ? 'AI' : (_hasRec && (_hasWrite || _photoBase64) ? 'rec+write' : _hasRec ? 'rec' : 'write');
-    const _rec = { title, content, note_date: date, mode: _mode }; if (_imgUrl) _rec.image_url = _imgUrl; if (currentUserId) _rec.user_id = currentUserId;
+    const _rec = { title, content, note_date: date, mode: _mode, source: 'free' }; if (_imgUrl) _rec.image_url = _imgUrl; if (currentUserId) _rec.user_id = currentUserId;
     let savedNote, error;
     if (_editNoteId) {
       _rec.updated_at = new Date().toISOString();

@@ -958,7 +958,7 @@ async function warmupAPI() {
     // Save to Supabase
     if (sb) {
       try {
-        const noteRecord = { title, content: html, note_date: dateStr, mode: 'write' };
+        const noteRecord = { title, content: html, note_date: dateStr, mode: 'write', source: 'guided' };
         if (currentUserId) noteRecord.user_id = currentUserId;
         const { data: savedNote, error } = await sb
           .from('notes')

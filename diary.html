@@ -95,6 +95,11 @@ h1 em { font-style:italic; color:var(--accent); }
 .note-vcard--free:hover { border-color:rgba(56,189,248,.35); }
 .note-vcard--free .note-vcard-label { color:#38bdf8; }
 .note-vcard--free .note-vcard-action-btn.edit:hover { border-color:#38bdf8; color:#38bdf8; }
+/* Report settimanale → viola */
+.note-vcard--report { border-left-color:#a78bfa; }
+.note-vcard--report:hover { border-color:rgba(167,139,250,.35); }
+.note-vcard--report .note-vcard-label { color:#a78bfa; }
+.note-vcard--report .note-vcard-action-btn.edit:hover { border-color:#a78bfa; color:#a78bfa; }
 .note-vcard-header { display:flex; align-items:center; justify-content:space-between; }
 .note-vcard-meta { display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; }
 .note-vcard-label { font-size:.6rem; text-transform:uppercase; letter-spacing:.13em; display:flex; align-items:center; gap:.3rem; }
@@ -424,16 +429,18 @@ function _getPinnedNoteId() {
 
 function buildNoteVCard(n) {
   // Fallback per note pre-esistenti senza campo source
-  var _src=n.source||(
+  var _isReport=n.mode==='report';
+  var _src=_isReport?'report':(n.source||(
     (n.mode&&['AI','rec','rec+write'].includes(n.mode))?'free':
     ((n.content||'').includes('<h3>')?'guided':'free')
-  );
-  var _typeLabel=_src==='guided'?'Diario Guidato':'Nota Libera';
-  var _typeIcon=_src==='guided'
+  ));
+  var _typeLabel=_src==='report'?'Report':(_src==='guided'?'Diario Guidato':'Nota Libera');
+  var _reportIcon='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="12" y1="9" x2="8" y2="9"/></svg>';
+  var _typeIcon=_src==='report'?_reportIcon:(_src==='guided'
     ?'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>'
-    :'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+    :'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>');
   var _modeBadges='';
-  if(n.mode&&n.mode!=='life-wheel'){
+  if(n.mode&&!['report','life-wheel'].includes(n.mode)){
     (n.mode||'').split('+').map(function(t){return t.trim();}).filter(Boolean).forEach(function(t){
       var tc=t.toLowerCase(),cls=tc==='write'?'write':tc==='ai'?'ai':tc==='rec'?'rec':'';
       if(cls) _modeBadges+='<span class="note-vcard-badge '+cls+'">'+esc(t)+'</span>';
@@ -446,7 +453,7 @@ function buildNoteVCard(n) {
   var _ex=_pl.length>140?_pl.slice(0,140)+'\u2026':_pl;
   var _pid=_getPinnedNoteId(),_ip=_pid===n.id,_pac=_ip?' pin-active':'';
   var card=document.createElement('div');
-  card.className='note-vcard note-vcard--'+(_src==='guided'?'guided':'free'); card.dataset.id=n.id;
+  card.className='note-vcard note-vcard--'+_src; card.dataset.id=n.id;
   card.innerHTML=
     '<div class="note-vcard-header">'
     +'<div class="note-vcard-meta">'

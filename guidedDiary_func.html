@@ -1663,6 +1663,25 @@ async function warmupAPI() {
           const _card = document.querySelector('.guided-card');
           if (_card) _card.style.setProperty('--lw-color', _gAreaColor);
           GUIDED_QUESTIONS.forEach((q, i) => { gAnswers[i] = (area.answers && area.answers[i]) || null; });
+          // Restore dimension scores for the situazione question (Q1) if already answered
+          const _sIdx = _gGetSituazioneIdx();
+          if (_sIdx >= 0 && gAnswers[_sIdx] && gAnswers[_sIdx].includes('<p>')) {
+            try {
+              const _dimTmp = document.createElement('div');
+              _dimTmp.innerHTML = gAnswers[_sIdx];
+              const _dimParsed = [];
+              _dimTmp.querySelectorAll('p').forEach(p => {
+                const strong = p.querySelector('strong');
+                if (strong) {
+                  const label = strong.textContent.replace(/:$/, '').trim();
+                  const scoreMatch = p.textContent.match(/(\d+)\s*\/\s*5/);
+                  const score = scoreMatch ? parseInt(scoreMatch[1], 10) : null;
+                  if (label) _dimParsed.push({ label, score });
+                }
+              });
+              if (_dimParsed.length > 0) gLwDimensions = _dimParsed;
+            } catch(e) {}
+          }
           // Replace static title with an editable input
           const titleEl = document.querySelector('.guided-title');
           if (titleEl) {

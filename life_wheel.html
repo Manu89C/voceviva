@@ -197,8 +197,21 @@ body::before {
 .area-qa-answer {
   color: var(--text); font-family: 'Crimson Pro', Georgia, serif;
   font-size: 1rem; line-height: 1.8; padding: 0;
-  white-space: pre-wrap; word-break: break-word;
+  word-break: break-word;
 }
+.area-qa-answer p { margin-bottom: .4rem; }
+.area-qa-answer p:last-child { margin-bottom: 0; }
+.area-qa-answer h1, .area-qa-answer h2, .area-qa-answer h3 {
+  font-family: 'DM Serif Display', serif; color: var(--text);
+  line-height: 1.3; margin: .5rem 0 .15rem;
+}
+.area-qa-answer h1 { font-size: 1.15rem; }
+.area-qa-answer h2 { font-size: 1.05rem; }
+.area-qa-answer h3 { font-size: .95rem; }
+.area-qa-answer strong { color: #fff; font-weight: 600; }
+.area-qa-answer em { color: #fff; font-style: italic; }
+.area-qa-answer ul, .area-qa-answer ol { margin: .3em 0 .3em 1.4em; padding: 0; }
+.area-qa-answer li { margin: .15em 0; }
 /* Swipe legend */
 .swipe-legend {
   display: flex; align-items: center; justify-content: space-between;
@@ -281,7 +294,11 @@ body::before {
   .area-card-name { color: #111 !important; font-size: .82rem !important; font-weight: 700 !important; border: none !important; }
   .area-qa-item { padding: .4rem 0 .4rem 1rem !important; border-bottom: 1px solid #e8e8e8 !important; }
   .area-qa-question { font-size: .6rem !important; color: #666 !important; margin-bottom: .2rem !important; font-family: 'JetBrains Mono', monospace !important; }
-  .area-qa-answer { font-family: 'Crimson Pro', Georgia, serif !important; font-size: 1rem !important; color: #222 !important; line-height: 1.6 !important; padding-left: .75rem !important; white-space: pre-wrap !important; }
+  .area-qa-answer { font-family: 'Crimson Pro', Georgia, serif !important; font-size: 1rem !important; color: #222 !important; line-height: 1.6 !important; padding-left: .75rem !important; }
+  .area-qa-answer p { margin-bottom: .3rem !important; color: #222 !important; }
+  .area-qa-answer h1, .area-qa-answer h2, .area-qa-answer h3 { color: #111 !important; margin: .4rem 0 .1rem !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  .area-qa-answer strong { color: #000 !important; font-weight: 700 !important; }
+  .area-qa-answer ul, .area-qa-answer ol { margin-left: 1.2em !important; }
 }
 </style>
 </head>
@@ -768,6 +785,18 @@ function renderLabels() {
 const grid = document.getElementById('areasGrid');
 let dragSrcIdx = null;
 
+function _safeHtml(html) {
+  const _d = document.createElement('div');
+  _d.innerHTML = html;
+  _d.querySelectorAll('script,style,iframe,object,embed,form,input,textarea,button,select').forEach(el => el.remove());
+  _d.querySelectorAll('*').forEach(el => {
+    for (const attr of [...el.attributes]) {
+      if (/^on/i.test(attr.name)) el.removeAttribute(attr.name);
+    }
+  });
+  return _d.innerHTML;
+}
+
 function renderCards() {
   grid.innerHTML = '';
   data.areas.forEach((area, i) => {
@@ -912,11 +941,8 @@ function renderCards() {
       const ans = document.createElement('div');
       ans.className = 'area-qa-answer';
       const ansRaw = (area.answers && area.answers[qi]) || '';
-      // Answers may be stored as HTML (from contenteditable) — extract plain text safely
       if (ansRaw && ansRaw.includes('<')) {
-        const _tmp = document.createElement('div');
-        _tmp.innerHTML = ansRaw;
-        ans.textContent = _tmp.textContent || '';
+        ans.innerHTML = _safeHtml(ansRaw);
       } else {
         ans.textContent = ansRaw;
       }

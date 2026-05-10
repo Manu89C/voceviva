@@ -660,21 +660,26 @@ async function warmupAPI() {
     gUpdateNavButtons();
   }
 
-  // Toggle editor vs dimension UI based on current question
+  // Toggle editor vs dimension UI based on current question (life-wheel only)
   function _gToggleDimUI() {
+    if (GD_MODE !== 'life-wheel') return;
     const isDimQ = _gIsOnDimQuestion();
     const editorWrap = document.querySelector('.guided-editor-wrap');
     const fmtBar     = document.querySelector('.fmt-toolbar.guided-editor-fmt');
     const dimCont    = document.getElementById('lwDimContainer');
     const micNavBtn  = document.getElementById('guidedMicBtn');
     const fabRec     = document.getElementById('guidedFabRec');
-    if (editorWrap) editorWrap.style.display = isDimQ ? 'none' : '';
-    if (fmtBar)     fmtBar.style.display     = isDimQ ? 'none' : '';
-    if (micNavBtn)  micNavBtn.style.display   = isDimQ ? 'none' : '';
-    if (fabRec && isDimQ) fabRec.classList.remove('visible');
-    if (dimCont) {
-      dimCont.style.display = isDimQ ? 'flex' : 'none';
-      if (isDimQ) _gRenderDimUI();
+    if (isDimQ) {
+      if (editorWrap) editorWrap.style.display = 'none';
+      if (fmtBar)     fmtBar.style.display     = 'none';
+      if (micNavBtn)  micNavBtn.style.display   = 'none';
+      if (fabRec)     fabRec.classList.remove('visible');
+      if (dimCont)  { dimCont.style.display = 'flex'; _gRenderDimUI(); }
+    } else {
+      if (editorWrap) editorWrap.style.removeProperty('display');
+      if (fmtBar)     fmtBar.style.removeProperty('display');
+      if (micNavBtn)  micNavBtn.style.removeProperty('display');
+      if (dimCont)    dimCont.style.display = 'none';
     }
   }
 
@@ -915,17 +920,16 @@ async function warmupAPI() {
   }
 
   gContinueBtn.onclick = async () => {
-    // Remember if we're leaving the Q0 (significato) in life-wheel before mutating state
     const _wasSignificatoQ = GD_MODE === 'life-wheel' && gCurrentOrigIdx() === _gGetSignificatoIdx();
-    const _significatoAns  = gAnswers[gCurrentOrigIdx()];
-    gSaveCurrentAnswer();
+    gSaveCurrentAnswer(); // salva PRIMA di leggere l'indice corrente
+    const _significatoAns  = gAnswers[gCurrentOrigIdx()]; // legge DOPO il salvataggio
     if (gIsRecording) await gStopRecording();
     const limit = gResumeMode ? gResumeIndices.length - 1 : GUIDED_QUESTIONS.length - 1;
     if (gCurrentIdx < limit) {
       if (gResumeMode) gResumeConfirmedIndices.add(gCurrentOrigIdx());
       gCurrentIdx++;
       gRenderQuestion();
-      // After moving to Q1: trigger LLM dimension analysis of Q0 answer
+      // Dopo aver avanzato a Q1: chiama LLM per analizzare la risposta di Q0
       if (_wasSignificatoQ && GROQ_KEY && _significatoAns && !gLwDimFetching && !gLwDimensions.length) {
         gFetchLwDimensions(_gAreaLabel || 'quest\'area', _significatoAns);
       }

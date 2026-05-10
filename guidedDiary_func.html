@@ -176,6 +176,19 @@ body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:no
 .lw-dim-score-btn:hover { border-color:rgba(255,255,255,.28); color:var(--text); }
 .lw-dim-score-btn.selected { border-color:var(--lw-color, var(--accent)); background:color-mix(in srgb, var(--lw-color, var(--accent)) 22%, transparent); color:var(--text); font-weight:700; }
 .lw-dim-loading { display:flex; align-items:center; justify-content:center; gap:.65rem; padding:2.5rem 1rem; color:var(--muted); font-size:.6rem; text-transform:uppercase; letter-spacing:.12em; }
+/* Dim item controls row */
+.lw-dim-item-header { display:flex; align-items:center; gap:.35rem; }
+.lw-dim-item-order { display:flex; flex-direction:column; gap:1px; flex-shrink:0; }
+.lw-dim-order-btn { background:none; border:none; color:var(--muted); cursor:pointer; padding:.08rem .18rem; line-height:1; font-size:.6rem; touch-action:manipulation; transition:color .12s; display:flex; align-items:center; }
+.lw-dim-order-btn:hover { color:var(--text); }
+.lw-dim-order-btn:disabled { opacity:.22; cursor:default; }
+.lw-dim-label-input { flex:1; background:transparent; border:none; border-bottom:1px solid transparent; color:var(--text); font-family:'Crimson Pro',Georgia,serif; font-size:1.05rem; line-height:1.4; outline:none; padding:.05rem 0; transition:border-color .15s; min-width:0; }
+.lw-dim-label-input:focus { border-bottom-color:var(--lw-color, var(--accent)); }
+.lw-dim-del-btn { background:none; border:none; color:var(--muted); cursor:pointer; padding:.18rem .25rem; flex-shrink:0; touch-action:manipulation; transition:color .12s; line-height:1; display:flex; align-items:center; }
+.lw-dim-del-btn:hover { color:#f06a6a; }
+/* Add dim button */
+.lw-dim-add-btn { display:flex; align-items:center; justify-content:center; gap:.4rem; background:none; border:1px dashed rgba(255,255,255,.14); border-radius:.7rem; color:var(--muted); font-family:'JetBrains Mono',monospace; font-size:.6rem; text-transform:uppercase; letter-spacing:.08em; padding:.55rem; cursor:pointer; touch-action:manipulation; transition:border-color .15s,color .15s; width:100%; }
+.lw-dim-add-btn:hover { border-color:var(--lw-color, var(--accent)); color:var(--lw-color, var(--accent)); }
 </style>
 </head>
 <body>
@@ -583,14 +596,78 @@ async function warmupAPI() {
     if (!gLwDimensions.length) return;
     const hint = document.createElement('div');
     hint.className = 'lw-dim-hint';
-    hint.textContent = 'Valuta ciascun aspetto da 0 (per niente soddisfacente) a 5 (eccellente)';
+    hint.textContent = 'Valuta ciascun aspetto da 0 (per niente) a 5 (eccellente). Modifica etichette o aggiungine di nuove.';
     container.appendChild(hint);
-    gLwDimensions.forEach((dim, di) => {
+
+    function _renderItem(di) {
+      const dim = gLwDimensions[di];
       const item = document.createElement('div');
       item.className = 'lw-dim-item' + (dim.score !== null ? ' scored' : '');
-      const label = document.createElement('div');
-      label.className = 'lw-dim-label';
-      label.textContent = dim.label;
+
+      // Header: reorder + editable label + delete
+      const itemHeader = document.createElement('div');
+      itemHeader.className = 'lw-dim-item-header';
+
+      // Up/down order buttons
+      const orderWrap = document.createElement('div');
+      orderWrap.className = 'lw-dim-item-order';
+      const upBtn = document.createElement('button');
+      upBtn.type = 'button';
+      upBtn.className = 'lw-dim-order-btn';
+      upBtn.title = 'Sposta su';
+      upBtn.disabled = di === 0;
+      upBtn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>';
+      upBtn.addEventListener('click', () => {
+        if (di === 0) return;
+        const tmp = gLwDimensions[di - 1];
+        gLwDimensions[di - 1] = gLwDimensions[di];
+        gLwDimensions[di] = tmp;
+        _gRenderDimUI();
+        gUpdateNavButtons();
+      });
+      const downBtn = document.createElement('button');
+      downBtn.type = 'button';
+      downBtn.className = 'lw-dim-order-btn';
+      downBtn.title = 'Sposta giù';
+      downBtn.disabled = di === gLwDimensions.length - 1;
+      downBtn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
+      downBtn.addEventListener('click', () => {
+        if (di === gLwDimensions.length - 1) return;
+        const tmp = gLwDimensions[di + 1];
+        gLwDimensions[di + 1] = gLwDimensions[di];
+        gLwDimensions[di] = tmp;
+        _gRenderDimUI();
+        gUpdateNavButtons();
+      });
+      orderWrap.appendChild(upBtn);
+      orderWrap.appendChild(downBtn);
+
+      // Editable label
+      const labelInput = document.createElement('input');
+      labelInput.type = 'text';
+      labelInput.className = 'lw-dim-label-input';
+      labelInput.value = dim.label;
+      labelInput.placeholder = 'Descrizione aspetto…';
+      labelInput.addEventListener('input', () => { gLwDimensions[di].label = labelInput.value; });
+
+      // Delete button
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'lw-dim-del-btn';
+      delBtn.title = 'Rimuovi';
+      delBtn.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+      delBtn.addEventListener('click', () => {
+        if (gLwDimensions.length <= 1) return;
+        gLwDimensions.splice(di, 1);
+        _gRenderDimUI();
+        gUpdateNavButtons();
+      });
+
+      itemHeader.appendChild(orderWrap);
+      itemHeader.appendChild(labelInput);
+      itemHeader.appendChild(delBtn);
+
+      // Score buttons 0–5
       const scores = document.createElement('div');
       scores.className = 'lw-dim-scores';
       for (let s = 0; s <= 5; s++) {
@@ -608,10 +685,28 @@ async function warmupAPI() {
         });
         scores.appendChild(btn);
       }
-      item.appendChild(label);
+
+      item.appendChild(itemHeader);
       item.appendChild(scores);
-      container.appendChild(item);
+      return item;
+    }
+
+    gLwDimensions.forEach((_, di) => container.appendChild(_renderItem(di)));
+
+    // Add new dimension button
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'lw-dim-add-btn';
+    addBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Aggiungi aspetto';
+    addBtn.addEventListener('click', () => {
+      gLwDimensions.push({ label: '', score: null });
+      _gRenderDimUI();
+      // Focus the new label input
+      const inputs = container.querySelectorAll('.lw-dim-label-input');
+      if (inputs.length) inputs[inputs.length - 1].focus();
+      gUpdateNavButtons();
     });
+    container.appendChild(addBtn);
   }
 
   // Call the LLM to generate personalized evaluation dimensions from Q0 answer

@@ -164,6 +164,18 @@ body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:no
 /* Modal input (date) */
 .modal-input { background:var(--bg); border:1px solid var(--border); border-radius:.6rem; color:var(--text); font-family:'JetBrains Mono',monospace; font-size:.78rem; padding:.55rem .7rem; outline:none; transition:border-color .2s; width:100%; color-scheme:dark; }
 .modal-input:focus { border-color:var(--accent); }
+
+/* ── LIFE-WHEEL DIMENSION RATING ── */
+.lw-dim-container { display:flex; flex-direction:column; gap:.85rem; }
+.lw-dim-hint { font-size:.57rem; text-transform:uppercase; letter-spacing:.11em; color:var(--muted); text-align:center; padding-bottom:.1rem; }
+.lw-dim-item { background:var(--bg); border:1px solid var(--border); border-radius:.8rem; padding:.75rem .85rem; display:flex; flex-direction:column; gap:.5rem; transition:border-color .2s; }
+.lw-dim-item.scored { border-color:color-mix(in srgb, var(--lw-color, var(--accent)) 45%, transparent); }
+.lw-dim-label { font-family:'Crimson Pro',Georgia,serif; font-size:1.05rem; color:var(--text); line-height:1.4; }
+.lw-dim-scores { display:flex; gap:.3rem; }
+.lw-dim-score-btn { flex:1; padding:.42rem .2rem; border-radius:.45rem; border:1.5px solid var(--border); background:var(--bg); color:var(--muted); font-family:'JetBrains Mono',monospace; font-size:.78rem; font-weight:500; cursor:pointer; touch-action:manipulation; transition:all .15s; text-align:center; min-height:36px; }
+.lw-dim-score-btn:hover { border-color:rgba(255,255,255,.28); color:var(--text); }
+.lw-dim-score-btn.selected { border-color:var(--lw-color, var(--accent)); background:color-mix(in srgb, var(--lw-color, var(--accent)) 22%, transparent); color:var(--text); font-weight:700; }
+.lw-dim-loading { display:flex; align-items:center; justify-content:center; gap:.65rem; padding:2.5rem 1rem; color:var(--muted); font-size:.6rem; text-transform:uppercase; letter-spacing:.12em; }
 </style>
 </head>
 <body>
@@ -279,6 +291,7 @@ body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:no
       <button class="fmt-btn" id="gFmtUl"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:middle"><circle cx="2" cy="4" r="1.5"/><rect x="5" y="3" width="10" height="2" rx="1"/><circle cx="2" cy="8" r="1.5"/><rect x="5" y="7" width="10" height="2" rx="1"/><circle cx="2" cy="12" r="1.5"/><rect x="5" y="11" width="10" height="2" rx="1"/></svg></button>
       <button class="fmt-btn" id="gFmtOl"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:middle"><text x="0" y="5" font-size="5" font-family="monospace">1.</text><rect x="5" y="3" width="10" height="2" rx="1"/><text x="0" y="9" font-size="5" font-family="monospace">2.</text><rect x="5" y="7" width="10" height="2" rx="1"/><text x="0" y="13" font-size="5" font-family="monospace">3.</text><rect x="5" y="11" width="10" height="2" rx="1"/></svg></button>
     </div>
+    <div id="lwDimContainer" class="lw-dim-container" style="display:none;"></div>
     </div><!-- /guided-body -->
     <div class="guided-fixed-bottom" id="guidedFixedBottom">
     <div class="guided-nav">
@@ -532,6 +545,139 @@ async function warmupAPI() {
   let gResumeConfirmedIndices = new Set();
   let gChunkTimer = null;
 
+  // ── LIFE-WHEEL Q1 DIMENSION STATE ─────────────────────────────────────────
+  let gLwDimensions = []; // [{ label: string, score: null | 0-5 }]
+  let gLwDimFetching = false;
+
+  // Find question indices by text pattern (robust to question order changes)
+  function _gGetSignificatoIdx() {
+    return GUIDED_QUESTIONS.findIndex(q => q.text && /cosa\s+significa/i.test(q.text));
+  }
+  function _gGetSituazioneIdx() {
+    return GUIDED_QUESTIONS.findIndex(q => q.text && /situazione\s+attuale/i.test(q.text));
+  }
+
+  // True when the current question is Q1 (situazione attuale) and dims are active
+  function _gIsOnDimQuestion() {
+    const sIdx = _gGetSituazioneIdx();
+    return GD_MODE === 'life-wheel' && sIdx >= 0 && gCurrentOrigIdx() === sIdx && (gLwDimensions.length > 0 || gLwDimFetching);
+  }
+
+  // Assemble dimension scores into HTML for storage
+  function _gAssembleDimAnswer() {
+    if (!gLwDimensions.length) return '';
+    return gLwDimensions.map(d =>
+      '<p><strong>' + d.label + ':</strong> ' + (d.score !== null ? d.score + ' / 5' : '—') + '</p>'
+    ).join('');
+  }
+
+  // Render the dimension rating UI inside #lwDimContainer
+  function _gRenderDimUI() {
+    const container = document.getElementById('lwDimContainer');
+    if (!container) return;
+    container.innerHTML = '';
+    if (gLwDimFetching) {
+      container.innerHTML = '<div class="lw-dim-loading"><div class="spinner" style="width:14px;height:14px;border-width:2px;border-top-color:var(--lw-color,var(--accent));"></div><span>Analizzo le tue priorità…</span></div>';
+      return;
+    }
+    if (!gLwDimensions.length) return;
+    const hint = document.createElement('div');
+    hint.className = 'lw-dim-hint';
+    hint.textContent = 'Valuta ciascun aspetto da 0 (per niente soddisfacente) a 5 (eccellente)';
+    container.appendChild(hint);
+    gLwDimensions.forEach((dim, di) => {
+      const item = document.createElement('div');
+      item.className = 'lw-dim-item' + (dim.score !== null ? ' scored' : '');
+      const label = document.createElement('div');
+      label.className = 'lw-dim-label';
+      label.textContent = dim.label;
+      const scores = document.createElement('div');
+      scores.className = 'lw-dim-scores';
+      for (let s = 0; s <= 5; s++) {
+        const btn = document.createElement('button');
+        btn.className = 'lw-dim-score-btn' + (dim.score === s ? ' selected' : '');
+        btn.textContent = s;
+        btn.type = 'button';
+        btn.addEventListener('click', () => {
+          gLwDimensions[di].score = s;
+          item.classList.add('scored');
+          scores.querySelectorAll('.lw-dim-score-btn').forEach((b, bi) => {
+            b.classList.toggle('selected', bi === s);
+          });
+          gUpdateNavButtons();
+        });
+        scores.appendChild(btn);
+      }
+      item.appendChild(label);
+      item.appendChild(scores);
+      container.appendChild(item);
+    });
+  }
+
+  // Call the LLM to generate personalized evaluation dimensions from Q0 answer
+  async function gFetchLwDimensions(areaLabel, answer) {
+    if (!GROQ_KEY) return;
+    gLwDimensions = [];
+    gLwDimFetching = true;
+    _gRenderDimUI(); // show loading state immediately
+    try {
+      const plainAnswer = answer.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 800);
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST', cache: 'no-store',
+        headers: { 'Authorization': 'Bearer ' + GROQ_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+          max_tokens: 200,
+          temperature: 0.35,
+          messages: [
+            {
+              role: 'system',
+              content: 'Sei un coach di vita. L\'utente ha descritto cosa significa per lui/lei un\'area della vita. Analizza la risposta e genera da 3 a 5 dimensioni SPECIFICHE e PERSONALI per valutare la situazione attuale in quell\'area. Le dimensioni devono emergere direttamente dai valori e dalle priorità espressi dall\'utente. Rispondi SOLO con un array JSON di stringhe in italiano, concise (4-8 parole ciascuna), senza testo aggiuntivo. Esempio: ["Soddisfazione nel lavoro quotidiano","Autonomia decisionale","Riconoscimento professionale"]'
+            },
+            {
+              role: 'user',
+              content: 'Area: ' + areaLabel + '\nCosa significa per me: ' + plainAnswer
+            }
+          ]
+        })
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const raw = json?.choices?.[0]?.message?.content?.trim();
+        if (raw) {
+          const match = raw.match(/\[[\s\S]*?\]/);
+          if (match) {
+            const arr = JSON.parse(match[0]);
+            if (Array.isArray(arr) && arr.length >= 2) {
+              gLwDimensions = arr.slice(0, 5).map(l => ({ label: String(l).trim(), score: null }));
+            }
+          }
+        }
+      }
+    } catch(e) {}
+    gLwDimFetching = false;
+    _gRenderDimUI(); // replace spinner with rating UI
+    gUpdateNavButtons();
+  }
+
+  // Toggle editor vs dimension UI based on current question
+  function _gToggleDimUI() {
+    const isDimQ = _gIsOnDimQuestion();
+    const editorWrap = document.querySelector('.guided-editor-wrap');
+    const fmtBar     = document.querySelector('.fmt-toolbar.guided-editor-fmt');
+    const dimCont    = document.getElementById('lwDimContainer');
+    const micNavBtn  = document.getElementById('guidedMicBtn');
+    const fabRec     = document.getElementById('guidedFabRec');
+    if (editorWrap) editorWrap.style.display = isDimQ ? 'none' : '';
+    if (fmtBar)     fmtBar.style.display     = isDimQ ? 'none' : '';
+    if (micNavBtn)  micNavBtn.style.display   = isDimQ ? 'none' : '';
+    if (fabRec && isDimQ) fabRec.classList.remove('visible');
+    if (dimCont) {
+      dimCont.style.display = isDimQ ? 'flex' : 'none';
+      if (isDimQ) _gRenderDimUI();
+    }
+  }
+
   // DOM
   const gOverlay = $('guidedOverlay');
   const gProgress = $('guidedProgress');
@@ -646,7 +792,10 @@ async function warmupAPI() {
   const _saveCompleteSVG  = 'Salva e completa ' + _svgCheck;
 
   function gUpdateNavButtons() {
-    const hasContent = (gEditor.innerText || '').trim().length > 0;
+    // For life-wheel Q1 with dims: "has content" = at least one dimension rated
+    const hasContent = _gIsOnDimQuestion()
+      ? gLwDimensions.some(d => d.score !== null)
+      : (gEditor.innerText || '').trim().length > 0;
     const total = gResumeMode ? gResumeIndices.length : GUIDED_QUESTIONS.length;
     const isLast = gCurrentIdx >= total - 1;
     if (GD_MODE === 'life-wheel') {
@@ -706,7 +855,9 @@ async function warmupAPI() {
     }
     gUpdateNavButtons();
     gUpdateQNav();
-    gEditor.focus();
+    // Life-wheel: toggle editor vs dimension rating UI
+    _gToggleDimUI();
+    if (!_gIsOnDimQuestion()) gEditor.focus();
   }
 
   function gRenderResumeQuestion() {
@@ -750,14 +901,23 @@ async function warmupAPI() {
   }
 
   function gSaveCurrentAnswer() {
-    const content = gGetEditorContent();
     const origIdx = gCurrentOrigIdx();
+    // Life-wheel Q1: save dimension ratings instead of editor content
+    if (GD_MODE === 'life-wheel' && origIdx === _gGetSituazioneIdx() && gLwDimensions.length > 0) {
+      const dimHtml = _gAssembleDimAnswer();
+      if (dimHtml) gAnswers[origIdx] = dimHtml;
+      return;
+    }
+    const content = gGetEditorContent();
     if (content && content !== '<br>') {
       gAnswers[origIdx] = content;
     }
   }
 
   gContinueBtn.onclick = async () => {
+    // Remember if we're leaving the Q0 (significato) in life-wheel before mutating state
+    const _wasSignificatoQ = GD_MODE === 'life-wheel' && gCurrentOrigIdx() === _gGetSignificatoIdx();
+    const _significatoAns  = gAnswers[gCurrentOrigIdx()];
     gSaveCurrentAnswer();
     if (gIsRecording) await gStopRecording();
     const limit = gResumeMode ? gResumeIndices.length - 1 : GUIDED_QUESTIONS.length - 1;
@@ -765,6 +925,10 @@ async function warmupAPI() {
       if (gResumeMode) gResumeConfirmedIndices.add(gCurrentOrigIdx());
       gCurrentIdx++;
       gRenderQuestion();
+      // After moving to Q1: trigger LLM dimension analysis of Q0 answer
+      if (_wasSignificatoQ && GROQ_KEY && _significatoAns && !gLwDimFetching && !gLwDimensions.length) {
+        gFetchLwDimensions(_gAreaLabel || 'quest\'area', _significatoAns);
+      }
     } else {
       await gCompleteAndSave();
     }
@@ -773,11 +937,17 @@ async function warmupAPI() {
   gLaterBtn.onclick = async () => {
     if (gIsRecording) await gStopRecording();
     const origIdx = gCurrentOrigIdx();
-    const content = gGetEditorContent();
-    if (content && content !== '<br>') {
-      gAnswers[origIdx] = content;
+    // Life-wheel Q1 with dims: save partial scores even when skipping
+    if (GD_MODE === 'life-wheel' && origIdx === _gGetSituazioneIdx() && gLwDimensions.length > 0) {
+      const dimHtml = _gAssembleDimAnswer();
+      gAnswers[origIdx] = dimHtml || null;
     } else {
-      gAnswers[origIdx] = null;
+      const content = gGetEditorContent();
+      if (content && content !== '<br>') {
+        gAnswers[origIdx] = content;
+      } else {
+        gAnswers[origIdx] = null;
+      }
     }
     if (!gResumeMode) gSkippedNow.add(origIdx);
     const limit = gResumeMode ? gResumeIndices.length - 1 : GUIDED_QUESTIONS.length - 1;

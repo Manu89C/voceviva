@@ -279,17 +279,17 @@ body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:no
     </div>
     <div class="guided-editor-wrap">
       <div class="guided-editor" id="guidedEditor" contenteditable="true" spellcheck="true" data-placeholder="Scrivi qui o usa il microfono per dettare..."></div>
-    </div>
-    <div class="fmt-toolbar guided-editor-fmt">
-      <button class="fmt-btn" id="gFmtH1">𝐓 H¹</button>
-      <button class="fmt-btn" id="gFmtH2">𝐓 H²</button>
-      <button class="fmt-btn" id="gFmtH3">𝐓 H³</button>
-      <span class="fmt-sep"></span>
-      <button class="fmt-btn" id="gFmtBold">𝐁</button>
-      <button class="fmt-btn" id="gFmtItalic">𝐼</button>
-      <span class="fmt-sep"></span>
-      <button class="fmt-btn" id="gFmtUl"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:middle"><circle cx="2" cy="4" r="1.5"/><rect x="5" y="3" width="10" height="2" rx="1"/><circle cx="2" cy="8" r="1.5"/><rect x="5" y="7" width="10" height="2" rx="1"/><circle cx="2" cy="12" r="1.5"/><rect x="5" y="11" width="10" height="2" rx="1"/></svg></button>
-      <button class="fmt-btn" id="gFmtOl"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:middle"><text x="0" y="5" font-size="5" font-family="monospace">1.</text><rect x="5" y="3" width="10" height="2" rx="1"/><text x="0" y="9" font-size="5" font-family="monospace">2.</text><rect x="5" y="7" width="10" height="2" rx="1"/><text x="0" y="13" font-size="5" font-family="monospace">3.</text><rect x="5" y="11" width="10" height="2" rx="1"/></svg></button>
+      <div class="fmt-toolbar guided-editor-fmt">
+        <button class="fmt-btn" id="gFmtH1">𝐓 H¹</button>
+        <button class="fmt-btn" id="gFmtH2">𝐓 H²</button>
+        <button class="fmt-btn" id="gFmtH3">𝐓 H³</button>
+        <span class="fmt-sep"></span>
+        <button class="fmt-btn" id="gFmtBold">𝐁</button>
+        <button class="fmt-btn" id="gFmtItalic">𝐼</button>
+        <span class="fmt-sep"></span>
+        <button class="fmt-btn" id="gFmtUl"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:middle"><circle cx="2" cy="4" r="1.5"/><rect x="5" y="3" width="10" height="2" rx="1"/><circle cx="2" cy="8" r="1.5"/><rect x="5" y="7" width="10" height="2" rx="1"/><circle cx="2" cy="12" r="1.5"/><rect x="5" y="11" width="10" height="2" rx="1"/></svg></button>
+        <button class="fmt-btn" id="gFmtOl"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:middle"><text x="0" y="5" font-size="5" font-family="monospace">1.</text><rect x="5" y="3" width="10" height="2" rx="1"/><text x="0" y="9" font-size="5" font-family="monospace">2.</text><rect x="5" y="7" width="10" height="2" rx="1"/><text x="0" y="13" font-size="5" font-family="monospace">3.</text><rect x="5" y="11" width="10" height="2" rx="1"/></svg></button>
+      </div>
     </div>
     <div id="lwDimContainer" class="lw-dim-container" style="display:none;"></div>
     </div><!-- /guided-body -->
@@ -619,7 +619,7 @@ async function warmupAPI() {
     if (!GROQ_KEY) return;
     gLwDimensions = [];
     gLwDimFetching = true;
-    _gRenderDimUI(); // show loading state immediately
+    _gToggleDimUI(); // hide editor, show loading spinner
     try {
       const plainAnswer = answer.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 800);
       const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -656,7 +656,7 @@ async function warmupAPI() {
       }
     } catch(e) {}
     gLwDimFetching = false;
-    _gRenderDimUI(); // replace spinner with rating UI
+    _gToggleDimUI(); // replace spinner with rating UI
     gUpdateNavButtons();
   }
 

@@ -776,7 +776,7 @@ async function warmupAPI() {
     if (!GROQ_KEY) return;
     gLwDimensions = [];
     gLwDimFetching = true;
-    _gToggleDimUI(); // hide editor, show loading spinner
+    _gToggleDimUI(true); // hide editor, show loading spinner
     try {
       const plainAnswer = answer.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 800);
       const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -813,12 +813,13 @@ async function warmupAPI() {
       }
     } catch(e) {}
     gLwDimFetching = false;
-    _gToggleDimUI(); // replace spinner with rating UI
+    _gToggleDimUI(true); // replace spinner with rating UI
     gUpdateNavButtons();
   }
 
   // Toggle editor vs dimension UI based on current question (life-wheel only)
-  function _gToggleDimUI() {
+  // forceRender=true forces a full DOM re-render of the dim list (used after LLM returns or dim mutations)
+  function _gToggleDimUI(forceRender) {
     if (GD_MODE !== 'life-wheel') return;
     const isDimQ     = _gIsOnDimQuestion();
     const editorWrap = document.querySelector('.guided-editor-wrap');
@@ -832,15 +833,18 @@ async function warmupAPI() {
       if (fmtBar)     fmtBar.style.display     = 'none';
       if (micNavBtn)  micNavBtn.style.display   = 'none';
       if (fabRec)     fabRec.classList.remove('visible');
-      // Make the dim container fill all available body height and scroll internally
       if (guidedBody) guidedBody.style.overflow = 'hidden';
       if (dimCont) {
+        const wasHidden = dimCont.style.display === 'none' || !dimCont.style.display;
         dimCont.style.display   = 'flex';
         dimCont.style.flex      = '1';
         dimCont.style.minHeight = '0';
         dimCont.style.overflowY = 'auto';
         dimCont.style.webkitOverflowScrolling = 'touch';
-        _gRenderDimUI();
+        // Only re-render DOM if newly shown, forced, or state changed (fetching / empty)
+        if (wasHidden || forceRender || gLwDimFetching || dimCont.children.length === 0) {
+          _gRenderDimUI();
+        }
       }
     } else {
       if (editorWrap) editorWrap.style.removeProperty('display');

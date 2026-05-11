@@ -830,12 +830,7 @@ function renderCards() {
     handleEdit.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>';
     handleEdit.addEventListener('click', e => {
       e.stopPropagation();
-      const overlay = document.getElementById('lwDiaryOverlay');
-      const frame   = document.getElementById('lwDiaryFrame');
-      if (overlay && frame) {
-        frame.src = 'guidedDiary_func.html?mode=life-wheel&areaId=' + area.id + '&popup=1';
-        overlay.style.display = 'block';
-      }
+      openLwOverlay(area.id);
     });
 
     const wrap = document.createElement('div');
@@ -1078,12 +1073,7 @@ function renderCards() {
       hintDel.style.opacity = 0;
       setTimeout(() => { row.style.transition = ''; }, 260);
       if (dx > thr) {
-        const overlay = document.getElementById('lwDiaryOverlay');
-        const frame   = document.getElementById('lwDiaryFrame');
-        if (overlay && frame) {
-          frame.src = 'guidedDiary_func.html?mode=life-wheel&areaId=' + area.id + '&popup=1';
-          overlay.style.display = 'block';
-        }
+        openLwOverlay(area.id);
       } else if (dx < -thr) {
         if (data.areas.length <= 1) return;
         data.areas = data.areas.filter(a => a.id !== area.id);
@@ -1224,25 +1214,46 @@ renderCards();
     mkPts(); renderLabels(); renderCards();
   } catch(e) {}
 })();
+// ── DIARY POPUP helpers ──────────────────────────────────────────────────
+function openLwOverlay(areaId) {
+  const ov = document.getElementById('lwDiaryOverlay');
+  const fr = document.getElementById('lwDiaryFrame');
+  if (!ov || !fr) return;
+  fr.src = 'guidedDiary_func.html?mode=life-wheel&areaId=' + areaId + '&popup=1';
+  ov.style.display = 'block';
+  requestAnimationFrame(() => requestAnimationFrame(() => ov.classList.add('lw-overlay-open')));
+}
+function closeLwOverlay(cb) {
+  const ov = document.getElementById('lwDiaryOverlay');
+  const fr = document.getElementById('lwDiaryFrame');
+  if (!ov) { if (cb) cb(); return; }
+  ov.classList.remove('lw-overlay-open');
+  const done = () => {
+    ov.style.display = 'none';
+    if (fr) fr.src = 'about:blank';
+    if (cb) cb();
+  };
+  ov.addEventListener('transitionend', done, { once: true });
+  // fallback in case transitionend doesn't fire
+  setTimeout(done, 450);
+}
+
 // ── DIARY POPUP (life-wheel edit) ──────────────────────────────────────
 window.addEventListener('message', async e => {
   if (!e.data || typeof e.data !== 'object') return;
-  const ov = document.getElementById('lwDiaryOverlay');
-  const fr = document.getElementById('lwDiaryFrame');
   if (e.data.type === 'lw-diary-saved') {
-    if (ov) ov.style.display = 'none';
-    if (fr) fr.src = 'about:blank';
-    // guidedDiary_func.html ha già scritto su localStorage: rileggi da lì
-    // e marca come "più recente di qualsiasi copia cloud" prima di fare sync
-    data = loadData();
-    data.lastModified = new Date().toISOString();
-    try { localStorage.setItem(STORE, JSON.stringify(data)); } catch(e2) {}
-    mkPts(); renderLabels(); renderCards();
-    // Ora spinge i dati aggiornati al cloud (senza debounce)
-    if (currentUserId) await _doSaveToCloud();
+    closeLwOverlay(async () => {
+      // guidedDiary_func.html ha già scritto su localStorage: rileggi da lì
+      // e marca come "più recente di qualsiasi copia cloud" prima di fare sync
+      data = loadData();
+      data.lastModified = new Date().toISOString();
+      try { localStorage.setItem(STORE, JSON.stringify(data)); } catch(e2) {}
+      mkPts(); renderLabels(); renderCards();
+      // Ora spinge i dati aggiornati al cloud (senza debounce)
+      if (currentUserId) await _doSaveToCloud();
+    });
   } else if (e.data.type === 'lw-diary-close') {
-    if (ov) ov.style.display = 'none';
-    if (fr) fr.src = 'about:blank';
+    closeLwOverlay();
   }
 });
 // ── EMBED MODE ───────────────────────────────────────────────────────────────
@@ -1259,7 +1270,25 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
 </script>
 
 <!-- DIARY POPUP OVERLAY -->
-<div id="lwDiaryOverlay" style="display:none;position:fixed;inset:0;z-index:200;background:#0a0a0f;width:100%;height:100%;height:100dvh;">
+<style>
+#lwDiaryOverlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #0a0a0f;
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  transform: translateY(100%);
+  transition: transform .38s cubic-bezier(.32,.72,0,1);
+  will-change: transform;
+}
+#lwDiaryOverlay.lw-overlay-open {
+  transform: translateY(0);
+}
+</style>
+<div id="lwDiaryOverlay">
   <iframe id="lwDiaryFrame" style="width:100%;height:100%;border:none;display:block;" src="about:blank" allow="microphone"></iframe>
 </div>
 

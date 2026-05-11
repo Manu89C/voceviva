@@ -1225,6 +1225,7 @@ function openLwOverlay(areaId) {
 }
 function closeLwOverlay(cb) {
   const ov = document.getElementById('lwDiaryOverlay');
+  const sh = document.getElementById('lwDiarySheet');
   const fr = document.getElementById('lwDiaryFrame');
   if (!ov) { if (cb) cb(); return; }
   ov.classList.remove('lw-overlay-open');
@@ -1233,8 +1234,8 @@ function closeLwOverlay(cb) {
     if (fr) fr.src = 'about:blank';
     if (cb) cb();
   };
-  ov.addEventListener('transitionend', done, { once: true });
-  // fallback in case transitionend doesn't fire
+  const target = sh || ov;
+  target.addEventListener('transitionend', done, { once: true });
   setTimeout(done, 450);
 }
 
@@ -1271,25 +1272,31 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
 
 <!-- DIARY POPUP OVERLAY -->
 <style>
+/* Outer: pure fixed cover, NO transform (iOS Safari breaks fixed+transform) */
 #lwDiaryOverlay {
   display: none;
   position: fixed;
-  inset: 0;
+  top: 0; left: 0; right: 0; bottom: 0;
   z-index: 9999;
+  overflow: hidden;
+}
+/* Inner sheet: slides up from bottom */
+#lwDiarySheet {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
   background: #0a0a0f;
-  width: 100%;
-  height: 100%;
-  height: 100dvh;
   transform: translateY(100%);
   transition: transform .38s cubic-bezier(.32,.72,0,1);
   will-change: transform;
 }
-#lwDiaryOverlay.lw-overlay-open {
+#lwDiaryOverlay.lw-overlay-open #lwDiarySheet {
   transform: translateY(0);
 }
 </style>
 <div id="lwDiaryOverlay">
-  <iframe id="lwDiaryFrame" style="width:100%;height:100%;border:none;display:block;" src="about:blank" allow="microphone"></iframe>
+  <div id="lwDiarySheet">
+    <iframe id="lwDiaryFrame" style="width:100%;height:100%;border:none;display:block;" src="about:blank" allow="microphone"></iframe>
+  </div>
 </div>
 
 </body>

@@ -613,10 +613,10 @@ async function warmupAPI() {
     return GUIDED_QUESTIONS.findIndex(q => q.text && /situazione\s+attuale/i.test(q.text));
   }
 
-  // True when the current question is Q1 (situazione attuale) and dims are active
+  // True when the current question is the "situazione attuale" question (always, in life-wheel mode)
   function _gIsOnDimQuestion() {
     const sIdx = _gGetSituazioneIdx();
-    return GD_MODE === 'life-wheel' && sIdx >= 0 && gCurrentOrigIdx() === sIdx && (gLwDimensions.length > 0 || gLwDimFetching);
+    return GD_MODE === 'life-wheel' && sIdx >= 0 && gCurrentOrigIdx() === sIdx;
   }
 
   // Assemble dimension scores into HTML for storage
@@ -636,7 +636,26 @@ async function warmupAPI() {
       container.innerHTML = '<div class="lw-dim-loading"><div class="spinner" style="width:14px;height:14px;border-width:2px;border-top-color:var(--lw-color,var(--accent));"></div><span>Analizzo le tue priorità…</span></div>';
       return;
     }
-    if (!gLwDimensions.length) return;
+    if (!gLwDimensions.length) {
+      // No dims yet: show just the add button so user can add aspects manually
+      const emptyHint = document.createElement('div');
+      emptyHint.className = 'lw-dim-hint';
+      emptyHint.textContent = 'Aggiungi gli aspetti da valutare oppure attendi l\'analisi automatica.';
+      container.appendChild(emptyHint);
+      const addBtnE = document.createElement('button');
+      addBtnE.type = 'button';
+      addBtnE.className = 'lw-dim-add-btn';
+      addBtnE.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Aggiungi aspetto';
+      addBtnE.addEventListener('click', () => {
+        gLwDimensions.push({ label: '', score: null });
+        _gRenderDimUI();
+        const inputs = container.querySelectorAll('.lw-dim-label-input');
+        if (inputs.length) inputs[inputs.length - 1].focus();
+        gUpdateNavButtons();
+      });
+      container.appendChild(addBtnE);
+      return;
+    }
     const hint = document.createElement('div');
     hint.className = 'lw-dim-hint';
     hint.textContent = 'Valuta ciascun aspetto da 0 (per niente) a 5 (eccellente). Modifica etichette o aggiungine di nuove.';
@@ -1017,7 +1036,16 @@ async function warmupAPI() {
     gUpdateQNav();
     // Life-wheel: toggle editor vs dimension rating UI
     _gToggleDimUI();
-    if (!_gIsOnDimQuestion()) gEditor.focus();
+    if (!_gIsOnDimQuestion()) {
+      gEditor.focus();
+    } else {
+      // If on dim question with no dims yet, trigger LLM fetch using Q0 answer
+      if (!gLwDimFetching && !gLwDimensions.length && GROQ_KEY) {
+        const sigIdx = _gGetSignificatoIdx();
+        const sigAns = sigIdx >= 0 ? (gAnswers[sigIdx] || '') : '';
+        if (sigAns.trim()) gFetchLwDimensions(_gAreaLabel || 'quest\'area', sigAns);
+      }
+    }
   }
 
   function gRenderResumeQuestion() {

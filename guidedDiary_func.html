@@ -801,10 +801,11 @@ async function warmupAPI() {
   // Toggle editor vs dimension UI based on current question (life-wheel only)
   function _gToggleDimUI() {
     if (GD_MODE !== 'life-wheel') return;
-    const isDimQ = _gIsOnDimQuestion();
+    const isDimQ     = _gIsOnDimQuestion();
     const editorWrap = document.querySelector('.guided-editor-wrap');
     const fmtBar     = document.querySelector('.fmt-toolbar.guided-editor-fmt');
     const dimCont    = document.getElementById('lwDimContainer');
+    const guidedBody = document.querySelector('.guided-body');
     const micNavBtn  = document.getElementById('guidedMicBtn');
     const fabRec     = document.getElementById('guidedFabRec');
     if (isDimQ) {
@@ -812,12 +813,28 @@ async function warmupAPI() {
       if (fmtBar)     fmtBar.style.display     = 'none';
       if (micNavBtn)  micNavBtn.style.display   = 'none';
       if (fabRec)     fabRec.classList.remove('visible');
-      if (dimCont)  { dimCont.style.display = 'flex'; _gRenderDimUI(); }
+      // Make the dim container fill all available body height and scroll internally
+      if (guidedBody) guidedBody.style.overflow = 'hidden';
+      if (dimCont) {
+        dimCont.style.display   = 'flex';
+        dimCont.style.flex      = '1';
+        dimCont.style.minHeight = '0';
+        dimCont.style.overflowY = 'auto';
+        dimCont.style.webkitOverflowScrolling = 'touch';
+        _gRenderDimUI();
+      }
     } else {
       if (editorWrap) editorWrap.style.removeProperty('display');
       if (fmtBar)     fmtBar.style.removeProperty('display');
       if (micNavBtn)  micNavBtn.style.removeProperty('display');
-      if (dimCont)    dimCont.style.display = 'none';
+      if (guidedBody) guidedBody.style.removeProperty('overflow');
+      if (dimCont) {
+        dimCont.style.display = 'none';
+        dimCont.style.removeProperty('flex');
+        dimCont.style.removeProperty('min-height');
+        dimCont.style.removeProperty('overflow-y');
+        dimCont.style.removeProperty('-webkit-overflow-scrolling');
+      }
     }
   }
 

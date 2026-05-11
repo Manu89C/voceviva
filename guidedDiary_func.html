@@ -1844,9 +1844,6 @@ async function warmupAPI() {
           }
         }
       } catch(e) {}
-      // Always apply focused layout for life-wheel mode
-      const _lwCard = document.querySelector('.guided-card');
-      if (_lwCard) _lwCard.classList.add('lw-mode');
       // Hide date section
       const _dateSection = $('guidedDateLabel') ? $('guidedDateLabel').parentElement : null;
       if (_dateSection) _dateSection.style.display = 'none';

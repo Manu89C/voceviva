@@ -1215,7 +1215,15 @@ renderCards();
   } catch(e) {}
 })();
 // ── DIARY POPUP helpers ──────────────────────────────────────────────────
+const _isEmbed = new URLSearchParams(location.search).get('embed') === '1';
+
 function openLwOverlay(areaId) {
+  // When embedded in index.html, delegate to the parent window so the overlay
+  // covers the full screen and not just the iframe area.
+  if (_isEmbed && window.parent !== window) {
+    window.parent.postMessage({ type: 'lw-open-diary', areaId }, '*');
+    return;
+  }
   const ov = document.getElementById('lwDiaryOverlay');
   const fr = document.getElementById('lwDiaryFrame');
   if (!ov || !fr) return;
@@ -1242,19 +1250,24 @@ function closeLwOverlay(cb) {
 // ── DIARY POPUP (life-wheel edit) ──────────────────────────────────────
 window.addEventListener('message', async e => {
   if (!e.data || typeof e.data !== 'object') return;
+  // When standalone: handle saved/close from the inner guidedDiary iframe
   if (e.data.type === 'lw-diary-saved') {
     closeLwOverlay(async () => {
-      // guidedDiary_func.html ha già scritto su localStorage: rileggi da lì
-      // e marca come "più recente di qualsiasi copia cloud" prima di fare sync
       data = loadData();
       data.lastModified = new Date().toISOString();
       try { localStorage.setItem(STORE, JSON.stringify(data)); } catch(e2) {}
       mkPts(); renderLabels(); renderCards();
-      // Ora spinge i dati aggiornati al cloud (senza debounce)
       if (currentUserId) await _doSaveToCloud();
     });
   } else if (e.data.type === 'lw-diary-close') {
     closeLwOverlay();
+  }
+  // When embedded: relay saved/close back up to index.html
+  // (index.html opens the overlay, so it must close it too)
+  if (_isEmbed && window.parent !== window) {
+    if (e.data.type === 'lw-diary-saved' || e.data.type === 'lw-diary-close') {
+      window.parent.postMessage(e.data, '*');
+    }
   }
 });
 // ── EMBED MODE ───────────────────────────────────────────────────────────────

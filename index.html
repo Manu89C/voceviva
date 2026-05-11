@@ -721,6 +721,46 @@ window.addEventListener('message', e => {
     const f = document.getElementById('lwIframe');
     if (f) f.style.height = e.data.h + 'px';
   }
+  // Life-wheel area edit: open fullscreen overlay at index.html level
+  if (e.data?.type === 'lw-open-diary') {
+    const areaId = e.data.areaId;
+    let ov = document.getElementById('lwIndexDiaryOverlay');
+    if (!ov) {
+      // Create overlay once
+      const style = document.createElement('style');
+      style.textContent = [
+        '#lwIndexDiaryOverlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;overflow:hidden;}',
+        '#lwIndexDiarySheet{position:absolute;top:0;left:0;right:0;bottom:0;background:#0a0a0f;transform:translateY(100%);transition:transform .38s cubic-bezier(.32,.72,0,1);will-change:transform;}',
+        '#lwIndexDiaryOverlay.lw-overlay-open #lwIndexDiarySheet{transform:translateY(0);}'
+      ].join('');
+      document.head.appendChild(style);
+      ov = document.createElement('div');
+      ov.id = 'lwIndexDiaryOverlay';
+      ov.innerHTML = '<div id="lwIndexDiarySheet"><iframe id="lwIndexDiaryFrame" style="width:100%;height:100%;border:none;display:block;" src="about:blank" allow="microphone"></iframe></div>';
+      document.body.appendChild(ov);
+    }
+    const fr = document.getElementById('lwIndexDiaryFrame');
+    if (fr) fr.src = 'guidedDiary_func.html?mode=life-wheel&areaId=' + areaId + '&popup=1';
+    ov.style.display = 'block';
+    requestAnimationFrame(() => requestAnimationFrame(() => ov.classList.add('lw-overlay-open')));
+  }
+  // Close/save from guidedDiary inside the index-level overlay
+  if (e.data?.type === 'lw-diary-saved' || e.data?.type === 'lw-diary-close') {
+    const ov = document.getElementById('lwIndexDiaryOverlay');
+    const fr = document.getElementById('lwIndexDiaryFrame');
+    if (!ov) return;
+    const sh = document.getElementById('lwIndexDiarySheet');
+    ov.classList.remove('lw-overlay-open');
+    const done = () => {
+      ov.style.display = 'none';
+      if (fr) fr.src = 'about:blank';
+      // Refresh the embedded life wheel iframe
+      const lwf = document.getElementById('lwIframe');
+      if (lwf) { const s = lwf.src; lwf.src = ''; lwf.src = s; }
+    };
+    (sh || ov).addEventListener('transitionend', done, { once: true });
+    setTimeout(done, 450);
+  }
 });
 
 // -- PWA ---------------------------------------------------------------------

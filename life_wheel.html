@@ -1307,6 +1307,14 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
   }
   new ResizeObserver(notifyHeight).observe(document.body);
   notifyHeight();
+
+  // Ascolta lw-refresh: aggiorna i dati senza ricaricare la pagina
+  window.addEventListener('message', ev => {
+    if (ev.data?.type !== 'lw-refresh') return;
+    data = loadData();
+    mkPts(); renderLabels(); renderCards();
+    requestAnimationFrame(notifyHeight);
+  });
 }
 </script>
 

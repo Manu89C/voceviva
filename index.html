@@ -716,8 +716,10 @@ saveKeyBtn.onclick = () => {
 }
 
 // -- LIFE WHEEL IFRAME AUTO-HEIGHT -------------------------------------------
+let _lwHeightLocked = false;
 window.addEventListener('message', e => {
   if (e.data?.type === 'lw-height') {
+    if (_lwHeightLocked) return;  // non ridimensionare mentre l'overlay è aperto
     const f = document.getElementById('lwIframe');
     if (f) f.style.height = e.data.h + 'px';
   }
@@ -742,6 +744,7 @@ window.addEventListener('message', e => {
     const fr = document.getElementById('lwIndexDiaryFrame');
     if (fr) fr.src = 'guidedDiary_func.html?mode=life-wheel&areaId=' + areaId + '&popup=1';
     ov.style.display = 'block';
+    _lwHeightLocked = true;  // congela l'altezza dell'iframe durante l'overlay
     requestAnimationFrame(() => requestAnimationFrame(() => ov.classList.add('lw-overlay-open')));
   }
   // Close/save from guidedDiary inside the index-level overlay
@@ -754,9 +757,12 @@ window.addEventListener('message', e => {
     const done = () => {
       ov.style.display = 'none';
       if (fr) fr.src = 'about:blank';
-      // Refresh the embedded life wheel iframe
+      // Invia lw-refresh all'iframe embedded invece di ricaricarlo completamente
       const lwf = document.getElementById('lwIframe');
-      if (lwf) { const s = lwf.src; lwf.src = ''; lwf.src = s; }
+      if (lwf) {
+        try { lwf.contentWindow.postMessage({ type: 'lw-refresh' }, '*'); } catch(_) {}
+      }
+      _lwHeightLocked = false;  // sblocca aggiornamento altezza
     };
     (sh || ov).addEventListener('transitionend', done, { once: true });
     setTimeout(done, 450);

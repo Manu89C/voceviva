@@ -1302,15 +1302,21 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
   document.querySelector('.header-row').style.display = 'none';
   document.body.style.padding = '.5rem .5rem 1rem';
   function notifyHeight() {
-    // Usa .container invece di body.scrollHeight: scrollHeight "sticky" non si riduce
-    // correttamente durante le transizioni CSS, causando spazio vuoto.
     const cont = document.querySelector('.container');
     if (!cont) return;
     const bs = getComputedStyle(document.body);
     const h = Math.ceil(parseFloat(bs.paddingTop) + cont.offsetHeight + parseFloat(bs.paddingBottom));
     if (window.parent !== window) window.parent.postMessage({ type: 'lw-height', h }, '*');
   }
+  // ResizeObserver copre espansioni e cambi di contenuto
   new ResizeObserver(notifyHeight).observe(document.querySelector('.container'));
+  // transitionend garantisce l'altezza finale dopo la chiusura delle card accordion:
+  // ResizeObserver può non sparare durante la riduzione del grid-template-rows in alcuni browser
+  document.getElementById('areasGrid').addEventListener('transitionend', e => {
+    if (e.target.classList.contains('area-card-body') && e.propertyName === 'grid-template-rows') {
+      notifyHeight();
+    }
+  });
   notifyHeight();
 
   // Ascolta lw-refresh: aggiorna i dati senza ricaricare la pagina

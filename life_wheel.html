@@ -177,12 +177,20 @@ body::before {
 .area-card-edit-btn:hover { color: var(--text); }
 .area-card-edit-btn.editing { color: var(--area-color); }
 .area-card-body {
-  display: none;
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows .32s cubic-bezier(0.4,0,0.2,1);
+  overflow: hidden;
+}
+.area-card.expanded .area-card-body { grid-template-rows: 1fr; }
+.area-card-body-inner {
+  display: flex;
   flex-direction: column;
   gap: 0;
   padding-top: .2rem;
+  min-height: 0;
+  overflow: hidden;
 }
-.area-card.expanded .area-card-body { display: flex; }
 .area-qa-item {
   display: flex; flex-direction: column; gap: .2rem;
   padding: .45rem 0;
@@ -307,7 +315,8 @@ body::before {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
-  .area-card-body { display: flex !important; }
+  .area-card-body { grid-template-rows: 1fr !important; }
+  .area-card-body-inner { overflow: visible !important; }
   .area-card-dot { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   .area-card-name { color: #111 !important; font-size: .82rem !important; font-weight: 700 !important; border: none !important; }
   .area-qa-item { padding: .4rem 0 .4rem 1rem !important; border-bottom: 1px solid #e8e8e8 !important; }
@@ -972,6 +981,8 @@ function renderCards() {
 
     const body = document.createElement('div');
     body.className = 'area-card-body';
+    const bodyInner = document.createElement('div');
+    bodyInner.className = 'area-card-body-inner';
 
     QUESTIONS.forEach((q, qi) => {
       const item = document.createElement('div');
@@ -1022,8 +1033,9 @@ function renderCards() {
       }
       item.appendChild(qlabel);
       item.appendChild(ans);
-      body.appendChild(item);
+      bodyInner.appendChild(item);
     });
+    body.appendChild(bodyInner);
 
     // Name is always editable inline
 
@@ -1122,8 +1134,6 @@ function renderCards() {
           : ql.textContent;
       });
     });
-    // Mostra sempre tutte le domande nelle card espanse
-    body.querySelectorAll('.area-qa-item').forEach(itm => { itm.style.display = ''; });
   });
 }
 
@@ -1253,6 +1263,23 @@ window.addEventListener('message', async e => {
   // When standalone: handle saved/close from the inner guidedDiary iframe
   if (e.data.type === 'lw-diary-saved') {
     closeLwOverlay(async () => {
+      // Reload question order from localStorage (user may have reordered in edit panel)
+      try {
+        const _sq = localStorage.getItem('vv_lw_questions');
+        if (_sq) {
+          const _arr = JSON.parse(_sq);
+          if (Array.isArray(_arr) && _arr.length > 0) {
+            const _objs = _arr.map(q => typeof q === 'string' ? { text: q, hasMood: false, placeholder: '' } : q);
+            const _texts = _objs.map(q => q.text || '');
+            if (_texts.some(q => /\{area\}/i.test(q))) {
+              QUESTIONS.length = 0;
+              _QUESTIONS_FULL.length = 0;
+              _texts.forEach(q => QUESTIONS.push(q));
+              _objs.forEach(q => _QUESTIONS_FULL.push(q));
+            }
+          }
+        }
+      } catch(e2) {}
       data = loadData();
       data.lastModified = new Date().toISOString();
       try { localStorage.setItem(STORE, JSON.stringify(data)); } catch(e2) {}

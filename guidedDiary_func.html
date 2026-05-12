@@ -105,9 +105,10 @@ body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:no
 .guided-card.lw-mode.kbd .guided-close { width:22px; height:22px; font-size:.65rem; }
 .guided-card.lw-mode.kbd .guided-q-nav-btn { width:22px; height:22px; padding:.15rem .1rem; }
 .guided-card.lw-mode.kbd .guided-q-counter { font-size:.52rem; min-width:24px; }
-.guided-card.lw-mode.kbd .guided-question { font-size:.88rem; line-height:1.15; padding:.03rem 0 .04rem; }
-.guided-card.lw-mode.kbd .guided-body { gap:.1rem; padding-bottom:.06rem; }
-.guided-card.lw-mode.kbd .guided-editor-wrap { flex:1; min-height:0; }
+/* Hide question text when keyboard open — counter arrows show position */
+.guided-card.lw-mode.kbd .guided-question { display: none; }
+.guided-card.lw-mode.kbd .guided-body { gap:.06rem; padding-top:.04rem; padding-bottom:.04rem; }
+.guided-card.lw-mode.kbd .guided-editor-wrap { flex:1; min-height:0; padding:.25rem .45rem; }
 .guided-card.lw-mode.kbd .guided-fixed-bottom { padding:.1rem .9rem; }
 .guided-card.lw-mode.kbd .guided-mic-btn { padding:.25rem .5rem !important; }
 .guided-card.lw-mode.kbd .guided-continue { font-size:.8rem; padding:.25rem .65rem; }

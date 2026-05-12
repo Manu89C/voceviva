@@ -736,6 +736,8 @@ if (sessionStorage.getItem('vv_edit_completed') === '1' && !localStorage.getItem
   sessionStorage.removeItem('vv_edit_completed'); window.location.replace('diary.html');
 }
 let _editNoteId = null;
+let _editNoteOrigMode = null;   // preserva mode/source originali al salvataggio
+let _editNoteOrigSource = null;
 let _cameFromDiary = false;
 {
   const editJson = localStorage.getItem('vv_edit_note');
@@ -743,6 +745,8 @@ let _cameFromDiary = false;
     try {
       const note = JSON.parse(editJson);
       _editNoteId = note.id;
+      _editNoteOrigMode = note.mode || null;
+      _editNoteOrigSource = note.source || null;
       _cameFromDiary = true;
       annotEditor.innerHTML = note.content || '';
       noteTitleInput.value = note.title || '';
@@ -1399,7 +1403,10 @@ modalConfirm.onclick = async () => {
   try {
     let _imgUrl = null; if (_photoBase64 && _photoHasSchema) _imgUrl = await uploadPhotoToStorage(_photoBase64);
     const _mode = _saveMode === 'ai' ? 'AI' : (_hasRec && (_hasWrite || _photoBase64) ? 'rec+write' : _hasRec ? 'rec' : 'write');
-    const _rec = { title, content, note_date: date, mode: _mode, source: 'free' }; if (_imgUrl) _rec.image_url = _imgUrl; if (currentUserId) _rec.user_id = currentUserId;
+    // In edit mode: preserva mode e source originali della nota (es. guided, report)
+    const _finalMode   = _editNoteId && _editNoteOrigMode   ? _editNoteOrigMode   : _mode;
+    const _finalSource = _editNoteId && _editNoteOrigSource ? _editNoteOrigSource : 'free';
+    const _rec = { title, content, note_date: date, mode: _finalMode, source: _finalSource }; if (_imgUrl) _rec.image_url = _imgUrl; if (currentUserId) _rec.user_id = currentUserId;
     let savedNote, error;
     if (_editNoteId) {
       _rec.updated_at = new Date().toISOString();

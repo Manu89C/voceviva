@@ -1353,7 +1353,13 @@ async function warmupAPI() {
         // ── GENERA REPORT AI post-salvataggio ──
         if (GROQ_KEY && savedNote) {
           gContinueBtn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;"></div><span style="margin-left:.4em;font-size:.72rem">Analisi AI…</span>';
-          try { await _generateDiaryReport(savedNote, html); } catch(_re) {}
+          try {
+            const _reportHtml = await _generateDiaryReport(savedNote, html);
+            if (_reportHtml) {
+              _showReportOverlay(_reportHtml);
+              return; // il popup chiuderà e tornerà indietro
+            }
+          } catch(_re) {}
         }
 
         goBack();
@@ -1454,6 +1460,50 @@ Regole:
       window.parent.postMessage({ type: 'vv-report-ready' }, '*');
     }
     window.dispatchEvent(new CustomEvent('vv:reportReady'));
+    return reportHtml; // restituisce l'HTML per il popup
+  }
+
+  // ── POPUP REPORT A TUTTO SCHERMO ─────────────────────────────────────────────
+  function _showReportOverlay(reportHtml) {
+    // Crea overlay se non esiste
+    let ov = document.getElementById('_reportOverlay');
+    if (!ov) {
+      const style = document.createElement('style');
+      style.textContent = [
+        '#_reportOverlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:10000;overflow:hidden;}',
+        '#_reportSheet{position:absolute;top:0;left:0;right:0;bottom:0;background:#0a0a0f;transform:translateY(100%);transition:transform .42s cubic-bezier(.32,.72,0,1);overflow-y:auto;-webkit-overflow-scrolling:touch;}',
+        '#_reportOverlay.show #_reportSheet{transform:translateY(0);}',
+        '#_reportClose{position:sticky;top:0;z-index:2;display:flex;justify-content:flex-end;padding:.75rem 1rem .4rem;background:linear-gradient(to bottom,#0a0a0f 80%,transparent);}',
+        '#_reportClose button{background:none;border:1px solid #1e1e2e;border-radius:.5rem;color:#5a5a7a;font-family:"JetBrains Mono",monospace;font-size:.62rem;padding:.4rem .75rem;cursor:pointer;transition:color .2s,border-color .2s;}',
+        '#_reportClose button:hover{color:#f55036;border-color:rgba(245,80,54,.4);}',
+        '#_reportBody{padding:1.4rem 1.2rem 4rem;max-width:640px;margin:0 auto;font-family:"Crimson Pro",Georgia,serif;font-size:1rem;line-height:1.8;color:#e8e8f0;}',
+        '#_reportBody h2{font-family:"DM Serif Display",serif;font-size:1.45rem;line-height:1.25;color:#fff;margin-bottom:1.2rem;letter-spacing:-.02em;}',
+        '#_reportBody h3{font-family:"JetBrains Mono",monospace;font-size:.72rem;text-transform:uppercase;letter-spacing:.14em;color:#5a5a7a;margin:1.4rem 0 .55rem;}',
+        '#_reportBody ul{margin:.3em 0 .5em 1.4em;padding:0;}',
+        '#_reportBody li{margin:.3em 0;line-height:1.7;}',
+        '#_reportBody strong{color:#fff;font-weight:600;}',
+        '#_reportBody em{color:#f59e0b;font-style:italic;}',
+        '#_reportBody p{margin-bottom:.6rem;}'
+      ].join('');
+      document.head.appendChild(style);
+      ov = document.createElement('div');
+      ov.id = '_reportOverlay';
+      ov.innerHTML = '<div id="_reportSheet"><div id="_reportClose"><button id="_reportCloseBtn">✕ Chiudi</button></div><div id="_reportBody"></div></div>';
+      document.body.appendChild(ov);
+      document.getElementById('_reportCloseBtn').addEventListener('click', () => {
+        ov.classList.remove('show');
+        const sh = document.getElementById('_reportSheet');
+        const done = () => { ov.style.display = 'none'; goBack(); };
+        sh.addEventListener('transitionend', done, { once: true });
+        setTimeout(done, 480);
+      });
+    }
+    const _safeReport = reportHtml
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/\bon\w+\s*=/gi, 'data-blocked=');
+    document.getElementById('_reportBody').innerHTML = _safeReport;
+    ov.style.display = 'block';
+    requestAnimationFrame(() => requestAnimationFrame(() => ov.classList.add('show')));
   }
 
   // ── VOICE RECORDING (GUIDED) ──

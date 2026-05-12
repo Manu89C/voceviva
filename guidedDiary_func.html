@@ -107,8 +107,12 @@ body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:no
 .guided-card.lw-mode.kbd .guided-q-counter { font-size:.52rem; min-width:24px; }
 /* Hide question text when keyboard open — counter arrows show position */
 .guided-card.lw-mode.kbd .guided-question { display: none; }
-.guided-card.lw-mode.kbd .guided-body { gap:.06rem; padding-top:.04rem; padding-bottom:.04rem; }
-.guided-card.lw-mode.kbd .guided-editor-wrap { flex:1; min-height:0; padding:.25rem .45rem; }
+/* Force body to collapse and let flex control its height */
+.guided-card.lw-mode.kbd .guided-body { gap:.06rem; padding-top:.04rem; padding-bottom:.04rem; overflow:hidden; height:0; }
+/* Editor wrap fills all available space */
+.guided-card.lw-mode.kbd .guided-editor-wrap { flex:1 1 0; min-height:0; padding:.2rem .45rem; overflow:hidden; }
+.guided-card.lw-mode.kbd .guided-editor { flex:1 1 0; min-height:0; font-size:.97rem; line-height:1.6; }
+.guided-card.lw-mode.kbd .guided-editor-fmt .fmt-btn { padding:.18rem 0; font-size:.56rem; }
 .guided-card.lw-mode.kbd .guided-fixed-bottom { padding:.1rem .9rem; }
 .guided-card.lw-mode.kbd .guided-mic-btn { padding:.25rem .5rem !important; }
 .guided-card.lw-mode.kbd .guided-continue { font-size:.8rem; padding:.25rem .65rem; }
@@ -1953,17 +1957,21 @@ async function warmupAPI() {
   initGuidedDiary();
 })();
 
-// ── Adatta overlay diario guidato alla tastiera mobile (Visual Viewport API) ──
+// ── Adatta overlay diario guidato alla tastiera mobile ──────────────────────
 (function() {
   var ov = document.getElementById('guidedOverlay');
   var card = ov ? ov.querySelector('.guided-card') : null;
   var fixedBottom = document.getElementById('guidedFixedBottom');
   var fabRec = document.getElementById('guidedFabRec');
   var guidedBody = ov ? ov.querySelector('.guided-body') : null;
-  if (!ov || !window.visualViewport) return;
+  if (!ov || !card) return;
 
-  var baseH = window.visualViewport.height;
-  var KBD_THR = 120;
+  // baseH = maximum known viewport height (updated as it grows)
+  var baseH = Math.max(
+    window.innerHeight,
+    window.visualViewport ? window.visualViewport.height : 0
+  );
+  var KBD_THR = 150; // px threshold — avoids false positives from browser chrome
 
   function updateFabPos() {
     if (!fixedBottom || !fabRec) return;
@@ -1981,27 +1989,63 @@ async function warmupAPI() {
     updateFabPos();
   }
 
+  function getCurH() {
+    return window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  }
+
   function sync() {
-    var vv = window.visualViewport;
-    ov.style.top    = vv.offsetTop + 'px';
-    ov.style.height = vv.height + 'px';
-    ov.style.bottom = 'auto';
-    setKbd((baseH - vv.height) > KBD_THR);
+    var curH = getCurH();
+    // Keep baseH at the largest known height (keyboard dismissed state)
+    if (curH > baseH) baseH = curH;
+    // Reposition & resize the overlay to cover exactly the visual viewport
+    if (window.visualViewport) {
+      var vv = window.visualViewport;
+      ov.style.top    = vv.offsetTop + 'px';
+      ov.style.height = vv.height + 'px';
+      ov.style.bottom = 'auto';
+    } else {
+      ov.style.top    = '0px';
+      ov.style.height = window.innerHeight + 'px';
+      ov.style.bottom = 'auto';
+    }
+    setKbd((baseH - getCurH()) > KBD_THR);
   }
 
-  function reset() {
-    ov.style.top=''; ov.style.height=''; ov.style.bottom='';
-    setKbd(false);
+  // ── Primary: Visual Viewport API ──
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', function() {
+      var h = window.visualViewport.height;
+      if (h > baseH) baseH = h;
+      sync();
+    });
+    window.visualViewport.addEventListener('scroll', sync);
   }
 
-  window.visualViewport.addEventListener('resize', function() {
-    var h = window.visualViewport.height;
+  // ── Fallback 1: window resize (Android / desktop) ──
+  window.addEventListener('resize', function() {
+    var h = window.innerHeight;
     if (h > baseH) baseH = h;
     sync();
   });
 
-  window.visualViewport.addEventListener('scroll', function() {
-    sync();
+  // ── Fallback 2: focus/blur detection (iOS iframe / PWA) ──
+  // iOS Safari inside an iframe often doesn't fire visualViewport resize events.
+  // Polling after focus gives us the height *after* the keyboard animation finishes.
+  var _kbdT1 = null, _kbdT2 = null;
+  document.addEventListener('focusin', function(e) {
+    var tag = (e.target.tagName || '').toLowerCase();
+    var editable = e.target.contentEditable === 'true' || tag === 'input' || tag === 'textarea';
+    if (!editable) return;
+    clearTimeout(_kbdT1); clearTimeout(_kbdT2);
+    _kbdT1 = setTimeout(sync, 350);  // first check after ~iOS keyboard animation
+    _kbdT2 = setTimeout(sync, 750);  // second check for slow devices
+  });
+  document.addEventListener('focusout', function(e) {
+    var tag = (e.target.tagName || '').toLowerCase();
+    var editable = e.target.contentEditable === 'true' || tag === 'input' || tag === 'textarea';
+    if (!editable) return;
+    clearTimeout(_kbdT1); clearTimeout(_kbdT2);
+    _kbdT1 = setTimeout(sync, 250);  // keyboard dismiss
   });
 
   // ── FAB REC ──

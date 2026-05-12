@@ -1302,10 +1302,15 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
   document.querySelector('.header-row').style.display = 'none';
   document.body.style.padding = '.5rem .5rem 1rem';
   function notifyHeight() {
-    const h = document.body.scrollHeight;
+    // Usa .container invece di body.scrollHeight: scrollHeight "sticky" non si riduce
+    // correttamente durante le transizioni CSS, causando spazio vuoto.
+    const cont = document.querySelector('.container');
+    if (!cont) return;
+    const bs = getComputedStyle(document.body);
+    const h = Math.ceil(parseFloat(bs.paddingTop) + cont.offsetHeight + parseFloat(bs.paddingBottom));
     if (window.parent !== window) window.parent.postMessage({ type: 'lw-height', h }, '*');
   }
-  new ResizeObserver(notifyHeight).observe(document.body);
+  new ResizeObserver(notifyHeight).observe(document.querySelector('.container'));
   notifyHeight();
 
   // Ascolta lw-refresh: aggiorna i dati senza ricaricare la pagina

@@ -1749,6 +1749,33 @@ async function warmupAPI() {
     });
     if (newQuestions.length === 0) return;
 
+    // -- Rimappa area.answers prima di aggiornare GUIDED_QUESTIONS ----------------
+    // Le risposte sono memorizzate per indice: se l'ordine cambia, vanno rimappate
+    // altrimenti ogni risposta rimarrebbe legata alla posizione sbagliata.
+    if (GD_MODE === 'life-wheel') {
+      try {
+        const _oldTexts = GUIDED_QUESTIONS.map(function(q) { return q.text; });
+        const _oldIndices = newQuestions.map(function(nq) { return _oldTexts.indexOf(nq.text); });
+        const _orderChanged = _oldIndices.some(function(oi, ni) { return oi !== ni; });
+        if (_orderChanged) {
+          const _lwRaw = localStorage.getItem('vv_life_wheel');
+          if (_lwRaw) {
+            const _lwData = JSON.parse(_lwRaw);
+            if (Array.isArray(_lwData.areas)) {
+              _lwData.areas.forEach(function(area) {
+                if (!Array.isArray(area.answers)) return;
+                area.answers = _oldIndices.map(function(oi) {
+                  return oi >= 0 ? (area.answers[oi] || '') : '';
+                });
+              });
+              localStorage.setItem('vv_life_wheel', JSON.stringify(_lwData));
+            }
+          }
+        }
+      } catch(_e) {}
+    }
+    // -------------------------------------------------------------------------
+
     GUIDED_QUESTIONS.length = 0;
     newQuestions.forEach(function(q) { GUIDED_QUESTIONS.push(q); });
     try { localStorage.setItem(GQ_STORAGE_KEY, JSON.stringify(GUIDED_QUESTIONS)); } catch(e) {}

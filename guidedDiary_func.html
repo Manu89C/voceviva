@@ -1350,6 +1350,12 @@ async function warmupAPI() {
           } catch(ex) {}
         }
 
+        // ── GENERA REPORT AI post-salvataggio ──
+        if (GROQ_KEY && savedNote) {
+          gContinueBtn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;"></div><span style="margin-left:.4em;font-size:.72rem">Analisi AI…</span>';
+          try { await _generateDiaryReport(savedNote, html); } catch(_re) {}
+        }
+
         goBack();
         return;
       } catch(e) {
@@ -1359,6 +1365,95 @@ async function warmupAPI() {
 
     gContinueBtn.disabled = false;
     gContinueBtn.innerHTML = _checkSVG;
+  }
+
+  // ── REPORT AI POST-DIARIO ─────────────────────────────────────────────────────
+  async function _generateDiaryReport(savedNote, noteHtml) {
+    if (!sb || !GROQ_KEY || !currentUserId) return;
+
+    // Leggi le aree della life wheel per il confronto progressi
+    let lwAreas = [];
+    try {
+      const _lw = localStorage.getItem('vv_life_wheel');
+      if (_lw) {
+        const _lwData = JSON.parse(_lw);
+        lwAreas = (_lwData.areas || []).filter(a => a.label && a.label.trim());
+      }
+    } catch(_) {}
+
+    // Testo grezzo della nota
+    const notePlain = noteHtml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+    // Contesto life wheel: aree + risposta "situazione attuale" (Q con dimensioni)
+    const lwContext = lwAreas.length > 0 ? lwAreas.map(a => {
+      const qs = (() => {
+        try { const _sq = localStorage.getItem('vv_lw_questions'); return _sq ? JSON.parse(_sq).map(q => (q.text || q)) : []; } catch(_) { return []; }
+      })();
+      const sitIdx = qs.findIndex(q => /situazione\s+attuale/i.test(q));
+      const sitAns = sitIdx >= 0 && a.answers ? (a.answers[sitIdx] || '') : '';
+      const sitPlain = sitAns.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      return `AREA: ${a.label}${sitPlain ? `\nSituazione attuale dichiarata: ${sitPlain.slice(0, 300)}` : ''}`;
+    }).join('\n\n') : '';
+
+    const systemPrompt = `Sei un coach narrativo che analizza le note di un diario personale.
+Hai accesso alla Life Wheel dell'utente che descrive la situazione attuale in ogni area della vita.
+Devi produrre un report strutturato in HTML semantico, narrativo e personale.
+
+Il report deve contenere ESATTAMENTE queste sezioni in ordine:
+1. <h2> con titolo evocativo del report (NON "Report", sii creativo)
+2. <h3>🗺️ Mappa delle aree della vita</h3> — per ciascuna area della Life Wheel citata nella nota, indica se l'utente ha fatto un passo avanti (+1 🍪), un passo indietro (-1), o è stabile (→). Motiva brevemente. Elenca ogni area come <li> con il simbolo e la motivazione.
+3. <h3>🔑 Temi dominanti</h3> — 3-5 temi ricorrenti estratti dalla nota, in <ul>
+4. <h3>💡 Punti chiave</h3> — 3-5 insight concreti emersi dalla riflessione, in <ul>
+5. <h3>🌟 La tua figura ispiratrice</h3> — assegna UN personaggio storico, letterario o reale (non generico) che risuona con le tematiche della nota. Descrivi: chi è, quali paure e dubbi ha affrontato, quale situazione critica ha superato e come, e cosa può insegnargli l'utente.
+6. <h3>🍪 Cookie guadagnati</h3> — elenca in <ul> i progressi concreti per cui assegni un cookie, con emoji 🍪 e motivazione breve.
+
+Regole:
+- Scrivi in italiano, tono caldo e diretto (tu)
+- USA SOLO HTML (h2, h3, p, ul, li, strong, em) — nessun markdown
+- NON iniziare con saluti o intro generiche
+- Sii specifico: cita parole/frasi dall'utente per mostrare che hai letto davvero
+- Se non ci sono aree della Life Wheel nella nota, scrivi "Nessun riferimento diretto alle aree" nella sezione mappa`;
+
+    const userMsg = `NOTA DEL DIARIO:\n${notePlain.slice(0, 2000)}${lwContext ? `\n\nLIFE WHEEL — SITUAZIONE ATTUALE PER AREA:\n${lwContext}` : ''}`;
+
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST', cache: 'no-store',
+      headers: { 'Authorization': 'Bearer ' + GROQ_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+        max_tokens: 1800, temperature: 0.65,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMsg }
+        ]
+      })
+    });
+    if (!res.ok) return;
+    const aiData = await res.json();
+    let reportHtml = aiData?.choices?.[0]?.message?.content?.trim() || '';
+    if (!reportHtml) return;
+
+    // Rimuovi eventuali backtick markdown
+    reportHtml = reportHtml.replace(/^```html?\s*/i, '').replace(/\s*```$/i, '').trim();
+
+    // Titolo della nota-report: estrai il testo del primo h2 se presente
+    const _h2m = reportHtml.match(/<h2[^>]*>(.*?)<\/h2>/i);
+    const reportTitle = _h2m ? _h2m[1].replace(/<[^>]+>/g, '').trim() : ('Report — ' + (savedNote.note_date || new Date().toISOString().split('T')[0]));
+
+    // Salva come nota mode='report' collegata alla nota originale
+    await sb.from('notes').insert([{
+      title:     reportTitle,
+      content:   reportHtml,
+      note_date: savedNote.note_date || new Date().toISOString().split('T')[0],
+      mode:      'report',
+      source:    'ai',
+      user_id:   currentUserId
+    }]);
+    // Notifica il parent (index.html) che un nuovo report è disponibile
+    if (window.parent !== window) {
+      window.parent.postMessage({ type: 'vv-report-ready' }, '*');
+    }
+    window.dispatchEvent(new CustomEvent('vv:reportReady'));
   }
 
   // ── VOICE RECORDING (GUIDED) ──

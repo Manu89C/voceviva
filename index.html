@@ -747,6 +747,13 @@ window.addEventListener('message', e => {
     _lwHeightLocked = true;  // congela l'altezza dell'iframe durante l'overlay
     requestAnimationFrame(() => requestAnimationFrame(() => ov.classList.add('lw-overlay-open')));
   }
+  // Nuovo report AI generato dal diario guidato
+  if (e.data?.type === 'vv-report-ready') {
+    // Aggiorna la card report nelle annotazioni non appena l'utente torna su index.html
+    const rc = document.querySelector('.container');
+    const ps = document.getElementById('pendingSection');
+    if (rc) ReportManager.renderReportCard(rc, ps).catch(() => {});
+  }
   // Close/save from guidedDiary inside the index-level overlay
   if (e.data?.type === 'lw-diary-saved' || e.data?.type === 'lw-diary-close') {
     const ov = document.getElementById('lwIndexDiaryOverlay');

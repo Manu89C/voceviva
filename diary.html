@@ -586,7 +586,7 @@ function openReadOverlay(note){readingNote=note;readOverlayTitle.textContent=not
 function pinNote(note, btn) {
   if(!note) return;
   var _plain=(note.content||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
-  var _pinData={title:note.title||'Nota senza titolo',content:note.content||'',plainText:_plain,date:note.note_date||new Date().toISOString().split('T')[0],noteId:note.id,pinnedAt:new Date().toISOString()};
+  var _pinData={title:note.title||'Nota senza titolo',content:note.content||'',plainText:_plain,date:note.note_date||new Date().toISOString().split('T')[0],noteId:note.id,mode:note.mode||'write',source:note.source||'free',pinnedAt:new Date().toISOString()};
   try{localStorage.setItem('vv_pinned_note',JSON.stringify(_pinData));}catch(e){return;}
   if(typeof sb!=='undefined'&&sb&&currentUserId){sb.from('vv_user_profile').upsert({user_id:currentUserId,pinned_note:_pinData,updated_at:new Date().toISOString()},{onConflict:'user_id'}).then(function(){}).catch(function(){});}
   document.querySelectorAll('.note-vcard-action-btn.pin-btn').forEach(function(b){
@@ -627,7 +627,7 @@ $('listAddBtn').onclick = () => openEntrySwitcher('');
 function openEditInFreeNote(note) {
   localStorage.setItem('vv_edit_note', JSON.stringify({
     id: note.id, title: note.title, content: note.content,
-    note_date: note.note_date, mode: note.mode
+    note_date: note.note_date, mode: note.mode, source: note.source
   }));
   window.location.href = 'freeNote_func.html';
 }
